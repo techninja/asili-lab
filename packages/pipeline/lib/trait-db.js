@@ -78,7 +78,7 @@ class TraitMetadataDB {
     });
     // Also create pgs tables since they share the same DB
     await new Promise((resolve, reject) => {
-      conn.run(`CREATE TABLE IF NOT EXISTS pgs_scores (pgs_id VARCHAR PRIMARY KEY, weight_type VARCHAR, method_name VARCHAR, norm_mean DOUBLE, norm_sd DOUBLE, variants_count BIGINT, last_updated TIMESTAMP DEFAULT now())`, err => err ? reject(err) : resolve());
+      conn.run(`CREATE TABLE IF NOT EXISTS pgs_scores (pgs_id VARCHAR PRIMARY KEY, weight_type VARCHAR, method_name VARCHAR, norm_mean DOUBLE, norm_sd DOUBLE, variants_number BIGINT, last_updated TIMESTAMP DEFAULT now())`, err => err ? reject(err) : resolve());
     });
     await new Promise((resolve, reject) => {
       conn.run(`CREATE SEQUENCE IF NOT EXISTS pgs_performance_seq START 1`, err => err ? reject(err) : resolve());

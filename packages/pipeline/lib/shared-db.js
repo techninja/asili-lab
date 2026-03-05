@@ -4,9 +4,10 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// Always use repo root data_out, regardless of where script is run from
-const REPO_ROOT = path.resolve(__dirname, '../../..');
-const OUTPUT_DIR = path.join(REPO_ROOT, 'data_out');
+
+// Use /output in Docker, data_out locally
+const OUTPUT_DIR = process.env.OUTPUT_DIR ||
+  (fs.existsSync('/output') ? '/output' : path.join(path.resolve(__dirname, '../../..'), 'data_out'));
 const DB_PATH = path.join(OUTPUT_DIR, 'trait_manifest.db');
 
 // Ensure output directory exists
@@ -15,64 +16,44 @@ if (!fs.existsSync(OUTPUT_DIR)) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 }
 
-class SharedDB {
-  constructor() {
-    this.db = null;
-    this.conn = null;
-    this.initialized = false;
-  }
+// Singleton database instance
+let db = null;
+let conn = null;
 
-  async init() {
+export async function getConnection() {
+  if (!db) {
     try {
-      if (this.initialized && this.conn && this.db) {
-        // Test if connection is still valid
-        try {
-          await new Promise((resolve, reject) => {
-            this.conn.all('SELECT 1', (err) => err ? reject(err) : resolve());
-          });
-          return; // Connection is valid
-        } catch (e) {
-          // Connection is dead, reinitialize
-          this.initialized = false;
-          this.conn = null;
-          this.db = null;
-        }
-      }
-      
-      console.log(`Initializing database at: ${DB_PATH}`);
-      this.db = new duckdb.Database(DB_PATH);
-      this.conn = this.db.connect();
-      this.initialized = true;
-      console.log('✓ Database connection established');
+      db = new duckdb.Database(DB_PATH);
     } catch (error) {
-      console.error('Failed to initialize database:', error);
+      const errMsg = error.message || '';
+      if (errMsg.includes('lock') || errMsg.includes('locked')) {
+        console.error('\n❌ Database is locked by another process!');
+        console.error('💡 Are you running any other servers or have DB connections open?');
+        console.error('   Please close all connections and retry the pipeline.\n');
+        throw new Error('Database locked - close other connections and retry');
+      }
+      if (errMsg.includes('Serialization Error') || errMsg.includes('deserialize')) {
+        console.error('\n❌ Database version mismatch!');
+        console.error('💡 The database was created with a different DuckDB version.');
+        console.error('   Please rebuild the pipeline container: docker compose build pipeline\n');
+        throw new Error('Database version mismatch - rebuild pipeline container');
+      }
       throw error;
     }
   }
-
-  getConnection() {
-    if (!this.initialized) {
-      throw new Error('Database not initialized. Call init() first.');
-    }
-    return this.conn;
+  if (!conn) {
+    conn = db.connect();
   }
-
-  close() {
-    if (this.conn) this.conn.close();
-    if (this.db) this.db.close();
-    this.initialized = false;
-    this.conn = null;
-    this.db = null;
-  }
-}
-
-const sharedDB = new SharedDB();
-
-export async function getConnection() {
-  await sharedDB.init();
-  return sharedDB.getConnection();
+  return conn;
 }
 
 export function closeConnection() {
-  sharedDB.close();
+  if (conn) {
+    conn.close();
+    conn = null;
+  }
+  if (db) {
+    db.close();
+    db = null;
+  }
 }

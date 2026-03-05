@@ -97,3 +97,6 @@ data_out/
 cache/
 server-data/
 .env
+
+# Python virtual environment
+.venv

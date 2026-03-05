@@ -1,13 +1,21 @@
 FROM node:22-slim
 
-# Install DuckDB CLI, Python3, pandas, and wget
-RUN apt-get update && apt-get install -y wget unzip python3 python3-pip pv \
+# Install build tools for native modules, DuckDB CLI, Python3, pandas, and wget
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    python3 \
+    make \
+    g++ \
+    wget \
+    unzip \
+    python3-pip \
+    pv \
     && pip3 install --break-system-packages pandas pyarrow \
     && ARCH=$(dpkg --print-architecture) \
     && if [ "$ARCH" = "amd64" ]; then DUCKDB_ARCH="linux-amd64"; MIGRATE_ARCH="linux-amd64"; \
        elif [ "$ARCH" = "arm64" ]; then DUCKDB_ARCH="linux-aarch64"; MIGRATE_ARCH="linux-arm64"; \
        else DUCKDB_ARCH="linux-amd64"; MIGRATE_ARCH="linux-amd64"; fi \
-    && wget https://github.com/duckdb/duckdb/releases/download/v0.9.2/duckdb_cli-${DUCKDB_ARCH}.zip \
+    && wget https://github.com/duckdb/duckdb/releases/download/v1.4.3/duckdb_cli-${DUCKDB_ARCH}.zip \
     && unzip duckdb_cli-${DUCKDB_ARCH}.zip \
     && mv duckdb /usr/local/bin/ \
     && chmod +x /usr/local/bin/duckdb \

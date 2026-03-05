@@ -41,6 +41,7 @@ services:
       - CACHE_DIR=/cache
       - OUTPUT_DIR=/output
       - NODE_ENV=production
+      - GNOMAD_DB_PATH=${GNOMAD_DB_PATH}
     volumes:
       - ./packages/pipeline:/app/packages/pipeline
       - ./packages/core:/app/packages/core
@@ -48,3 +49,4 @@ services:
       - /app/packages/core/node_modules
       - ./data_out:/output
       - ./cache:/cache
+      - ${GNOMAD_DB_PATH}:${GNOMAD_DB_PATH}:ro

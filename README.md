@@ -36,6 +36,19 @@ Asili is a privacy-first genomic risk analysis platform that processes DNA data 
 
 ## Deployment Options
 
+### ETL Pipeline
+
+```bash
+# Interactive menu
+pnpm etl
+
+# Run locally (faster)
+pnpm etl local
+
+# Run in Docker (uses gnomAD if GNOMAD_DB_PATH set in .env)
+pnpm etl docker
+```
+
 ### Single Command Deployment
 
 ```bash
