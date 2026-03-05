@@ -15,11 +15,6 @@
       "title": "APOE carrier status",
       "description": "quantification of the presence or absence of apolipoprotein E (APOE) in an individual"
     },
-    "HP_0003115": {
-      "trait_id": "HP_0003115",
-      "title": "Abnormal EKG",
-      "description": "Abnormal rhythm of the heart."
-    },
     "MONDO:0004975": {
       "trait_id": "MONDO:0004975",
       "title": "Alzheimer disease",
@@ -29,11 +24,6 @@
       "trait_id": "EFO_0007788",
       "title": "BMI-adjusted waist-hip ratio",
       "description": "waist-hip ratio that has been adjusted by subjects’ body mass index"
-    },
-    "MONDO:0015263": {
-      "trait_id": "MONDO:0015263",
-      "title": "Brugada syndrome",
-      "description": "A genetic heart condition that can cause dangerous irregular heartbeats."
     },
     "EFO_0004458": {
       "trait_id": "EFO_0004458",
@@ -245,11 +235,6 @@
       "title": "cleft lip",
       "description": "Congenital defect in the upper lip where the maxillary prominence fails to merge with the merged medial nasal prominences. It is thought to be caused by faulty migration of the mesoderm in the head region."
     },
-    "EFO_0007710": {
-      "trait_id": "EFO_0007710",
-      "title": "cognitive decline measurement",
-      "description": "quantification of some aspect of cognitive decline such as the rate at which it occurs or its severity, for example in patients with dementia or Alzheimer's disease. Cognitive decline is ususally assessed using a structured-interview protocol covering a number of standardised areas."
-    },
     "MONDO:0005575": {
       "trait_id": "MONDO:0005575",
       "title": "colorectal cancer",
@@ -329,11 +314,6 @@
       "trait_id": "PATO_0000383",
       "title": "female",
       "description": "A biological sex quality inhering in an individual or a population that only produces gametes that can be fertilised by male gametes."
-    },
-    "MONDO:0018906": {
-      "trait_id": "MONDO:0018906",
-      "title": "follicular lymphoma",
-      "description": "A slow-growing type of blood cancer that affects B-cells, a type of white blood cell."
     },
     "MONDO:0001056": {
       "trait_id": "MONDO:0001056",
@@ -615,11 +595,6 @@
       "title": "reticulocyte count",
       "description": "The number of reticulocytes per unit volume of blood. Reticulocytes are immature red blood cells and typically compose aoubt 1% of red blood cells in the human body."
     },
-    "OBA_2050084": {
-      "trait_id": "OBA_2050084",
-      "title": "serum IgE amount",
-      "description": "The amount of a IgE immunoglobulin complex, circulating when measured in blood serum. [AUTO: patterns/patterns/entity_attribute_location]"
-    },
     "OBA_2050062": {
       "trait_id": "OBA_2050062",
       "title": "serum alanine aminotransferase amount",
@@ -634,11 +609,6 @@
       "trait_id": "EFO_0009282",
       "title": "sodium measurement",
       "description": "A quantitative measurement of the amount of sodium present in a sample."
-    },
-    "EFO_0010820": {
-      "trait_id": "EFO_0010820",
-      "title": "spontaneous coronary artery dissection",
-      "description": "A rare condition where the wall of a coronary artery tears spontaneously."
     },
     "OBA_2050024": {
       "trait_id": "OBA_2050024",
