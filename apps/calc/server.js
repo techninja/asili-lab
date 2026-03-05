@@ -212,7 +212,7 @@ class AsiliCalcServer {
                     result.pgsDetails[pgs_id].metadata = {};
                   }
                   result.pgsDetails[pgs_id].metadata.name = pgs.method_name || pgs_id;
-                  result.pgsDetails[pgs_id].metadata.variants_number = pgs.variants_count ? Number(pgs.variants_count) : null;
+                  result.pgsDetails[pgs_id].metadata.variants_number = pgs.variants_number ? Number(pgs.variants_number) : null;
 
                   // Add normalization parameters from database
                   if (pgs.norm_mean !== undefined && pgs.norm_mean !== null) {
@@ -222,7 +222,7 @@ class AsiliCalcServer {
                     result.pgsDetails[pgs_id].normSd = pgs.norm_sd;
                   }
 
-                  if (pgs.variants_count) totalVariants += Number(pgs.variants_count);
+                  if (pgs.variants_number) totalVariants += Number(pgs.variants_number);
                 }
               }
             }
@@ -766,9 +766,7 @@ class AsiliCalcServer {
   async addToQueue(traitId, individualId) {
     // Check if result already exists
     try {
-      console.log(`🔍 Checking for existing result: ${traitId} for ${individualId}`);
       const existingResult = await this.processor.storage.getCachedRiskScore(individualId, traitId);
-      console.log(`🔍 Existing result check complete:`, existingResult ? 'Found' : 'Not found');
       if (existingResult) {
         console.log(`⚡ Result already exists for ${traitId} and ${individualId}`);
         return null; // Don't queue if result exists

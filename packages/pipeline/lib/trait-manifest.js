@@ -18,7 +18,7 @@ export async function updateTraitInManifest(traitId, traitData) {
       method: metadata.method_name,
       norm_mean: metadata.norm_mean,
       norm_sd: metadata.norm_sd,
-      variants_count: metadata.variants_count
+      variants_number: metadata.variants_number
     });
   }
 

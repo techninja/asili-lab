@@ -43,7 +43,7 @@ export async function getAllTraitMetadata() {
           ps.method_name,
           ps.norm_mean,
           ps.norm_sd,
-          ps.variants_count
+          ps.variants_number
         FROM trait_pgs tp
         JOIN pgs_scores ps ON tp.pgs_id = ps.pgs_id;
       `, (err, rows) => err ? reject(err) : resolve(rows));
@@ -59,7 +59,7 @@ export async function getAllTraitMetadata() {
         method_name: row.method_name,
         norm_mean: row.norm_mean,
         norm_sd: row.norm_sd,
-        variants_count: row.variants_count ? Number(row.variants_count) : null
+        variants_number: row.variants_number ? Number(row.variants_number) : null
       };
     }
     return metadata;
@@ -80,7 +80,7 @@ export async function getTraitMetadata(traitId) {
           ps.method_name,
           ps.norm_mean,
           ps.norm_sd,
-          ps.variants_count
+          ps.variants_number
         FROM trait_pgs tp
         JOIN pgs_scores ps ON tp.pgs_id = ps.pgs_id
         WHERE tp.trait_id = ?;
@@ -94,7 +94,7 @@ export async function getTraitMetadata(traitId) {
         method_name: row.method_name,
         norm_mean: row.norm_mean,
         norm_sd: row.norm_sd,
-        variants_count: row.variants_count ? Number(row.variants_count) : null
+        variants_number: row.variants_number ? Number(row.variants_number) : null
       };
     }
     return metadata;

@@ -16,7 +16,7 @@ class PGSMetadataDB {
     if (this.initialized) return;
     const conn = await this.getConnection();
     await new Promise((resolve, reject) => {
-      conn.run(`CREATE TABLE IF NOT EXISTS pgs_scores (pgs_id VARCHAR PRIMARY KEY, weight_type VARCHAR, method_name VARCHAR, norm_mean DOUBLE, norm_sd DOUBLE, variants_count BIGINT, last_updated TIMESTAMP DEFAULT now())`, err => err ? reject(err) : resolve());
+      conn.run(`CREATE TABLE IF NOT EXISTS pgs_scores (pgs_id VARCHAR PRIMARY KEY, weight_type VARCHAR, method_name VARCHAR, norm_mean DOUBLE, norm_sd DOUBLE, variants_number BIGINT, ld_aware BOOLEAN DEFAULT false, needs_clumping BOOLEAN DEFAULT false, last_updated TIMESTAMP DEFAULT now())`, err => err ? reject(err) : resolve());
     });
     await new Promise((resolve, reject) => {
       conn.run(`CREATE SEQUENCE IF NOT EXISTS pgs_performance_seq START 1`, err => err ? reject(err) : resolve());
@@ -35,11 +35,11 @@ class PGSMetadataDB {
     const conn = await this.getConnection();
     const now = new Date().toISOString();
     return new Promise((resolve, reject) => {
-      const stmt = conn.prepare(`INSERT INTO pgs_scores (pgs_id, weight_type, method_name, norm_mean, norm_sd, variants_count, last_updated)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+      const stmt = conn.prepare(`INSERT INTO pgs_scores (pgs_id, weight_type, method_name, norm_mean, norm_sd, variants_number, ld_aware, needs_clumping, last_updated)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (pgs_id) DO UPDATE SET weight_type=EXCLUDED.weight_type, method_name=EXCLUDED.method_name,
-        norm_mean=EXCLUDED.norm_mean, norm_sd=EXCLUDED.norm_sd, variants_count=EXCLUDED.variants_count, last_updated=EXCLUDED.last_updated`);
-      stmt.run(pgsId, data.weight_type ?? null, data.method ?? null, data.norm_mean ?? null, data.norm_sd ?? null, data.variants_count ?? null, now, err => {
+        norm_mean=EXCLUDED.norm_mean, norm_sd=EXCLUDED.norm_sd, variants_number=EXCLUDED.variants_number, ld_aware=EXCLUDED.ld_aware, needs_clumping=EXCLUDED.needs_clumping, last_updated=EXCLUDED.last_updated`);
+      stmt.run(pgsId, data.weight_type ?? null, data.method ?? null, data.norm_mean ?? null, data.norm_sd ?? null, data.variants_number ?? null, data.ld_aware ?? false, data.needs_clumping ?? false, now, err => {
         stmt.finalize();
         if (err) reject(err);
         else resolve();
