@@ -8,6 +8,7 @@ const CACHE_DIR = process.env.CACHE_DIR || path.resolve(__dirname, '../../cache'
 const PGS_FILES_DIR = path.join(CACHE_DIR, 'pgs_files');
 const RATE_LIMIT = 30; // requests per minute
 const RATE_WINDOW = 60 * 1000; // 1 minute in ms
+const MIN_DELAY = 100; // minimum 100ms between requests
 
 class PGSApiClient {
   constructor() {
@@ -85,17 +86,28 @@ class PGSApiClient {
     // If we're at the limit, wait
     if (this.requestTimes.length >= RATE_LIMIT) {
       const oldestRequest = Math.min(...this.requestTimes);
-      const waitTime = RATE_WINDOW - (now - oldestRequest) + 100; // +100ms buffer
+      const waitTime = RATE_WINDOW - (now - oldestRequest) + 100;
 
       if (waitTime > 0) {
         console.log(
           `Rate limit reached, waiting ${Math.ceil(waitTime / 1000)}s...`
         );
         await new Promise(resolve => setTimeout(resolve, waitTime));
+        // Clear old requests after waiting
+        this.requestTimes = this.requestTimes.filter(
+          time => Date.now() - time < RATE_WINDOW
+        );
+      }
+    } else if (this.requestTimes.length > 0) {
+      // Add small delay between requests to avoid bursts
+      const lastRequest = Math.max(...this.requestTimes);
+      const timeSinceLastRequest = now - lastRequest;
+      if (timeSinceLastRequest < MIN_DELAY) {
+        await new Promise(resolve => setTimeout(resolve, MIN_DELAY - timeSinceLastRequest));
       }
     }
 
-    this.requestTimes.push(now);
+    this.requestTimes.push(Date.now());
   }
 
   async fetchWithCache(url, cacheKey, retries = 3) {
