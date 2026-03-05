@@ -5,6 +5,7 @@
 export const FORMAT_TYPES = {
   STANDARD_SNP: 'STANDARD_SNP',
   STANDARD_SNP_NO_RSID: 'STANDARD_SNP_NO_RSID',
+  DOSAGE_WEIGHTS: 'DOSAGE_WEIGHTS',
   HLA_ALLELE: 'HLA_ALLELE',
   RSID_ONLY: 'RSID_ONLY',
   RSID_CHR: 'RSID_CHR'
@@ -14,6 +15,17 @@ export const FORMAT_TYPES = {
  * Detect PGS file format based on column headers
  */
 export function detectFormat(columns) {
+  // Check dosage format first (more specific)
+  if (
+    columns.includes('chr_name') &&
+    columns.includes('chr_position') &&
+    columns.includes('dosage_0_weight') &&
+    columns.includes('dosage_1_weight') &&
+    columns.includes('dosage_2_weight')
+  ) {
+    return FORMAT_TYPES.DOSAGE_WEIGHTS;
+  }
+
   if (
     columns.includes('chr_name') &&
     columns.includes('chr_position') &&
@@ -59,6 +71,23 @@ export function generateColumnExpressions(formatType, columns) {
   const getCol = colName => getColumnRef(columns, colName);
 
   switch (formatType) {
+    case FORMAT_TYPES.DOSAGE_WEIGHTS: {
+      const chrNameCol = getCol('chr_name');
+      const chrPosCol = getCol('chr_position');
+      const effectAlleleCol = getCol('effect_allele');
+      const otherAlleleCol = getCol('other_allele');
+      const dosage1Col = getCol('dosage_1_weight');
+
+      return {
+        variant_id: `CONCAT(REPLACE(${chrNameCol}, 'chr', ''), ':', COALESCE(${chrPosCol}::TEXT, ''), ':', ${effectAlleleCol}, ':', ${otherAlleleCol})`,
+        chr_name: `REPLACE(${chrNameCol}, 'chr', '')`,
+        chr_position: `TRY_CAST(${chrPosCol} AS BIGINT)`,
+        effect_allele: effectAlleleCol,
+        other_allele: otherAlleleCol,
+        effect_weight: `TRY_CAST(${dosage1Col} AS DOUBLE)`
+      };
+    }
+
     case FORMAT_TYPES.STANDARD_SNP:
     case FORMAT_TYPES.STANDARD_SNP_NO_RSID: {
       const chrNameCol = getCol('chr_name');
@@ -67,12 +96,17 @@ export function generateColumnExpressions(formatType, columns) {
       const otherAlleleCol = getCol('other_allele');
       const effectWeightCol = getCol('effect_weight');
 
+      const hasOtherAllele = columns.includes('other_allele');
+      const variantId = hasOtherAllele
+        ? `CONCAT(REPLACE(${chrNameCol}, 'chr', ''), ':', COALESCE(${chrPosCol}::TEXT, ''), ':', ${effectAlleleCol}, ':', ${otherAlleleCol})`
+        : `CONCAT(REPLACE(${chrNameCol}, 'chr', ''), ':', COALESCE(${chrPosCol}::TEXT, ''), ':', ${effectAlleleCol})`;
+
       return {
-        variant_id: `CONCAT(REPLACE(${chrNameCol}, 'chr', ''), ':', COALESCE(${chrPosCol}::TEXT, ''), ':', ${effectAlleleCol}, ':', ${otherAlleleCol})`,
+        variant_id: variantId,
         chr_name: `REPLACE(${chrNameCol}, 'chr', '')`,
         chr_position: `TRY_CAST(${chrPosCol} AS BIGINT)`,
         effect_allele: effectAlleleCol,
-        other_allele: otherAlleleCol,
+        other_allele: hasOtherAllele ? otherAlleleCol : "''",
         effect_weight: `TRY_CAST(${effectWeightCol} AS DOUBLE)`
       };
     }
@@ -136,7 +170,9 @@ export function generateInsertSQL(
 ) {
   const expressions = generateColumnExpressions(formatType, columns);
   const columnDefs = generateColumnDefinitions(columns);
-  const effectWeightCol = getColumnRef(columns, 'effect_weight');
+  const weightCol = formatType === FORMAT_TYPES.DOSAGE_WEIGHTS
+    ? getColumnRef(columns, 'dosage_1_weight')
+    : getColumnRef(columns, 'effect_weight');
 
   return `
         INSERT INTO pgs_staging 
@@ -157,7 +193,7 @@ export function generateInsertSQL(
         FROM read_csv('${dataPath}', delim='\\t', header=false, columns={${columnDefs}})
         WHERE ${expressions.effect_allele} IS NOT NULL 
           AND ${expressions.effect_allele} != ''
-          AND ${effectWeightCol} IS NOT NULL
-          AND ${effectWeightCol} != '';
+          AND ${weightCol} IS NOT NULL
+          AND ${weightCol} != '';
     `;
 }
