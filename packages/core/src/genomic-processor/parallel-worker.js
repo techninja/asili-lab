@@ -55,7 +55,12 @@ while (processed < limit) {
   
   if (batch.length === 0) break;
   
-  batch.forEach(row => calculator.processVariant(row, dnaLookup, pgsMetadata));
+  batch.forEach(row => {
+    if (row.pgs_id === 'PGS002385' && !pgsMetadata[row.pgs_id]) {
+      console.log(`⚠️ PGS002385 not found in pgsMetadata. Available keys sample:`, Object.keys(pgsMetadata).slice(0, 10));
+    }
+    calculator.processVariant(row, dnaLookup, pgsMetadata);
+  });
   processed += batch.length;
   
   // Send progress update
@@ -64,11 +69,21 @@ while (processed < limit) {
   if (batch.length < batchSize) break;
 }
 
-// Send results back
+// Send results back - serialize Maps to arrays to avoid postMessage issues
+const pgsBreakdownArray = [];
+for (const [key, value] of calculator.pgsBreakdown) {
+  pgsBreakdownArray.push([key, value]);
+}
+
+const pgsDetailsArray = [];
+for (const [key, value] of calculator.pgsDetails) {
+  pgsDetailsArray.push([key, value]);
+}
+
 parentPort.postMessage({
   type: 'complete',
-  pgsBreakdown: Object.fromEntries(calculator.pgsBreakdown),
-  pgsDetails: Object.fromEntries(calculator.pgsDetails),
+  pgsBreakdown: pgsBreakdownArray,
+  pgsDetails: pgsDetailsArray,
   totalMatches: calculator.totalMatches,
   totalScore: calculator.totalScore,
   processedCount: processed

@@ -67,11 +67,21 @@ while (processed < limit) {
   if (batch.length < batchSize) break;
 }
 
-// Final result
+// Final result - serialize Maps to arrays to avoid postMessage issues
+const pgsBreakdownArray = [];
+for (const [key, value] of calculator.pgsBreakdown) {
+  pgsBreakdownArray.push([key, value]);
+}
+
+const pgsDetailsArray = [];
+for (const [key, value] of calculator.pgsDetails) {
+  pgsDetailsArray.push([key, value]);
+}
+
 parentPort.postMessage({
   type: 'complete',
-  pgsBreakdown: Object.fromEntries(calculator.pgsBreakdown),
-  pgsDetails: Object.fromEntries(calculator.pgsDetails),
+  pgsBreakdown: pgsBreakdownArray,
+  pgsDetails: pgsDetailsArray,
   totalMatches: calculator.totalMatches,
   totalScore: calculator.totalScore,
   processedCount: processed

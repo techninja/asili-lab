@@ -113,7 +113,7 @@ export class RiskDashboard extends HTMLElement {
 
   setupEventListeners() {
     // Filter controls
-    ['searchInput', 'categorySelect', 'sortSelect'].forEach(id => {
+    ['searchInput', 'categorySelect', 'sortSelect', 'typeSelect'].forEach(id => {
       this.shadowRoot.getElementById(id)?.addEventListener('change', () => this.filterTraits());
       this.shadowRoot.getElementById(id)?.addEventListener('input', () => this.filterTraits());
     });
@@ -204,14 +204,16 @@ export class RiskDashboard extends HTMLElement {
 
     const searchInput = this.shadowRoot.getElementById('searchInput');
     const categorySelect = this.shadowRoot.getElementById('categorySelect');
+    const typeSelect = this.shadowRoot.getElementById('typeSelect');
     const sortSelect = this.shadowRoot.getElementById('sortSelect');
     const filterStats = this.shadowRoot.getElementById('filterStats');
     const grid = this.shadowRoot.getElementById('traitsGrid');
 
-    if (!searchInput || !categorySelect || !sortSelect || !filterStats || !grid) return;
+    if (!searchInput || !categorySelect || !typeSelect || !sortSelect || !filterStats || !grid) return;
 
     const searchTerm = searchInput.value.toLowerCase().trim();
     const selectedCategory = categorySelect.value;
+    const selectedType = typeSelect.value;
     const sortBy = sortSelect.value;
 
     Debug.log(2, 'RiskDashboard', `Filtering ${this.availableTraits.length} traits`);
@@ -229,8 +231,9 @@ export class RiskDashboard extends HTMLElement {
         trait.categories?.some(cat => cat.toLowerCase().includes(searchTerm));
       
       const matchesCategory = !selectedCategory || trait.categories?.includes(selectedCategory);
+      const matchesType = !selectedType || trait.trait_type === selectedType;
       
-      return matchesSearch && matchesCategory;
+      return matchesSearch && matchesCategory && matchesType;
     });
 
     // Sort traits
@@ -645,14 +648,14 @@ export class RiskDashboard extends HTMLElement {
           font-weight: 500;
           color: #495057;
         }
-        .search-input, .category-select, .sort-select {
+        .search-input, .category-select, .sort-select, .type-select {
           padding: 6px 12px;
           border: 1px solid #ced4da;
           border-radius: 4px;
           font-size: 14px;
         }
         .search-input { width: 200px; }
-        .category-select { min-width: 150px; }
+        .category-select, .type-select { min-width: 150px; }
         .filter-stats {
           margin-left: auto;
           font-size: 12px;
@@ -709,6 +712,14 @@ export class RiskDashboard extends HTMLElement {
           <label>Category:</label>
           <select class="category-select" id="categorySelect">
             <option value="">All Categories</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Type:</label>
+          <select class="type-select" id="typeSelect">
+            <option value="">All Traits</option>
+            <option value="quantitative">Quantitative</option>
+            <option value="disease_risk">Disease Risk</option>
           </select>
         </div>
         <div class="filter-group">

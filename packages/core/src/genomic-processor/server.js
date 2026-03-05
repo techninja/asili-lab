@@ -5,6 +5,7 @@
 
 import { GenomicProcessor } from '../interfaces/genomic.js';
 import { Debug } from '../utils/debug.js';
+import { formatNumber, formatThroughput } from '../utils/format.js';
 import { PerformanceMonitor } from '../utils/performance.js';
 import { SharedRiskCalculator } from './shared-calculator.js';
 import { Worker } from 'worker_threads';
@@ -183,7 +184,7 @@ export class ServerGenomicProcessor extends GenomicProcessor {
               const progress = 10 + Math.min(80, Math.round((totalProcessed / totalTraitVariants) * 80));
               
               if (throughput) {
-                const message = `Processing: ${Math.round(totalProcessed/1000)}k/${Math.round(totalTraitVariants/1000)}k variants (${throughput.toLocaleString()}/sec)`;
+                const message = `Processing: ${formatNumber(totalProcessed)}/${formatNumber(totalTraitVariants)} variants (${formatThroughput(throughput)})`;
                 progressCallback?.(message, progress, {
                   processed: totalProcessed,
                   total: totalTraitVariants,
@@ -208,10 +209,18 @@ export class ServerGenomicProcessor extends GenomicProcessor {
       // Wait for all workers
       const results = await Promise.all(workers);
       
+      Debug.log(1, 'ServerGenomicProcessor', `All workers complete, starting merge...`);
       progressCallback?.('Merging results...', 90);
       
       // Merge results from all workers
-      const merged = this._mergeResults(results, normalizationParams, traitType, unit, phenotypeMean, phenotypeSd, pgsPerformanceMetrics);
+      let merged;
+      try {
+        merged = this._mergeResults(results, normalizationParams, traitType, unit, phenotypeMean, phenotypeSd, pgsPerformanceMetrics);
+      } catch (mergeError) {
+        Debug.log(1, 'ServerGenomicProcessor', `Merge failed: ${mergeError.message}`);
+        Debug.log(1, 'ServerGenomicProcessor', `Stack: ${mergeError.stack}`);
+        throw mergeError;
+      }
       
       // Log final performance stats
       const stats = perfMonitor.getStats();
@@ -249,14 +258,66 @@ export class ServerGenomicProcessor extends GenomicProcessor {
   }
 
   _mergeResults(results, normalizationParams = {}, traitType = 'disease_risk', unit = null, phenotypeMean = null, phenotypeSd = null, pgsPerformanceMetrics = {}) {
+    console.log(`🔀 _mergeResults called with ${results.length} results`);
+    Debug.log(1, 'ServerGenomicProcessor', `Merging ${results.length} worker results...`);
     const calculator = new SharedRiskCalculator(normalizationParams);
+    console.log(`🔀 Calculator initialized`);
     
-    for (const result of results) {
+    for (let i = 0; i < results.length; i++) {
+      console.log(`🔀 Processing result ${i+1}/${results.length}`);
+      const result = results[i];
+      
+      // Check result size
+      try {
+        const pgsDetailsKeys = result.pgsDetails ? Object.keys(result.pgsDetails) : [];
+        const pgsBreakdownKeys = result.pgsBreakdown ? Object.keys(result.pgsBreakdown) : [];
+        console.log(`🔀 Result has ${pgsDetailsKeys.length} PGS details, ${pgsBreakdownKeys.length} breakdowns`);
+      } catch (e) {
+        console.log(`🔀 Error checking result size: ${e.message}`);
+      }
+      
+      Debug.log(2, 'ServerGenomicProcessor', `Merging worker ${i+1}/${results.length}...`);
       if (result.error) throw new Error(result.error);
       
-      // Merge PGS breakdowns
-      for (const [pgsId, breakdown] of Object.entries(result.pgsBreakdown)) {
-        calculator.initializePGS(pgsId);
+      // Merge PGS details first (with metadata)
+      if (!result.pgsDetails) {
+        console.log(`🔀 No pgsDetails in result ${i+1}`);
+        continue;
+      }
+      
+      Debug.log(3, 'ServerGenomicProcessor', `Merging PGS details...`);
+      
+      // Workers return arrays of [key, value] pairs
+      const pgsDetailsEntries = Array.isArray(result.pgsDetails) 
+        ? result.pgsDetails
+        : Object.entries(result.pgsDetails || {});
+      
+      console.log(`🔀 Iterating ${pgsDetailsEntries.length} PGS details entries`);
+      for (const [pgsId, details] of pgsDetailsEntries) {
+        calculator.initializePGS(pgsId, details.metadata);
+        const merged = calculator.pgsDetails.get(pgsId);
+        merged.score += details.score;
+        merged.matchedVariants += details.matchedVariants;
+        
+        // Use concat instead of spread to avoid stack overflow with large arrays
+        const topVariantsCount = details.topVariants?.length || 0;
+        if (topVariantsCount > 0) {
+          merged.topVariants = merged.topVariants.concat(details.topVariants);
+        }
+      }
+      console.log(`🔀 Finished PGS details`);
+      
+      // Merge PGS breakdown
+      const pgsBreakdownEntries = Array.isArray(result.pgsBreakdown)
+        ? result.pgsBreakdown
+        : Object.entries(result.pgsBreakdown || {});
+      
+      console.log(`🔀 Iterating ${pgsBreakdownEntries.length} PGS breakdown entries`);
+      for (const [pgsId, breakdown] of pgsBreakdownEntries) {
+        
+        if (!calculator.pgsBreakdown.has(pgsId)) {
+          calculator.initializePGS(pgsId);
+        }
         const merged = calculator.pgsBreakdown.get(pgsId);
         merged.positive += breakdown.positive;
         merged.negative += breakdown.negative;
@@ -264,22 +325,13 @@ export class ServerGenomicProcessor extends GenomicProcessor {
         merged.negativeSum += breakdown.negativeSum;
         merged.total += breakdown.total;
         if (breakdown.weightDistribution) {
-          merged.weightDistribution.push(...breakdown.weightDistribution);
+          merged.weightDistribution = merged.weightDistribution.concat(breakdown.weightDistribution);
         }
         if (breakdown.chromosomeCoverage) {
           for (const [chr, count] of Object.entries(breakdown.chromosomeCoverage)) {
             merged.chromosomeCoverage[chr] = (merged.chromosomeCoverage[chr] || 0) + count;
           }
         }
-      }
-      
-      // Merge PGS details
-      for (const [pgsId, details] of Object.entries(result.pgsDetails)) {
-        calculator.initializePGS(pgsId, details.metadata);
-        const merged = calculator.pgsDetails.get(pgsId);
-        merged.score += details.score;
-        merged.matchedVariants += details.matchedVariants;
-        merged.topVariants.push(...details.topVariants);
       }
       
       calculator.totalMatches += result.totalMatches;

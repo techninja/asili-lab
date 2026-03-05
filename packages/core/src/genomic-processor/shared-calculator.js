@@ -69,7 +69,8 @@ export class SharedRiskCalculator {
           mean: metadata.norm_mean ?? metadata.mean,
           std: metadata.norm_sd ?? metadata.std,
           weight_type: metadata.weight_type,
-          method: metadata.method
+          method: metadata.method,
+          variants_number: metadata.variants_number
         },
         topVariants: []
       });
@@ -175,6 +176,53 @@ export class SharedRiskCalculator {
   }
 
   /**
+   * Calculate unified quality score for a PGS (0-100)
+   * 
+   * Formula: (R² × 50) + (Coverage × 30) + (Confidence × 20)
+   * 
+   * Where:
+   * - R² (Performance): 0-1, how well the PGS predicts the trait (50% weight)
+   * - Coverage: 0-1, percentage of variants matched (30% weight)
+   * - Confidence: 0-1, based on matched variant count (20% weight)
+   *   - <8 variants: 0.1 (insufficient data)
+   *   - <10 variants: 0.5 (low confidence)
+   *   - <100 variants: 0.8 (medium confidence)
+   *   - ≥100 variants: 1.0 (high confidence)
+   * 
+   * Example: PGS with R²=0.15, 80% coverage, 50 variants matched:
+   *   Score = (0.15 × 50) + (0.80 × 30) + (0.8 × 20) = 7.5 + 24 + 16 = 47.5
+   * 
+   * @param {number} matchedVariants - Number of variants matched in user's DNA
+   * @param {number} totalVariants - Total variants in the PGS
+   * @param {number} performanceMetric - R² value (0-1)
+   * @returns {number} Quality score (0-100)
+   */
+  static calculatePGSQualityScore(matchedVariants, totalVariants, performanceMetric) {
+    if (matchedVariants === 0 || !totalVariants) return 0;
+    
+    // Coverage: percentage of variants matched (0-1)
+    const coverage = Math.min(matchedVariants / totalVariants, 1);
+    
+    // Performance: R² value (0-1), default to 0.05 if missing
+    const performance = performanceMetric || 0.05;
+    
+    // Confidence penalty: reduce score if below minimum threshold
+    let confidenceFactor = 1.0;
+    if (matchedVariants < MIN_VARIANT_THRESHOLD) {
+      confidenceFactor = 0.1; // Heavy penalty for insufficient data
+    } else if (matchedVariants < 10) {
+      confidenceFactor = 0.5; // Moderate penalty for low confidence
+    } else if (matchedVariants < 100) {
+      confidenceFactor = 0.8; // Small penalty for medium confidence
+    }
+    
+    // Weighted combination: 50% performance, 30% coverage, 20% confidence
+    const score = (performance * 50) + (coverage * 30) + (confidenceFactor * 20);
+    
+    return Math.round(score * 100) / 100; // Round to 2 decimals
+  }
+
+  /**
    * Finalize results and return formatted output with proper normalization
    */
   async finalize(traitType = 'disease_risk', unit = null, phenotypeMean = null, phenotypeSd = null, pgsPerformanceMetrics = {}) {
@@ -196,19 +244,21 @@ export class SharedRiskCalculator {
       // Keep chromosomeCoverage for storage
     }
     
-    // Calculate z-scores and find best PGS
+    // Calculate z-scores and quality scores for each PGS
     let bestPGS = null;
-    let bestPerformance = 0;
+    let bestQualityScore = 0;
     let totalWeightedZScore = 0;
     let totalWeight = 0;
     
     for (const [pgsId, details] of this.pgsDetails.entries()) {
       const metadata = details.metadata || {};
       const normParams = this.normalizationParams[pgsId] || {};
+      const breakdown = this.pgsBreakdown.get(pgsId);
       
       const mean = metadata.mean ?? metadata.norm_mean ?? normParams.norm_mean;
       const sd = metadata.std ?? metadata.norm_sd ?? normParams.norm_sd;
-      const performanceWeight = metadata.performance_weight ?? normParams.performance_weight ?? 0.5;
+      const performanceWeight = metadata.performance_weight ?? normParams.performance_weight ?? 0.05;
+      const totalVariants = metadata.variants_number || breakdown?.total || details.matchedVariants;
       
       details.confidence = SharedRiskCalculator.calculateConfidence(details.matchedVariants);
       details.insufficientData = details.matchedVariants < MIN_VARIANT_THRESHOLD;
@@ -217,20 +267,28 @@ export class SharedRiskCalculator {
       details.normMean = mean;
       details.normSd = sd;
       
+      // Calculate unified quality score
+      details.qualityScore = SharedRiskCalculator.calculatePGSQualityScore(
+        details.matchedVariants,
+        totalVariants,
+        performanceWeight
+      );
+      
       if (mean !== undefined && sd !== undefined && sd >= MIN_EMPIRICAL_SD && details.matchedVariants > 0) {
         details.zScore = SharedRiskCalculator.calculateZScore(details.score, { mean, sd });
         details.percentile = SharedRiskCalculator.calculatePercentile(details.zScore);
         
         // For quantitative traits, scale genetic z-score by sqrt(R²) to get phenotype z-score
         if (traitType === 'quantitative' && phenotypeMean !== null && phenotypeSd !== null) {
-          const r2 = pgsPerformanceMetrics[pgsId]?.r2 || 0.05; // Default to 5% if not available
+          const r2 = pgsPerformanceMetrics[pgsId]?.r2 || performanceWeight;
           const phenotypeZScore = details.zScore * Math.sqrt(r2);
           details.value = phenotypeMean + (phenotypeZScore * phenotypeSd);
           details.r2 = r2;
         }
         
-        if (performanceWeight >= bestPerformance && !details.insufficientData && !details.insufficientEmpiricalData && performanceWeight > 0) {
-          bestPerformance = performanceWeight;
+        // Find best PGS by quality score
+        if (details.qualityScore > bestQualityScore && !details.insufficientData && !details.insufficientEmpiricalData) {
+          bestQualityScore = details.qualityScore;
           bestPGS = pgsId;
         }
         
@@ -256,10 +314,11 @@ export class SharedRiskCalculator {
     
     // Overall scores from best PGS or weighted average
     if (!bestPGS && this.pgsDetails.size > 0) {
+      // Fallback: find any PGS with valid data
       for (const [pgsId, details] of this.pgsDetails.entries()) {
         if (!details.insufficientData && !details.insufficientEmpiricalData && details.zScore !== null) {
           bestPGS = pgsId;
-          bestPerformance = details.performanceMetric || 0.5;
+          bestQualityScore = details.qualityScore || 0;
           break;
         }
       }
@@ -276,7 +335,8 @@ export class SharedRiskCalculator {
       percentile: overallPercentile,
       confidence: overallConfidence,
       bestPGS,
-      bestPGSPerformance: bestPerformance,
+      bestPGSPerformance: bestDetails?.performanceMetric || 0,
+      bestPGSQualityScore: bestQualityScore,
       totalMatches: this.totalMatches,
       pgsBreakdown: Object.fromEntries(this.pgsBreakdown),
       pgsDetails: Object.fromEntries(this.pgsDetails)
@@ -344,8 +404,14 @@ export class SharedRiskCalculator {
   computeWeightBuckets(weights) {
     if (weights.length === 0) return [];
     
-    const min = Math.min(...weights);
-    const max = Math.max(...weights);
+    // Use reduce instead of spread to avoid stack overflow with large arrays
+    let min = weights[0];
+    let max = weights[0];
+    for (let i = 1; i < weights.length; i++) {
+      if (weights[i] < min) min = weights[i];
+      if (weights[i] > max) max = weights[i];
+    }
+    
     const range = max - min;
     
     if (range === 0) {

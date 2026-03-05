@@ -26,7 +26,7 @@ export class RiskResultsDB {
 
       const values = [
         individualId, traitId, pgsId, details.score, details.zScore, details.percentile,
-        details.matchedVariants, details.metadata?.variants_count || 0, details.confidence,
+        details.matchedVariants, details.metadata?.variants_number || 0, details.confidence,
         details.insufficientData, details.performanceMetric, breakdown.positive, breakdown.positiveSum,
         breakdown.negative, breakdown.negativeSum, details.sortOrder ?? null, details.value ?? null,
         JSON.stringify(breakdown.weightBuckets || []),
@@ -111,6 +111,6 @@ export class RiskResultsDB {
   }
 
   _getTotalExpectedVariants(pgsDetails) {
-    return Object.values(pgsDetails).reduce((sum, d) => sum + (d.metadata?.variants_count || 0), 0);
+    return Object.values(pgsDetails).reduce((sum, d) => sum + (d.metadata?.variants_number || 0), 0);
   }
 }

@@ -221,6 +221,46 @@ export class TraitCard extends HTMLElement {
 
   renderResults(cached) {
     const isQuantitative = this.trait.trait_type === 'quantitative' && this.trait.unit;
+    const isBinary = this.trait.unit === 'binary';
+    
+    // Check if all PGS have insufficient data
+    const allPGSInsufficient = cached.pgsDetails && Object.values(cached.pgsDetails).every(d => d.insufficientData);
+    const bestPGSInsufficient = cached.pgsDetails && cached.bestPGS && cached.pgsDetails[cached.bestPGS]?.insufficientData;
+    
+    if (allPGSInsufficient || (cached.matchedVariants === 0)) {
+      return `
+        <div class="results">
+          <div class="insufficient-warning">
+            <div class="warning-icon">⚠️</div>
+            <div class="warning-title">Insufficient Genetic Data</div>
+            <div class="warning-message">
+              ${cached.matchedVariants === 0 ? 
+                'No genetic variants matched for this trait. Your DNA data may not include the variants needed for this analysis.' :
+                'All polygenic scores have fewer than 8 matched variants. Results are not reliable for risk assessment.'}
+            </div>
+          </div>
+          ${cached.otherIndividuals?.length > 0 ? `
+            <div class="other-results-note">Other individuals' results shown below (if available)</div>
+            ${isQuantitative ? `
+              <quantitative-display 
+                value="" 
+                unit="${this.getDisplayUnit()}" 
+                emoji="${this.individualEmoji}" 
+                show-user="false"
+                other-individuals='${JSON.stringify(this.convertOtherIndividuals(cached.otherIndividuals || [], cached))}'>
+              </quantitative-display>
+            ` : `
+              <risk-distribution score="0" emoji="${this.individualEmoji}" show-user="false" other-individuals='${JSON.stringify(cached.otherIndividuals || [])}'></risk-distribution>
+            `}
+          ` : ''}
+          <div class="stats">
+            ${this.formatNumber(cached.matchedVariants)} of ${this.formatNumber(cached.totalVariants)} variants matched<br>
+            <div style="text-align: left; margin-top: 5px;">Calculated ${new Date(cached.calculatedAt).toLocaleDateString()}</div>
+          </div>
+          ${this.renderPgsList(cached.pgsBreakdown, cached.pgsDetails, cached.bestPGS)}
+        </div>
+      `;
+    }
     
     // Use z-score and confidence from backend calculation
     const overallZScore = cached.zScore ?? this.calculateOverallZScore(cached.pgsDetails);
@@ -243,10 +283,13 @@ export class TraitCard extends HTMLElement {
 
     return `
       <div class="results">
-        ${isQuantitative ? `
+        ${isQuantitative && !isBinary ? `
           <div class="score">${this.getDisplayValue(cached.value, this.trait.unit)} ${this.getDisplayUnit()}</div>
           <div class="percentile">${this.formatPercentile(percentile)}</div>
           ${this.renderUnitSwitcher()}
+        ` : isBinary ? `
+          <div class="score">${percentile >= 50 ? 'Likely' : 'Unlikely'}</div>
+          <div class="percentile">${this.formatPercentile(percentile)} likelihood</div>
         ` : `
           <div class="score">${this.formatZScore(overallZScore)}</div>
           <div class="percentile">${this.formatPercentile(percentile)}</div>
@@ -273,7 +316,7 @@ export class TraitCard extends HTMLElement {
         `}
         
         <div class="stats">
-          ${this.formatNumber(cached.matchedVariants)} of ${this.formatNumber(cached.totalVariants)} variants matched (${((cached.matchedVariants / cached.totalVariants) * 100).toFixed(1)}%)<br>
+          ${this.formatNumber(cached.matchedVariants)} of ${this.formatNumber(cached.totalVariants)} variants matched ${cached.totalVariants > 0 ? `(${((cached.matchedVariants / cached.totalVariants) * 100).toFixed(1)}%)` : ''}<br>
           <div style="text-align: left; margin-top: 5px;">Calculated ${new Date(cached.calculatedAt).toLocaleDateString()}</div>
         </div>
         ${this.renderPgsList(cached.pgsBreakdown, cached.pgsDetails, bestPGS)}
@@ -301,13 +344,13 @@ export class TraitCard extends HTMLElement {
   renderPgsList(pgsBreakdown, pgsDetails, bestPGS) {
     if (!pgsBreakdown) return '';
 
-    // Sort by sort_order from backend (stored in pgsDetails metadata)
+    // Sort by quality score (highest first)
     const entries = Object.entries(pgsBreakdown)
       .filter(([_, data]) => Math.abs(data.positiveSum + data.negativeSum) >= 0.005)
       .sort((a, b) => {
-        const orderA = pgsDetails?.[a[0]]?.sortOrder ?? 999;
-        const orderB = pgsDetails?.[b[0]]?.sortOrder ?? 999;
-        return orderA - orderB;
+        const scoreA = pgsDetails?.[a[0]]?.qualityScore ?? 0;
+        const scoreB = pgsDetails?.[b[0]]?.qualityScore ?? 0;
+        return scoreB - scoreA; // Descending order
       });
 
     return `
@@ -328,11 +371,11 @@ export class TraitCard extends HTMLElement {
       const scoreColor = score >= 0 ? '#721c24' : '#155724';
 
       return `<div class="pgs-item ${isBest ? 'best-pgs-item' : ''} ${details?.insufficientData ? 'insufficient-data' : ''}" data-pgs-id="${pgsId}">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px;">
-              <span style="display: flex; align-items: center; gap: 4px;">
+            <div class="pgs-header">
+              <span class="pgs-name">
                 ${isBest ? '<span title="Best performing score with sufficient data (≥8 variants matched)">⭐</span>' : ''}
                 ${name}
-                ${performance ? `<span class="performance-badge" title="R² performance metric: ${(performance * 100).toFixed(1)}% - measures how well this score predicts the trait">${(performance * 100).toFixed(0)}%</span>` : ''}
+                ${details?.qualityScore ? `<span class="quality-badge" title="Quality Score: ${details.qualityScore.toFixed(1)}/100 (combines R² performance, variant coverage, and confidence)">${details.qualityScore.toFixed(0)}</span>` : ''}
                 <span class="confidence-badge confidence-${confidence}" title="${confidenceTooltip}">${confidence}</span>
               </span>
               <span class="score" style="color: ${scoreColor}">${(() => {
@@ -361,10 +404,14 @@ export class TraitCard extends HTMLElement {
     const state = useTraitStore.getState().getTraitState(this.trait.id);
     if (!state.cached?.pgsBreakdown) return;
 
-    // Use same sorting as renderPgsList
+    // Sort by quality score (same as renderPgsList)
     const sortedPgsIds = Object.entries(state.cached.pgsBreakdown)
       .filter(([_, data]) => Math.abs(data.positiveSum + data.negativeSum) >= 0.005)
-      .sort(([_, a], [__, b]) => Math.abs(b.positiveSum + b.negativeSum) - Math.abs(a.positiveSum + a.negativeSum))
+      .sort((a, b) => {
+        const scoreA = state.cached.pgsDetails?.[a[0]]?.qualityScore ?? 0;
+        const scoreB = state.cached.pgsDetails?.[b[0]]?.qualityScore ?? 0;
+        return scoreB - scoreA;
+      })
       .map(([pgsId]) => pgsId);
 
     const navigation = {
@@ -440,6 +487,9 @@ addToQueue() {
   }
 
   getDisplayUnit() {
+    // Don't show unit for binary traits
+    if (this.trait?.unit === 'binary') return '';
+    
     if (!this.selectedUnit && this.trait?.unit) {
       // Initialize with locale default on first access
       this.selectedUnit = getDefaultUnit(this.trait.unit);
@@ -449,6 +499,12 @@ addToQueue() {
 
   getDisplayValue(value, originalUnit) {
     if (value === undefined || value === null) return '—';
+    
+    // Handle binary traits
+    if (originalUnit === 'binary') {
+      return value >= 0 ? 'Yes' : 'No';
+    }
+    
     const displayUnit = this.getDisplayUnit();
     const converted = convertValue(value, originalUnit, displayUnit);
     return converted.toFixed(2);
@@ -487,7 +543,7 @@ addToQueue() {
   }
 
   renderUnitSwitcher() {
-    if (!this.trait?.unit || !hasConversions(this.trait.unit)) return '';
+    if (!this.trait?.unit || this.trait.unit === 'binary' || !hasConversions(this.trait.unit)) return '';
     
     const availableUnits = getAvailableUnits(this.trait.unit);
     const currentUnit = this.getDisplayUnit();
@@ -564,6 +620,7 @@ addToQueue() {
         .confidence-high { background: #d4edda; color: #155724; }
         .best-pgs { font-size: 11px; color: #666; margin: 5px 0; font-style: italic; }
         .best-pgs-item { border-left: 3px solid #ffc107; padding-left: 5px; }
+        .quality-badge { font-size: 10px; background: #28a745; color: white !important; padding: 2px 5px; border-radius: 3px; font-weight: 600; }
         .performance-badge { font-size: 9px; background: #007acc; color: white !important; padding: 1px 4px; border-radius: 2px; }
         .confidence-badge { font-size: 9px; padding: 1px 4px; border-radius: 2px; }
         .confidence-badge.confidence-none { background: #f8d7da; color: #721c24; }
@@ -575,8 +632,10 @@ addToQueue() {
         .pgs-item { margin-bottom: 8px; cursor: pointer; }
         .pgs-item:hover { background: #f8f9fa; }
         .pgs-item.insufficient-data { opacity: 0.6; background: #fff5f5; border-left: 2px solid #f8d7da; padding-left: 3px; }
-        .pgs-item span:first-child { font-size: 11px; color: #007acc; font-weight: 500; max-width: 85%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .pgs-item .score { font-size: 11px; font-weight: bold; }
+        .pgs-header { display: flex; justify-content: space-between; align-items: center; padding: 5px; gap: 8px; }
+        .pgs-name { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #007acc; font-weight: 500; min-width: 0; flex: 1; }
+        .pgs-name > span:first-child { flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pgs-item .score { font-size: 11px; font-weight: bold; flex-shrink: 0; white-space: nowrap; }
         .queue-status { text-align: center; padding: 10px; background: #fff3cd; border-radius: 4px; }
         .queue-label { font-weight: 500; margin-bottom: 8px; }
         .progress-bar { width: 100%; height: 20px; background: #e9ecef; border-radius: 10px; overflow: hidden; margin: 8px 0; }
@@ -589,6 +648,11 @@ addToQueue() {
         .unit-btn { padding: 4px 12px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 11px; transition: all 0.2s; }
         .unit-btn:hover { background: #e0e0e0; }
         .unit-btn.active { background: #007acc; color: white; border-color: #007acc; }
+        .insufficient-warning { background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 15px; margin: 10px 0; text-align: center; }
+        .warning-icon { font-size: 32px; margin-bottom: 8px; }
+        .warning-title { font-size: 16px; font-weight: 600; color: #856404; margin-bottom: 8px; }
+        .warning-message { font-size: 13px; color: #856404; line-height: 1.4; }
+        .other-results-note { font-size: 12px; color: #666; font-style: italic; margin: 10px 0; }
       </style>
       <div class="content"></div>
     `;

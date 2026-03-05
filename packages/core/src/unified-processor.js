@@ -333,20 +333,36 @@ export class UnifiedProcessor {
         try {
           const { getTraitPGS } = await import('../../pipeline/lib/trait-db.js');
           const { getPGS, getPGSPerformance } = await import('../../pipeline/lib/pgs-db.js');
+          const { getConnection } = await import('../../pipeline/lib/shared-db.js');
           
           const pgsScores = await getTraitPGS(traitId);
+          
+          // Load metadata for ALL PGS in pgs_scores table (not just registered ones)
+          const conn = await getConnection();
+          const allPgsRows = await new Promise((resolve, reject) => {
+            conn.all('SELECT pgs_id, weight_type, method_name, variants_number FROM pgs_scores', (err, rows) => {
+              if (err) reject(err);
+              else resolve(rows || []);
+            });
+          });
+          
+          for (const pgs of allPgsRows) {
+            pgsMetadata[pgs.pgs_id] = {
+              weight_type: pgs.weight_type,
+              method: pgs.method_name,
+              variants_number: pgs.variants_number ? Number(pgs.variants_number) : null
+            };
+          }
+          
+          // Load normalization params only for registered PGS
           for (const { pgs_id, performance_weight } of pgsScores) {
             const pgs = await getPGS(pgs_id);
             if (pgs) {
               normalizationParams[pgs_id] = {
                 norm_mean: pgs.norm_mean,
                 norm_sd: pgs.norm_sd,
-                performance_weight: performance_weight || 0.5
-              };
-              pgsMetadata[pgs_id] = {
-                weight_type: pgs.weight_type,
-                method: pgs.method_name,
-                variants_number: pgs.variants_count ? Number(pgs.variants_count) : null
+                performance_weight: performance_weight || 0.5,
+                variants_number: pgs.variants_number ? Number(pgs.variants_number) : null
               };
               
               // Fetch R² for quantitative traits

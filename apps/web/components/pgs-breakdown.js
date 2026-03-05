@@ -135,6 +135,7 @@ export class PGSBreakdown extends HTMLElement {
             ${pgsData.metadata?.name ? `<div>• Name: ${pgsData.metadata.name}</div>` : ''}
             ${pgsData.metadata?.variants_number ? `<div>• Total variants: ${pgsData.metadata.variants_number.toLocaleString()}</div>` : ''}
             ${pgsData.performanceMetric ? `<div>• Performance (R²): ${(pgsData.performanceMetric * 100).toFixed(1)}%</div>` : ''}
+            ${pgsData.qualityScore !== undefined ? `<div>• Quality Score: ${pgsData.qualityScore.toFixed(1)}/100</div>` : ''}
             ${traitType === 'quantitative' && unit && pgsData.value !== null && pgsData.value !== undefined ? `
             <div style="margin-top: 8px;"><strong>Quantitative Value:</strong></div>
             <div>• Predicted value: ${pgsData.value.toFixed(2)} ${unit}</div>

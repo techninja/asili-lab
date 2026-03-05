@@ -199,7 +199,7 @@ export class UnifiedProcessor {
             normalizationParams[pgs.pgs_id] = {
               norm_mean: pgs.norm_mean || 0,
               norm_sd: pgs.norm_sd || null,
-              variants_number: pgs.variants_count || null,
+              variants_number: pgs.variants_number || null,
               name: pgs.method_name || pgs.pgs_id
             };
           });
