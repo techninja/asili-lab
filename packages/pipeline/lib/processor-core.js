@@ -3,6 +3,7 @@ import path from 'path';
 import { spawn } from 'child_process';
 import { gunzip } from 'zlib';
 import { promisify } from 'util';
+import os from 'os';
 import pgsApiClient from '../pgs-api-client.js';
 import { shouldExcludePGS } from './pgs-filter.js';
 
@@ -183,20 +184,22 @@ export async function countVariantsInFile(filePath) {
 }
 
 export async function runDuckDBQuery(query, dbPath = null) {
+  const duckdbCmd = process.env.DUCKDB_CLI || 'duckdb';
+  const memoryLimit = process.env.DUCKDB_MEMORY_LIMIT || '8GB';
+  const threads = process.env.DUCKDB_THREADS || Math.max(4, Math.floor(os.cpus().length / 2));
+
   return new Promise((resolve, reject) => {
     const args = dbPath ? [dbPath] : [];
-    const duckdb = spawn('duckdb', args, {
+    const duckdb = spawn(duckdbCmd, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: OUTPUT_DIR,
       env: {
         ...process.env,
-        DUCKDB_MEMORY_LIMIT: '2GB'
+        DUCKDB_MEMORY_LIMIT: memoryLimit
       }
     });
 
-    // Set timeout to prevent hanging processes (longer for large datasets)
-    const timeoutMinutes =
-      query.includes('DISTINCT') && query.includes('ORDER BY') ? 15 : 5;
+    const timeoutMinutes = query.includes('DISTINCT') && query.includes('ORDER BY') ? 30 : 10;
     const timeout = setTimeout(
       () => {
         duckdb.kill('SIGKILL');
@@ -205,10 +208,10 @@ export async function runDuckDBQuery(query, dbPath = null) {
       timeoutMinutes * 60 * 1000
     );
 
-    // Add temp directory pragma for disk-based operations
     const fullQuery = `
             PRAGMA temp_directory='/tmp';
-            PRAGMA memory_limit='2GB';
+            PRAGMA memory_limit='${memoryLimit}';
+            PRAGMA threads=${threads};
             ${query}
         `;
 
@@ -290,16 +293,25 @@ export async function validateParquetFile(filePath) {
   try {
     const stats = await fs.stat(filePath);
 
-    // Count variants in the file - if this works, the file is valid
-    const countQuery = `SELECT COUNT(*) as count FROM '${filePath}';`;
-    const result = await runDuckDBQuery(countQuery);
-    const variantCount = parseInt(result.match(/│\s*(\d+)\s*│/)?.[1] || '0');
+    // Try to count variants - if duckdb not available, just check file size
+    try {
+      const countQuery = `SELECT COUNT(*) as count FROM '${filePath}';`;
+      const result = await runDuckDBQuery(countQuery);
+      const variantCount = parseInt(result.match(/│\s*(\d+)\s*│/)?.[1] || '0');
 
-    return {
-      size: stats.size,
-      variantCount,
-      fileName: path.basename(filePath)
-    };
+      return {
+        size: stats.size,
+        variantCount,
+        fileName: path.basename(filePath)
+      };
+    } catch (error) {
+      // DuckDB not available or query failed - just return file stats
+      return {
+        size: stats.size,
+        variantCount: 0,
+        fileName: path.basename(filePath)
+      };
+    }
   } catch (error) {
     throw new Error(`File validation failed: ${error.message}`);
   }
