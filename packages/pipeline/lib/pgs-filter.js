@@ -169,6 +169,11 @@ async function shouldExcludePGS(pgsId, scoreData, pgsApiClient = null) {
   const methodParams = (scoreData.method_params || '').toLowerCase();
   const weightType = scoreData.weight_type || '';
   
+  // Exclude PGS with too few variants (unreliable)
+  if (scoreData.variants_number && scoreData.variants_number < 8) {
+    return { exclude: true, reason: `Too few variants: ${scoreData.variants_number} (minimum 8 required)` };
+  }
+  
   // Check for integrative methods
   for (const keyword of INTEGRATIVE_METHOD_KEYWORDS) {
     if (methodName.includes(keyword) || methodParams.includes(keyword)) {
@@ -176,42 +181,8 @@ async function shouldExcludePGS(pgsId, scoreData, pgsApiClient = null) {
     }
   }
   
-  // Exclude NR (Not Reported) weight types - they use incompatible scales
-  if (weightType === 'NR') {
-    return { exclude: true, reason: 'Weight type not reported (NR) - incompatible scale' };
-  }
-  
-  // Exclude Inverse-variance weighting - uses incompatible scale
-  if (weightType === 'Inverse-variance weighting') {
-    return { exclude: true, reason: 'Inverse-variance weighting - incompatible scale' };
-  }
-  
-  // Check for inverse weighting in method description
-  if (methodName.includes('inverse') || methodParams.includes('inverse') ||
-      methodName.includes('variant weights') || methodParams.includes('variant weights')) {
-    return { exclude: true, reason: 'Method uses inverse or variant weighting scheme' };
-  }
-  
-  // Validate actual weights if API client provided
-  if (pgsApiClient) {
-    const weightCheck = await validateWeights(pgsId, pgsApiClient);
-    if (!weightCheck.valid) {
-      return { exclude: true, reason: weightCheck.reason };
-    }
-    
-    // Check for incompatible scale (extreme mean/std ratio)
-    if (weightCheck.stats) {
-      const ratio = Math.abs(weightCheck.stats.mean / weightCheck.stats.std);
-      if (ratio > WEIGHT_THRESHOLDS.mean_sd_ratio) {
-        return { exclude: true, reason: `Incompatible scale: mean/std ratio = ${ratio.toFixed(1)}` };
-      }
-      
-      // Check for extreme mean values
-      if (Math.abs(weightCheck.stats.mean) > WEIGHT_THRESHOLDS.extreme_mean) {
-        return { exclude: true, reason: `Extreme mean value: ${weightCheck.stats.mean.toFixed(2)}` };
-      }
-    }
-  }
+  // LD clumping now handles most scale issues - only exclude truly broken PGS
+  // NR and other weight types are now acceptable with LD clumping
   
   // Get performance metrics if API client provided
   let performanceWeight = 0.5;
