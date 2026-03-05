@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { gunzip } from 'zlib';
 import { promisify } from 'util';
@@ -25,9 +26,11 @@ import {
 } from './processor-core.js';
 import { shouldExcludePGS } from './pgs-filter.js';
 import { detectFormat, generateInsertSQL } from './harmonization.js';
+import { getLDStatus } from './ld-detector.js';
+import { generateClumpingSQL, shouldClumpPGS } from './ld-clumping.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const OUTPUT_DIR = '/output';
+const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(__dirname, '..', '..', '..', 'data_out');
 const PACKS_DIR = path.join(OUTPUT_DIR, 'packs');
 const TEMP_SQL_DIR = path.join(OUTPUT_DIR, 'temp_sql');
 const gunzipAsync = promisify(gunzip);
@@ -96,7 +99,14 @@ async function streamProcessWithDuckDB(traitName, config) {
     await fs.mkdir(PACKS_DIR, { recursive: true });
 
     // Initialize DuckDB with staging schema
+    const memoryLimit = process.env.DUCKDB_MEMORY_LIMIT || '8GB';
+    const threads = process.env.DUCKDB_THREADS || Math.max(4, Math.floor(os.cpus().length / 2));
+    
     const initSQL = `
+            PRAGMA memory_limit='${memoryLimit}';
+            PRAGMA threads=${threads};
+            PRAGMA temp_directory='/tmp';
+            
             DROP TABLE IF EXISTS pgs_staging;
             CREATE TABLE pgs_staging (
                 variant_id VARCHAR,
@@ -118,8 +128,9 @@ async function streamProcessWithDuckDB(traitName, config) {
     const initFile = path.join(OUTPUT_DIR, 'init.sql');
     await fs.writeFile(initFile, initSQL);
 
-    console.log('    Initializing DuckDB database...');
-    execSync(`duckdb ${dbPath} < ${initFile}`, {
+    console.log('    Initializing DuckDB database with optimized settings...');
+    const duckdbCmd = process.env.DUCKDB_CLI || 'duckdb';
+    execSync(`${duckdbCmd} ${dbPath} < ${initFile}`, {
       cwd: OUTPUT_DIR,
       stdio: 'pipe'
     });
@@ -133,6 +144,7 @@ async function streamProcessWithDuckDB(traitName, config) {
   try {
     let totalVariants = 0;
     const pgsIds = [];
+    const pgsMetadata = new Map();
 
     // Stream each PGS file directly into DuckDB
     for (const pgsId of config.pgs_ids) {
@@ -144,6 +156,10 @@ async function streamProcessWithDuckDB(traitName, config) {
           console.log(`        Excluding ${pgsId}: ${filterResult.reason}`);
           continue;
         }
+        
+        // Store LD metadata
+        const ldStatus = getLDStatus(scoreData);
+        pgsMetadata.set(pgsId, { ...scoreData, ...ldStatus });
       } catch (error) {
         console.log(`        Error checking ${pgsId} metadata: ${error.message}`);
       }
@@ -237,11 +253,13 @@ async function streamProcessWithDuckDB(traitName, config) {
         await fs.writeFile(sqlFile, importSQL);
 
         console.log(`        Importing ${pgsId} data into DuckDB...`);
+        const duckdbCmd = process.env.DUCKDB_CLI || 'duckdb';
         try {
-          execSync(`duckdb ${dbPath} < ${sqlFile}`, {
+          execSync(`${duckdbCmd} ${dbPath} < ${sqlFile}`, {
             cwd: OUTPUT_DIR,
             stdio: 'pipe',
-            encoding: 'utf8'
+            encoding: 'utf8',
+            maxBuffer: 50 * 1024 * 1024 // 50MB buffer
           });
           console.log('        ✓ Import complete');
         } catch (error) {
@@ -255,7 +273,7 @@ async function streamProcessWithDuckDB(traitName, config) {
         const countFile = path.join(TEMP_SQL_DIR, `count_${pgsId}.sql`);
         await fs.writeFile(countFile, countSQL);
 
-        const result = execSync(`duckdb ${dbPath} < ${countFile}`, {
+        const result = execSync(`${duckdbCmd} ${dbPath} < ${countFile}`, {
           cwd: OUTPUT_DIR,
           stdio: 'pipe',
           encoding: 'utf8'
@@ -280,6 +298,51 @@ async function streamProcessWithDuckDB(traitName, config) {
       return { totalVariants: 0, fileName: null, pgsIds: [] };
     }
 
+    // Apply LD clumping if needed
+    let clumpedCount = 0;
+    for (const [pgsId, metadata] of pgsMetadata.entries()) {
+      if (shouldClumpPGS(metadata)) {
+        console.log(`    Applying LD clumping to ${pgsId}...`);
+        const clumpSQL = generateClumpingSQL('pgs_staging');
+        const clumpFile = path.join(OUTPUT_DIR, `clump_${pgsId}.sql`);
+        await fs.writeFile(clumpFile, clumpSQL);
+        
+        try {
+          execSync(`duckdb ${dbPath} < ${clumpFile}`, {
+            cwd: OUTPUT_DIR,
+            stdio: 'pipe'
+          });
+          
+          // Get new count
+          const countSQL = `SELECT COUNT(*) as count FROM pgs_staging WHERE pgs_id = '${pgsId}';`;
+          const countFile = path.join(OUTPUT_DIR, `count_clumped_${pgsId}.sql`);
+          await fs.writeFile(countFile, countSQL);
+          
+          const result = execSync(`duckdb ${dbPath} < ${countFile}`, {
+            cwd: OUTPUT_DIR,
+            stdio: 'pipe',
+            encoding: 'utf8'
+          });
+          
+          const newCount = parseInt(result.match(/│\s*(\d+)\s*│/)?.[1] || '0');
+          const removed = totalVariants - newCount;
+          console.log(`    ✓ Clumped ${pgsId}: removed ${removed} variants (${newCount} remaining)`);
+          clumpedCount += removed;
+          totalVariants = newCount;
+          
+          await fs.unlink(countFile);
+        } catch (error) {
+          console.log(`    ⚠ Clumping failed for ${pgsId}: ${error.message}`);
+        }
+        
+        await fs.unlink(clumpFile);
+      }
+    }
+    
+    if (clumpedCount > 0) {
+      console.log(`    ✓ Total variants removed by LD clumping: ${clumpedCount}`);
+    }
+
     // Export to final parquet with ZSTD compression
     console.log('    Enforcing standard schema...');
     const exportSQL = createStandardizedExportQuery('pgs_staging', outputPath, config.normalization_params);
@@ -299,6 +362,8 @@ async function streamProcessWithDuckDB(traitName, config) {
       console.log(`    Export ERROR: ${error.message}`);
       throw error;
     }
+
+    // Also export to unified SQLite DB for fast refstats
 
     // Verify the parquet file was created
     try {
