@@ -102,7 +102,7 @@ export class QuantitativeDisplay extends HTMLElement {
     const range = maxVal - minVal;
     
     const getPosition = (val) => {
-      return ((val - minVal) / range) * 360 + 20;
+      return Math.max(20, Math.min(380, ((val - minVal) / range) * 360 + 20));
     };
     
     const userX = getPosition(value);
@@ -114,7 +114,7 @@ export class QuantitativeDisplay extends HTMLElement {
       const marginStart = getPosition(Math.max(minVal, value - margin));
       const marginEnd = getPosition(Math.min(maxVal, value + margin));
       userMarginBox = `
-        <rect x="${marginStart}" y="55" width="${marginEnd - marginStart}" height="10" fill="#007acc" opacity="0.15" rx="2"/>
+        <rect x="${marginStart}" y="55" width="${Math.max(0, marginEnd - marginStart)}" height="10" fill="#007acc" opacity="0.15" rx="2"/>
       `;
     }
     
@@ -136,7 +136,7 @@ export class QuantitativeDisplay extends HTMLElement {
         <text x="${meanX}" y="80" class="pop-label" text-anchor="middle">Pop Avg</text>
         
         <!-- ±1 SD (68% of population) -->
-        <rect x="${sd1LowerX}" y="55" width="${sd1UpperX - sd1LowerX}" height="10" fill="#007acc" opacity="0.1"/>
+        <rect x="${sd1LowerX}" y="55" width="${Math.max(0, sd1UpperX - sd1LowerX)}" height="10" fill="#007acc" opacity="0.1"/>
         <line x1="${sd1LowerX}" y1="55" x2="${sd1LowerX}" y2="65" stroke="#007acc" stroke-width="1" opacity="0.5"/>
         <line x1="${sd1UpperX}" y1="55" x2="${sd1UpperX}" y2="65" stroke="#007acc" stroke-width="1" opacity="0.5"/>
         
@@ -238,7 +238,7 @@ export class QuantitativeDisplay extends HTMLElement {
             if (indMargin > 0) {
               const mStart = getPosition(Math.max(minVal, ind.value - indMargin));
               const mEnd = getPosition(Math.min(maxVal, ind.value + indMargin));
-              marginBox = `<rect x="${mStart}" y="55" width="${mEnd - mStart}" height="10" fill="${isUser ? '#007acc' : '#999'}" opacity="0.15" rx="2"/>`;
+              marginBox = `<rect x="${mStart}" y="55" width="${Math.max(0, mEnd - mStart)}" height="10" fill="${isUser ? '#007acc' : '#999'}" opacity="0.15" rx="2"/>`;
             }
             return `
               <g class="individual-group" data-name="${ind.name || ind.emoji}" data-value="${ind.value.toFixed(2)}" data-unit="${unit}">

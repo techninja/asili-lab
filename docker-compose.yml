@@ -17,6 +17,7 @@ services:
       - NODE_ENV=production
       - NODE_OPTIONS=--max-old-space-size=8192 --max-semi-space-size=128
       - UV_THREADPOOL_SIZE=16
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     deploy:
       resources:
         limits:

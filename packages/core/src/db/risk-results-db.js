@@ -26,17 +26,19 @@ export class RiskResultsDB {
 
       const values = [
         individualId, traitId, pgsId, details.score, details.zScore, details.percentile,
-        details.matchedVariants, details.metadata?.variants_number || 0, details.confidence,
+        details.matchedVariants, details.metadata?.variants_number || 0,
+        details.genotypedVariants || 0, details.imputedVariants || 0,
+        details.confidence,
         details.insufficientData, details.performanceMetric, breakdown.positive, breakdown.positiveSum,
-        breakdown.negative, breakdown.negativeSum, details.sortOrder ?? null, details.value ?? null,
+        breakdown.negative, breakdown.negativeSum, details.value ?? null, details.qualityScore ?? null,
         JSON.stringify(breakdown.weightBuckets || []),
-        JSON.stringify(breakdown.chromosomeCoverage || {})
+        JSON.stringify(breakdown.chromosomeCoverage || {}),
+        JSON.stringify(breakdown.chrTotals || {}),
+        JSON.stringify(details.topVariants || [])
       ];
       
-      console.log(`DEBUG: Inserting PGS ${pgsId} with ${values.length} values (expected 19)`);
-      
       await this.conn.query(`
-        INSERT OR REPLACE INTO pgs_results VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO pgs_results VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, values);
 
       // Store top variants

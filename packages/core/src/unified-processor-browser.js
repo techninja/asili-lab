@@ -1,6 +1,10 @@
 /**
  * Browser-only unified processor without Node.js imports
  * Provides a consistent API for browser environments only
+ *
+ * TODO: Migrate to v2 scorer + duckdb-browser adapter.
+ * This file still uses the old BrowserGenomicProcessor which was deleted.
+ * Browser-only mode is deprioritized until the hybrid server path is complete.
  */
 
 import { Debug } from './utils/debug.js';
@@ -428,12 +432,13 @@ export class UnifiedProcessor {
 // Browser-only factory function
 export async function createBrowserProcessor(config = {}) {
   const { ProgressTracker } = await import('./progress/index.js');
-  const { BrowserGenomicProcessor } = await import('./genomic-processor/browser.js');
   const { BrowserStorageManager } = await import('./storage-manager/browser.js');
   const { QueueManager } = await import('./queue/manager.js');
 
   const progressTracker = new ProgressTracker();
-  const genomicProcessor = new BrowserGenomicProcessor(config, progressTracker);
+  // Scoring is handled by scorer.js + dna-source modules.
+  // This stub satisfies UnifiedProcessor's constructor without pulling in deleted code.
+  const genomicProcessor = { initialize() {}, cleanup() {} };
   const storage = new BrowserStorageManager(config);
   const queueManager = new QueueManager({ calculateTraitRisk: async (traitId, individualId, progressCallback) => {
     return await processor.calculateTraitRisk(traitId, individualId, progressCallback);

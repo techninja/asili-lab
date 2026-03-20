@@ -332,7 +332,8 @@ export class ServerStorageManager extends StorageManager {
         chromosome: variant.chromosome,
         position: variant.position,
         allele1: variant.allele1,
-        allele2: variant.allele2
+        allele2: variant.allele2,
+        imputed: false
       }));
 
       Debug.log(2, 'ServerStorageManager', `Loaded ${variants.length} variants for ${individualId}`);
@@ -342,6 +343,142 @@ export class ServerStorageManager extends StorageManager {
       Debug.log(1, 'ServerStorageManager', `Failed to load variants for ${individualId}:`, error.message);
       return [];
     }
+  }
+
+  async queryImputedVariant(individualId, variantId) {
+    await this.initialize();
+
+    const imputedFile = path.join(this.dataDir, 'imputed', `${individualId}_imputed.parquet`);
+
+    try {
+      await fs.access(imputedFile);
+
+      // Use DuckDB to query single variant
+      const duckdb = await import('duckdb');
+      const db = new duckdb.default.Database(':memory:');
+      const conn = db.connect();
+
+      const result = await new Promise((resolve, reject) => {
+        conn.all(
+          `SELECT variant_id, genotype_dosage 
+           FROM read_parquet('${imputedFile}')
+           WHERE variant_id = '${variantId.replace(/'/g, "''")}'
+           LIMIT 1`,
+          (err, rows) => {
+            conn.close();
+            db.close();
+            if (err) reject(err);
+            else resolve(rows?.[0] || null);
+          }
+        );
+      });
+
+      if (!result) return null;
+
+      // Convert to genomic processor format
+      const [chr, pos, ref, alt] = result.variant_id.split(':');
+      return {
+        rsid: result.variant_id,
+        chromosome: chr,
+        position: parseInt(pos),
+        allele1: ref,
+        allele2: alt,
+        imputed: true,
+        dosage: result.genotype_dosage,
+        quality: 1.0
+      };
+
+    } catch (error) {
+      Debug.log(3, 'ServerStorageManager', `No imputed variant ${variantId} for ${individualId}`);
+      return null;
+    }
+  }
+
+  async getImputedVariants(individualId) {
+    await this.initialize();
+
+    const imputedFile = path.join(this.dataDir, 'imputed', `${individualId}_imputed.parquet`);
+    
+    console.log(`🔍 Looking for imputed file at: ${imputedFile}`);
+
+    try {
+      await fs.access(imputedFile);
+      console.log(`✅ Found imputed file for ${individualId}`);
+      Debug.log(2, 'ServerStorageManager', `Loading imputed variants for ${individualId}`);
+
+      // Use DuckDB to read Parquet
+      const duckdb = await import('duckdb');
+      const db = new duckdb.default.Database(':memory:');
+      const conn = db.connect();
+
+      const variants = await new Promise((resolve, reject) => {
+        conn.all(
+          `SELECT variant_id, genotype_dosage FROM read_parquet('${imputedFile}')`,
+          (err, rows) => {
+            conn.close();
+            db.close();
+            if (err) reject(err);
+            else resolve(rows || []);
+          }
+        );
+      });
+
+      // Convert to genomic processor format
+      const formatted = variants.map(v => {
+        const [chr, pos, ref, alt] = v.variant_id.split(':');
+        return {
+          rsid: v.variant_id,
+          chromosome: chr,
+          position: parseInt(pos),
+          allele1: ref,
+          allele2: alt,
+          imputed: true,
+          dosage: v.genotype_dosage,
+          quality: 1.0 // Could add DR2 quality score from Beagle if available
+        };
+      });
+
+      console.log(`✅ Loaded ${formatted.length.toLocaleString()} imputed variants for ${individualId}`);
+      return formatted;
+
+    } catch (error) {
+      console.log(`❌ No imputed data for ${individualId}: ${error.message}`);
+      return [];
+    }
+  }
+
+  async getAllVariants(individualId) {
+    await this.initialize();
+
+    console.log(`🧬 getAllVariants called for ${individualId}`);
+
+    // Load both genotyped and imputed variants
+    const [genotyped, imputed] = await Promise.all([
+      this.getVariants(individualId),
+      this.getImputedVariants(individualId)
+    ]);
+
+    console.log(`📊 Loaded ${genotyped.length} genotyped + ${imputed.length} imputed variants`);
+
+    Debug.log(1, 'ServerStorageManager', 
+      `Loaded ${genotyped.length} genotyped + ${imputed.length} imputed = ${genotyped.length + imputed.length} total variants for ${individualId}`);
+
+    // Merge: genotyped takes precedence over imputed at same position
+    const merged = [...genotyped];
+    const genotypedPositions = new Set(
+      genotyped.map(v => `${v.chromosome}:${v.position}`)
+    );
+
+    for (const variant of imputed) {
+      const posKey = `${variant.chromosome}:${variant.position}`;
+      if (!genotypedPositions.has(posKey)) {
+        merged.push(variant);
+      }
+    }
+
+    console.log(`✅ Merged to ${merged.length} unique variants`);
+    Debug.log(1, 'ServerStorageManager', `Merged to ${merged.length} unique variants`);
+    return merged;
   }
 
   // Risk score storage and retrieval
@@ -412,6 +549,7 @@ export class ServerStorageManager extends StorageManager {
 
             const weightBucketsJson = breakdown.weightBuckets ? JSON.stringify(breakdown.weightBuckets).replace(/'/g, "''") : '[]';
             const chromosomeCoverageJson = breakdown.chromosomeCoverage ? JSON.stringify(breakdown.chromosomeCoverage).replace(/'/g, "''") : '{}';
+            const chrTotalsJson = breakdown.chrTotals ? JSON.stringify(breakdown.chrTotals).replace(/'/g, "''") : '{}';
             const topVariantsJson = details.topVariants ? JSON.stringify(details.topVariants).replace(/'/g, "''") : '[]';
 
             pgsInserts.push(`
@@ -421,6 +559,8 @@ export class ServerStorageManager extends StorageManager {
                ${details.percentile || 'NULL'},
                ${details.matchedVariants || 0},
                ${details.metadata?.variants_number || 0},
+               ${details.genotypedVariants || 0},
+               ${details.imputedVariants || 0},
                ${details.confidence ? `'${details.confidence}'` : 'NULL'},
                ${details.insufficientData ? 'TRUE' : 'FALSE'},
                ${details.performanceMetric || 'NULL'},
@@ -430,6 +570,7 @@ export class ServerStorageManager extends StorageManager {
                ${details.qualityScore !== null && details.qualityScore !== undefined ? details.qualityScore : 'NULL'},
                '${weightBucketsJson}',
                '${chromosomeCoverageJson}',
+               '${chrTotalsJson}',
                '${topVariantsJson}')
             `);
           });
@@ -480,13 +621,14 @@ export class ServerStorageManager extends StorageManager {
              (SELECT json_group_array(json_object(
                'pgs_id', pgs_id, 'raw_score', raw_score, 'z_score', z_score,
                'percentile', percentile, 'matched_variants', matched_variants,
+               'genotyped_variants', genotyped_variants, 'imputed_variants', imputed_variants,
                'confidence', confidence, 'insufficient_data', insufficient_data,
                'performance_metric', performance_metric,
                'positive_variants', positive_variants, 'positive_sum', positive_sum,
                'negative_variants', negative_variants, 'negative_sum', negative_sum,
                'expected_variants', expected_variants, 'quality_score', quality_score,
                'weight_buckets', weight_buckets, 'chromosome_coverage', chromosome_coverage,
-               'top_variants', top_variants
+               'chr_totals', chr_totals, 'top_variants', top_variants
              )) FROM (SELECT * FROM pgs_results WHERE individual_id = tr.individual_id AND trait_id = tr.trait_id ORDER BY quality_score DESC)) as pgs_list
            FROM trait_results tr
            WHERE tr.individual_id = '${individualId.replace(/'/g, "''")}' AND tr.trait_id = '${traitId.replace(/'/g, "''")}'`;
@@ -509,6 +651,7 @@ export class ServerStorageManager extends StorageManager {
         const weightBuckets = typeof pgs.weight_buckets === 'string' ? JSON.parse(pgs.weight_buckets) : (pgs.weight_buckets || []);
         const chromosomeCoverage = typeof pgs.chromosome_coverage === 'string' ? JSON.parse(pgs.chromosome_coverage) : (pgs.chromosome_coverage || {});
         const topVariants = typeof pgs.top_variants === 'string' ? JSON.parse(pgs.top_variants) : (pgs.top_variants || []);
+        const chrTotals = typeof pgs.chr_totals === 'string' ? JSON.parse(pgs.chr_totals) : (pgs.chr_totals || {});
         pgsBreakdown[pgs.pgs_id] = {
           positive: pgs.positive_variants,
           positiveSum: pgs.positive_sum,
@@ -517,17 +660,20 @@ export class ServerStorageManager extends StorageManager {
           total: pgs.positive_variants + pgs.negative_variants,
           weightBuckets,
           chromosomeCoverage,
-          topVariants
+          chrTotals
         };
         pgsDetails[pgs.pgs_id] = {
           score: pgs.raw_score,
           zScore: pgs.z_score,
           percentile: pgs.percentile,
           matchedVariants: pgs.matched_variants,
+          genotypedVariants: pgs.genotyped_variants || 0,
+          imputedVariants: pgs.imputed_variants || 0,
           confidence: pgs.confidence,
           insufficientData: pgs.insufficient_data,
           performanceMetric: pgs.performance_metric,
           qualityScore: pgs.quality_score,
+          topVariants,
           metadata: { variants_number: pgs.expected_variants }
         };
       });
@@ -736,6 +882,8 @@ export class ServerStorageManager extends StorageManager {
           percentile DOUBLE,
           matched_variants INTEGER,
           expected_variants INTEGER,
+          genotyped_variants INTEGER,
+          imputed_variants INTEGER,
           confidence VARCHAR,
           insufficient_data BOOLEAN DEFAULT FALSE,
           performance_metric DOUBLE,
@@ -747,6 +895,7 @@ export class ServerStorageManager extends StorageManager {
           quality_score DOUBLE,
           weight_buckets JSON,
           chromosome_coverage JSON,
+          chr_totals JSON,
           top_variants JSON,
           PRIMARY KEY (individual_id, trait_id, pgs_id)
         );

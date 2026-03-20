@@ -1,6 +1,12 @@
 /**
  * Unified processor that works in both browser and server environments
  * Provides a consistent API while handling platform-specific implementations
+ *
+ * NOTE: The risk calculation path in this file is DEAD for the server.
+ * The calc server uses v2 (scorer.js + dna-source + calculator.js) directly.
+ * This file is kept because createServerProcessor() bootstraps storage,
+ * trait manifest, cache, and queue infrastructure that the calc server needs.
+ * TODO: Extract the storage/manifest init into a standalone module and delete this file.
  */
 
 import { Debug } from './utils/debug.js';
@@ -288,15 +294,25 @@ export class UnifiedProcessor {
       // Get user DNA data (use preloaded if available)
       progressCallback?.('Loading user DNA...', 0);
       let userDNA;
+      let isHybridLookup = false;
       
       if (preloadedDNA) {
-        // Convert Map to array if needed
-        if (preloadedDNA instanceof Map) {
-          userDNA = Array.from(preloadedDNA.values());
-        } else {
+        // Check if it's a HybridVariantLookup instance
+        if (preloadedDNA.constructor.name === 'HybridVariantLookup' || 
+            (preloadedDNA.genotypedMap && preloadedDNA.get && typeof preloadedDNA.get === 'function')) {
+          // It's a HybridVariantLookup - pass it directly
           userDNA = preloadedDNA;
+          isHybridLookup = true;
+          Debug.log(2, 'UnifiedProcessor', `Using HybridVariantLookup with ${preloadedDNA.genotypedMap?.size || 0} genotyped variants`);
+        } else if (preloadedDNA instanceof Map) {
+          // Convert Map to array
+          userDNA = Array.from(preloadedDNA.values());
+          Debug.log(2, 'UnifiedProcessor', `Using preloaded DNA Map: ${userDNA.length} variants`);
+        } else {
+          // Assume it's an array
+          userDNA = preloadedDNA;
+          Debug.log(2, 'UnifiedProcessor', `Using preloaded DNA array: ${userDNA.length} variants`);
         }
-        Debug.log(2, 'UnifiedProcessor', `Using preloaded DNA: ${userDNA.length} variants`);
       } else {
         userDNA = this.dnaCache.get(individualId);
         if (!userDNA) {
@@ -354,26 +370,32 @@ export class UnifiedProcessor {
             };
           }
           
-          // Load normalization params only for registered PGS
-          for (const { pgs_id, performance_weight } of pgsScores) {
+          // Load normalization params and performance metrics for registered PGS
+          for (const { pgs_id } of pgsScores) {
             const pgs = await getPGS(pgs_id);
             if (pgs) {
+              // Get best R² from pgs_performance table
+              const perfMetrics = await getPGSPerformance(pgs_id);
+              const r2Metrics = perfMetrics.filter(m => 
+                m.metric_type === 'R²' || 
+                m.metric_type === 'PGS R2 (no covariates)'
+              );
+              let bestR2 = 0.05; // default
+              if (r2Metrics.length > 0) {
+                bestR2 = Math.max(...r2Metrics.map(m => {
+                  // Normalize: values > 1 are percentages
+                  return m.metric_value > 1 ? m.metric_value / 100 : m.metric_value;
+                }));
+              }
+              
               normalizationParams[pgs_id] = {
                 norm_mean: pgs.norm_mean,
                 norm_sd: pgs.norm_sd,
-                performance_weight: performance_weight || 0.5,
+                performance_weight: bestR2,
                 variants_number: pgs.variants_number ? Number(pgs.variants_number) : null
               };
               
-              // Fetch R² for quantitative traits
-              if (trait.trait_type === 'quantitative') {
-                const perfMetrics = await getPGSPerformance(pgs_id);
-                const r2Metrics = perfMetrics.filter(m => m.metric_type.includes('R2') || m.metric_type.includes('R²'));
-                const maxR2 = r2Metrics.length > 0 ? Math.max(...r2Metrics.map(m => m.metric_value)) : 0.05;
-                pgsPerformanceMetrics[pgs_id] = {
-                  r2: maxR2
-                };
-              }
+              pgsPerformanceMetrics[pgs_id] = { r2: bestR2 };
             }
           }
         } catch (dbError) {
@@ -687,12 +709,11 @@ export class UnifiedProcessor {
 // Factory functions for different environments
 export async function createBrowserProcessor(config = {}) {
   const { ProgressTracker } = await import('./progress/index.js');
-  const { BrowserGenomicProcessor } = await import('./genomic-processor/browser.js');
   const { BrowserStorageManager } = await import('./storage-manager/browser.js');
   const { QueueManager } = await import('./queue/manager.js');
 
   const progressTracker = new ProgressTracker();
-  const genomicProcessor = new BrowserGenomicProcessor(config, progressTracker);
+  const genomicProcessor = { initialize() {}, cleanup() {} };
   const storage = new BrowserStorageManager(config);
   const queueManager = new QueueManager({ calculateTraitRisk: async (traitId, individualId, progressCallback) => {
     const processor = new UnifiedProcessor(genomicProcessor, storage, progressTracker, null, config);
@@ -708,12 +729,13 @@ export async function createBrowserProcessor(config = {}) {
 
 export async function createServerProcessor(config = {}) {
   const { ProgressTracker } = await import('./progress/index.js');
-  const { ServerGenomicProcessor } = await import('./genomic-processor/server.js');
   const { ServerStorageManager } = await import('./storage-manager/server.js');
   const { QueueManager } = await import('./queue/manager.js');
 
   const progressTracker = new ProgressTracker();
-  const genomicProcessor = new ServerGenomicProcessor(config, progressTracker);
+  // Scoring is handled by scorer.js + dna-source modules directly in calc server.
+  // This stub satisfies UnifiedProcessor's constructor without pulling in deleted code.
+  const genomicProcessor = { initialize() {}, cleanup() {} };
   const storage = new ServerStorageManager(config);
   const queueManager = new QueueManager({ calculateTraitRisk: async (traitId, individualId, progressCallback) => {
     const processor = new UnifiedProcessor(genomicProcessor, storage, progressTracker, null, config);

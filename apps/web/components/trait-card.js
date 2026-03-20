@@ -295,7 +295,7 @@ export class TraitCard extends HTMLElement {
           <div class="percentile">${this.formatPercentile(percentile)}</div>
           <div class="level ${level}">${level} risk</div>
         `}
-        <div class="confidence confidence-${confidence}">${this.formatConfidence(confidence)}</div>
+        ${this.renderQualityLabel(cached)}
         ${bestPGS && bestPGSPerformance ? `
           <div class="best-pgs">Based on ${bestPGS} (R²: ${(bestPGSPerformance * 100).toFixed(1)}%)</div>
         ` : ''}
@@ -470,12 +470,13 @@ addToQueue() {
   }
 
   formatZScore(zScore) {
-    const abs = Math.abs(zScore);
+    if (zScore == null) return 'N/A';
     const sign = zScore >= 0 ? '+' : '';
     return `${sign}${zScore.toFixed(2)}σ`;
   }
 
   formatScore(score) {
+    if (score == null) return 'N/A';
     const abs = Math.abs(score);
     const sign = score >= 0 ? '+' : '';
     return abs >= 10 ? `${sign}${score.toFixed(2)}` : `${sign}${score.toFixed(3)}`;
@@ -557,6 +558,30 @@ addToQueue() {
     `;
   }
 
+  renderQualityLabel(cached) {
+    const bestPGS = cached.bestPGS;
+    if (!bestPGS || !cached.pgsDetails?.[bestPGS]) return '';
+    
+    const qualityScore = cached.bestPGSQualityScore ?? cached.pgsDetails[bestPGS].qualityScore ?? 0;
+    
+    let label, cssClass;
+    if (qualityScore >= 70) {
+      label = '✓ Excellent predictive power';
+      cssClass = 'quality-excellent';
+    } else if (qualityScore >= 50) {
+      label = 'Good reliability';
+      cssClass = 'quality-good';
+    } else if (qualityScore >= 30) {
+      label = '⚠️ Moderate predictive value';
+      cssClass = 'quality-moderate';
+    } else {
+      label = '⚠️ Limited predictive value';
+      cssClass = 'quality-limited';
+    }
+    
+    return `<div class="quality-label ${cssClass}" title="Quality Score: ${qualityScore.toFixed(1)}/100">${label}</div>`;
+  }
+
   formatConfidence(confidence) {
     const labels = {
       none: '⚠️ No data',
@@ -618,6 +643,11 @@ addToQueue() {
         .confidence-low { background: #fff3cd; color: #856404; }
         .confidence-medium { background: #e7f3ff; color: #004085; }
         .confidence-high { background: #d4edda; color: #155724; }
+        .quality-label { font-size: 11px; margin: 5px 0; padding: 3px 6px; border-radius: 3px; }
+        .quality-excellent { background: #d4edda; color: #155724; }
+        .quality-good { background: #e7f3ff; color: #004085; }
+        .quality-moderate { background: #fff3cd; color: #856404; }
+        .quality-limited { background: #f8d7da; color: #721c24; font-weight: 600; }
         .best-pgs { font-size: 11px; color: #666; margin: 5px 0; font-style: italic; }
         .best-pgs-item { border-left: 3px solid #ffc107; padding-left: 5px; }
         .quality-badge { font-size: 10px; background: #28a745; color: white !important; padding: 2px 5px; border-radius: 3px; font-weight: 600; }
