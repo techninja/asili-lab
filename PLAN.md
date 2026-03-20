@@ -138,6 +138,57 @@
 
 ---
 
+## 🔬 Phase 6.5: Imputation System (NEW)
+
+**Objective:** Dramatically improve PGS coverage through local LD-based imputation.
+
+### Problem
+
+DTC DNA tests (23andMe, AncestryDNA) only genotype ~600K variants, but PGS often require millions. This results in:
+- 1-5% coverage on many PGS scores
+- Unreliable risk calculations
+- Quality penalties that can't compensate for missing data
+
+### Solution
+
+Pre-computed reference panels from 1000 Genomes that enable local imputation:
+- **Coverage improvement**: 1-5% → 60-80%
+- **Privacy-preserving**: All processing local, no external APIs
+- **Efficient**: 2-8GB reference panels vs 100GB+ full imputation
+- **Fast**: ~30-60s in browser, ~5-10s on server
+
+### Implementation Status
+
+- [x] Design imputation architecture (see `docs/IMPUTATION_STRATEGY.md`)
+- [x] Create reference panel builder (`packages/pipeline/build-imputation-panel.js`)
+- [x] Create imputation engine (`packages/core/src/imputation/local-imputer.js`)
+- [ ] Download and process 1000 Genomes data
+- [ ] Build reference panels for EUR population
+- [ ] Integrate with genomic processor
+- [ ] Add UI toggle for imputation
+- [ ] Test coverage improvements on real PGS
+- [ ] Optimize performance and storage
+- [ ] Add multi-ancestry support (AFR, EAS, SAS, AMR)
+
+### Usage
+
+```bash
+# Build reference panel for chromosome 22 (testing)
+pnpm impute:build --chr 22 --population EUR --maf 0.01
+
+# Build full reference panel (all chromosomes)
+for chr in {1..22}; do
+  pnpm impute:build --chr $chr --population EUR
+done
+```
+
+### Expected Impact
+
+- **Before**: PGS with 530K variants → 8K matched (1.5%) → Quality score: 28 (poor)
+- **After**: PGS with 530K variants → 350K matched (66%) → Quality score: 75 (good)
+
+---
+
 ## 📋 Phase 7: Community & Monetization (FUTURE)
 
 **Objective:** Build community and sustainable business model.

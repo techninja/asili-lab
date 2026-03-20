@@ -14,6 +14,7 @@
     "pgs": "node packages/pipeline/manage-pgs.js",
     "etl": "node scripts/etl-runner.js",
     "pipeline": "node scripts/pipeline-controller.js",
+    "imputation": "node scripts/imputation.js",
     "start": "node scripts/server.js",
     "calc-server": "node scripts/server.js calc dev",
     "test:core": "cd packages/core && node test.js",
