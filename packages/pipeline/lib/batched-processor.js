@@ -64,25 +64,7 @@ async function createBatches(pgsIds, maxVariantsPerBatch = null) {
   for (const pgsId of pgsIds) {
     const promise = (async () => {
       try {
-        // Check if file is already cached
-        const cachedFilePath = path.join(
-          process.env.CACHE_DIR || path.join(__dirname, '..', '..', '..', 'cache'),
-          'pgs_files',
-          `${pgsId}.txt.gz`
-        );
-        try {
-          await fs.access(cachedFilePath);
-          const variantCount = await countVariantsInFile(cachedFilePath);
-
-          return {
-            pgs_id: pgsId,
-            file_path: cachedFilePath,
-            variants: variantCount
-          };
-        } catch {
-          // File not cached, need to download
-        }
-
+        // Always go through downloadPGSFile which handles harmonized preference + caching
         const scoreData = await pgsApiClient.getScore(pgsId);
         if (!scoreData.ftp_scoring_file) {
           console.log(`    ${pgsId}: No scoring file, skipping`);
@@ -223,7 +205,41 @@ async function processBatchWithDuckDB(
         ? getColumnRef(columns, 'dosage_1_weight')
         : getColumnRef(columns, 'effect_weight');
 
-      fileQueries.push(`
+      const hasOtherAllele = columns.includes('other_allele');
+      const gnomadPath = process.env.GNOMAD_PARQUET_PATH;
+      
+      // If other_allele is missing and gnomAD is available, look it up
+      if (!hasOtherAllele && gnomadPath && (formatType === FORMAT_TYPES.STANDARD_SNP || formatType === FORMAT_TYPES.STANDARD_SNP_NO_RSID)) {
+        const chrNameCol = getColumnRef(columns, 'chr_name');
+        const chrPosCol = getColumnRef(columns, 'chr_position');
+        const effectAlleleCol = getColumnRef(columns, 'effect_allele');
+        const effectWeightCol = getColumnRef(columns, 'effect_weight');
+        
+        fileQueries.push(`
+            -- Process ${file.pgs_id} (${formatType} format with gnomAD lookup)
+            INSERT INTO batch_variants
+            SELECT 
+                CASE 
+                    WHEN g.ref IS NOT NULL AND g.alt IS NOT NULL THEN
+                        CONCAT(REPLACE(csv.${chrNameCol}, 'chr', ''), ':', COALESCE(csv.${chrPosCol}::TEXT, ''), ':', g.ref, ':', g.alt)
+                    ELSE
+                        CONCAT(REPLACE(csv.${chrNameCol}, 'chr', ''), ':', COALESCE(csv.${chrPosCol}::TEXT, ''), ':', csv.${effectAlleleCol})
+                END as variant_id,
+                csv.${effectAlleleCol} as effect_allele,
+                TRY_CAST(csv.${effectWeightCol} AS DOUBLE) as effect_weight,
+                '${file.pgs_id}' as pgs_id
+            FROM read_csv('${dataOnlyPath}', delim='\t', header=false, columns={${columnDefs}}) csv
+            LEFT JOIN read_parquet('${gnomadPath}') g 
+                ON 'chr' || REPLACE(csv.${chrNameCol}, 'chr', '') = g.chr 
+                AND TRY_CAST(csv.${chrPosCol} AS BIGINT) = g.pos
+                AND csv.${effectAlleleCol} = g.alt
+            WHERE csv.${effectAlleleCol} IS NOT NULL 
+              AND csv.${effectAlleleCol} != ''
+              AND csv.${weightCol} IS NOT NULL
+              AND csv.${weightCol} != '';
+            `);
+      } else {
+        fileQueries.push(`
             -- Process ${file.pgs_id} (${formatType} format, ${columns.length} columns)
             INSERT INTO batch_variants
             SELECT 
@@ -237,6 +253,7 @@ async function processBatchWithDuckDB(
               AND ${weightCol} IS NOT NULL
               AND ${weightCol} != '';
             `);
+      }
     } catch (error) {
       logger.log(
         `    Warning: Could not prepare ${file.pgs_id}: ${error.message}`
@@ -298,13 +315,18 @@ async function processBatchWithDuckDB(
         -- Apply LD clumping per PGS if needed
         ${clumpingSQL}
         
-        -- Enforce standard schema
+        -- Enforce standard schema with chr/pos integer columns
         CREATE OR REPLACE TABLE batch_variants_standardized AS
         SELECT 
             COALESCE(variant_id, '') as variant_id,
             COALESCE(effect_allele, '') as effect_allele,
             COALESCE(effect_weight, 0.0) as effect_weight,
-            COALESCE(pgs_id, '') as pgs_id
+            COALESCE(pgs_id, '') as pgs_id,
+            CASE SPLIT_PART(COALESCE(variant_id, ''), ':', 1)
+              WHEN 'X' THEN 23::TINYINT WHEN 'Y' THEN 24::TINYINT WHEN 'MT' THEN 25::TINYINT
+              ELSE TRY_CAST(SPLIT_PART(COALESCE(variant_id, ''), ':', 1) AS TINYINT)
+            END AS chr,
+            TRY_CAST(SPLIT_PART(COALESCE(variant_id, ''), ':', 2) AS INTEGER) AS pos
         FROM batch_variants
         WHERE variant_id IS NOT NULL AND variant_id != ''
           AND effect_allele IS NOT NULL AND effect_allele != ''
@@ -316,7 +338,9 @@ async function processBatchWithDuckDB(
                 variant_id,
                 effect_allele,
                 effect_weight,
-                pgs_id
+                pgs_id,
+                chr,
+                pos
             FROM batch_variants_standardized 
             ORDER BY variant_id
         ) TO '${batchOutputPath}' (FORMAT PARQUET, COMPRESSION SNAPPY);

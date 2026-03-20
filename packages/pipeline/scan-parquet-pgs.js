@@ -53,8 +53,9 @@ export default async function scanParquetFiles(singleTraitId = null) {
     try {
       const pgsData = await new Promise((resolve, reject) => {
         conn.all(`
-          SELECT DISTINCT 
+          SELECT 
             pgs_id,
+            COUNT(*) as variant_count,
             FIRST(effect_weight) as sample_weight
           FROM '${filePath}'
           GROUP BY pgs_id
@@ -64,10 +65,12 @@ export default async function scanParquetFiles(singleTraitId = null) {
       for (const row of pgsData) {
         if (!allPGS.has(row.pgs_id)) {
           allPGS.set(row.pgs_id, {
-            weight_type: 'beta', // Default, will be updated from PGS Catalog if available
-            method: 'Unknown',
-            variants_number: null
+            variants_in_parquet: Number(row.variant_count)
           });
+        } else {
+          // PGS exists in multiple packs, sum the variant counts
+          const existing = allPGS.get(row.pgs_id);
+          existing.variants_in_parquet = (existing.variants_in_parquet || 0) + Number(row.variant_count);
         }
       }
       

@@ -8,7 +8,8 @@ export const FORMAT_TYPES = {
   DOSAGE_WEIGHTS: 'DOSAGE_WEIGHTS',
   HLA_ALLELE: 'HLA_ALLELE',
   RSID_ONLY: 'RSID_ONLY',
-  RSID_CHR: 'RSID_CHR'
+  RSID_CHR: 'RSID_CHR',
+  RSID_HARMONIZED: 'RSID_HARMONIZED'
 };
 
 /**
@@ -40,6 +41,12 @@ export function detectFormat(columns) {
     return FORMAT_TYPES.STANDARD_SNP_NO_RSID;
   } else if (columns.includes('rsID') && columns.includes('is_haplotype')) {
     return FORMAT_TYPES.HLA_ALLELE;
+  } else if (
+    columns.includes('rsID') &&
+    columns.includes('hm_chr') &&
+    columns.includes('hm_pos')
+  ) {
+    return FORMAT_TYPES.RSID_HARMONIZED;
   } else if (
     columns.includes('rsID') &&
     !columns.includes('chr_name') &&
@@ -126,6 +133,32 @@ export function generateColumnExpressions(formatType, columns) {
       };
     }
 
+    case FORMAT_TYPES.RSID_HARMONIZED: {
+      const hmChrCol = getCol('hm_chr');
+      const hmPosCol = getCol('hm_pos');
+      const effectAlleleCol = getCol('effect_allele');
+      const otherAlleleCol = getCol('other_allele');
+      const hmOtherAlleleCol = getCol('hm_inferOtherAllele');
+      const effectWeightCol = getCol('effect_weight');
+
+      const hasOtherAllele = columns.includes('other_allele');
+      const hasHmOther = columns.includes('hm_inferOtherAllele');
+      const otherExpr = hasOtherAllele ? otherAlleleCol : (hasHmOther ? hmOtherAlleleCol : "''");
+
+      const variantId = (hasOtherAllele || hasHmOther)
+        ? `CONCAT(${hmChrCol}, ':', ${hmPosCol}, ':', ${effectAlleleCol}, ':', ${otherExpr})`
+        : `CONCAT(${hmChrCol}, ':', ${hmPosCol}, ':', ${effectAlleleCol})`;
+
+      return {
+        variant_id: variantId,
+        chr_name: hmChrCol,
+        chr_position: `TRY_CAST(${hmPosCol} AS BIGINT)`,
+        effect_allele: effectAlleleCol,
+        other_allele: otherExpr,
+        effect_weight: `TRY_CAST(${effectWeightCol} AS DOUBLE)`
+      };
+    }
+
     case FORMAT_TYPES.RSID_ONLY:
     case FORMAT_TYPES.RSID_CHR:
     default: {
@@ -174,6 +207,50 @@ export function generateInsertSQL(
     ? getColumnRef(columns, 'dosage_1_weight')
     : getColumnRef(columns, 'effect_weight');
 
+  const hasOtherAllele = columns.includes('other_allele');
+  const gnomadPath = process.env.GNOMAD_PARQUET_PATH;
+  
+  // If other_allele is missing and gnomAD is available, look it up
+  if (!hasOtherAllele && gnomadPath && (formatType === FORMAT_TYPES.STANDARD_SNP || formatType === FORMAT_TYPES.STANDARD_SNP_NO_RSID)) {
+    const chrNameCol = getColumnRef(columns, 'chr_name');
+    const chrPosCol = getColumnRef(columns, 'chr_position');
+    const effectAlleleCol = getColumnRef(columns, 'effect_allele');
+    const effectWeightCol = getColumnRef(columns, 'effect_weight');
+    
+    return `
+        INSERT INTO pgs_staging 
+        SELECT 
+            CASE 
+                WHEN g.ref IS NOT NULL AND g.alt IS NOT NULL THEN
+                    CONCAT(REPLACE(csv.${chrNameCol}, 'chr', ''), ':', COALESCE(csv.${chrPosCol}::TEXT, ''), ':', g.ref, ':', g.alt)
+                ELSE
+                    CONCAT(REPLACE(csv.${chrNameCol}, 'chr', ''), ':', COALESCE(csv.${chrPosCol}::TEXT, ''), ':', csv.${effectAlleleCol})
+            END as variant_id,
+            REPLACE(csv.${chrNameCol}, 'chr', '') as chr_name,
+            TRY_CAST(csv.${chrPosCol} AS BIGINT) as chr_position,
+            csv.${effectAlleleCol} as effect_allele,
+            COALESCE(g.ref, '') as other_allele,
+            TRY_CAST(csv.${effectWeightCol} AS DOUBLE) as effect_weight,
+            '${pgsId}' as pgs_id,
+            '${config.source_family || traitName}' as source_family,
+            '${config.source_type || 'trait'}' as source_type,
+            '${config.source_subtype || 'mondo'}' as source_subtype,
+            ${config.weight || 1.0} as source_weight,
+            'log_odds' as weight_type,
+            '${formatType}' as format_type
+        FROM read_csv('${dataPath}', delim='\\t', header=false, columns={${columnDefs}}) csv
+        LEFT JOIN read_parquet('${gnomadPath}') g 
+            ON 'chr' || REPLACE(csv.${chrNameCol}, 'chr', '') = g.chr 
+            AND TRY_CAST(csv.${chrPosCol} AS BIGINT) = g.pos
+            AND csv.${effectAlleleCol} = g.alt
+        WHERE csv.${effectAlleleCol} IS NOT NULL 
+          AND csv.${effectAlleleCol} != ''
+          AND csv.${weightCol} IS NOT NULL
+          AND csv.${weightCol} != '';
+    `;
+  }
+
+  // Original logic for files with other_allele or no gnomAD
   return `
         INSERT INTO pgs_staging 
         SELECT 

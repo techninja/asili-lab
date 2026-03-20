@@ -7,11 +7,15 @@ import os from 'os';
 import pgsApiClient from '../pgs-api-client.js';
 import { shouldExcludePGS } from './pgs-filter.js';
 
-const OUTPUT_DIR = '/output';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(__dirname, '..', '..', '..', 'data_out');
+const PACKS_DIR = path.join(OUTPUT_DIR, 'packs');
 const PATHS = {
   DATA_OUT: OUTPUT_DIR,
-  TRAIT_MANIFEST: '/output/trait_manifest.json',
-  getTraitFile: (traitId) => `/output/packs/${traitId.replace(/:/g, '_')}_hg38.parquet`
+  TRAIT_MANIFEST: path.join(OUTPUT_DIR, 'trait_manifest.json'),
+  getTraitFile: (traitId) => path.join(PACKS_DIR, `${traitId.replace(/:/g, '_')}_hg38.parquet`)
 };
 const gunzipAsync = promisify(gunzip);
 
@@ -103,7 +107,7 @@ export async function needsUpdate(traitName, config) {
 
   // Check if file exists
   const safeFileName = traitName.replace(':', '_');
-  const filePath = path.join('/output/packs', `${safeFileName}_hg38.parquet`);
+  const filePath = path.join(PACKS_DIR, `${safeFileName}_hg38.parquet`);
   try {
     const stats = await fs.stat(filePath);
     console.log(`    Output file exists: ${filePath} (${stats.size} bytes)`);
@@ -187,6 +191,7 @@ export async function runDuckDBQuery(query, dbPath = null) {
   const duckdbCmd = process.env.DUCKDB_CLI || 'duckdb';
   const memoryLimit = process.env.DUCKDB_MEMORY_LIMIT || '8GB';
   const threads = process.env.DUCKDB_THREADS || Math.max(4, Math.floor(os.cpus().length / 2));
+  const tempDir = process.env.LARGE_TMP || '/tmp';
 
   return new Promise((resolve, reject) => {
     const args = dbPath ? [dbPath] : [];
@@ -209,7 +214,7 @@ export async function runDuckDBQuery(query, dbPath = null) {
     );
 
     const fullQuery = `
-            PRAGMA temp_directory='/tmp';
+            PRAGMA temp_directory='${tempDir}';
             PRAGMA memory_limit='${memoryLimit}';
             PRAGMA threads=${threads};
             ${query}
@@ -273,7 +278,12 @@ export function createStandardizedExportQuery(tableName, outputPath, normalizati
             COALESCE(variant_id, '') as variant_id,
             COALESCE(effect_allele, '') as effect_allele,
             COALESCE(effect_weight, 0.0) as effect_weight,
-            COALESCE(pgs_id, '') as pgs_id
+            COALESCE(pgs_id, '') as pgs_id,
+            CASE SPLIT_PART(COALESCE(variant_id, ''), ':', 1)
+              WHEN 'X' THEN 23::TINYINT WHEN 'Y' THEN 24::TINYINT WHEN 'MT' THEN 25::TINYINT
+              ELSE TRY_CAST(SPLIT_PART(COALESCE(variant_id, ''), ':', 1) AS TINYINT)
+            END AS chr,
+            TRY_CAST(SPLIT_PART(COALESCE(variant_id, ''), ':', 2) AS INTEGER) AS pos
         FROM ${tableName}
         WHERE variant_id IS NOT NULL AND variant_id != ''
           AND effect_allele IS NOT NULL AND effect_allele != ''
@@ -283,7 +293,9 @@ export function createStandardizedExportQuery(tableName, outputPath, normalizati
             variant_id,
             effect_allele,
             effect_weight,
-            pgs_id
+            pgs_id,
+            chr,
+            pos
         FROM ${tableName}_standardized ORDER BY variant_id) 
         TO '${outputPath}' (FORMAT PARQUET, COMPRESSION ZSTD);
     `;

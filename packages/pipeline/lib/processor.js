@@ -27,7 +27,7 @@ import {
 import { shouldExcludePGS } from './pgs-filter.js';
 import { detectFormat, generateInsertSQL } from './harmonization.js';
 import { getLDStatus } from './ld-detector.js';
-import { generateClumpingSQL, shouldClumpPGS } from './ld-clumping.js';
+import { generateLDClumpingSQL, generateClumpingSQL, shouldClumpPGS } from './ld-clumping.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(__dirname, '..', '..', '..', 'data_out');
@@ -45,7 +45,10 @@ async function streamProcessWithDuckDB(traitName, config) {
 
   const safeFileName = traitName.replace(':', '_');
   const outputPath = path.join(PACKS_DIR, `${safeFileName}_hg38.parquet`);
-  const dbPath = path.join(OUTPUT_DIR, `${safeFileName}.duckdb`);
+  
+  // Use LARGE_TMP for database if available to avoid filling up main disk
+  const dbDir = process.env.LARGE_TMP || OUTPUT_DIR;
+  const dbPath = path.join(dbDir, `${safeFileName}.duckdb`);
   const { execSync } = await import('child_process');
 
   // Check if we can resume from existing database
@@ -101,11 +104,12 @@ async function streamProcessWithDuckDB(traitName, config) {
     // Initialize DuckDB with staging schema
     const memoryLimit = process.env.DUCKDB_MEMORY_LIMIT || '8GB';
     const threads = process.env.DUCKDB_THREADS || Math.max(4, Math.floor(os.cpus().length / 2));
+    const tempDir = process.env.LARGE_TMP || '/tmp';
     
     const initSQL = `
             PRAGMA memory_limit='${memoryLimit}';
             PRAGMA threads=${threads};
-            PRAGMA temp_directory='/tmp';
+            PRAGMA temp_directory='${tempDir}';
             
             DROP TABLE IF EXISTS pgs_staging;
             CREATE TABLE pgs_staging (
@@ -298,44 +302,63 @@ async function streamProcessWithDuckDB(traitName, config) {
       return { totalVariants: 0, fileName: null, pgsIds: [] };
     }
 
-    // Apply LD clumping if needed
+    // Apply LD clumping if needed (per chromosome for LD data)
     let clumpedCount = 0;
+    const chromosomes = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22'];
+    
     for (const [pgsId, metadata] of pgsMetadata.entries()) {
       if (shouldClumpPGS(metadata)) {
         console.log(`    Applying LD clumping to ${pgsId}...`);
-        const clumpSQL = generateClumpingSQL('pgs_staging');
-        const clumpFile = path.join(OUTPUT_DIR, `clump_${pgsId}.sql`);
-        await fs.writeFile(clumpFile, clumpSQL);
         
-        try {
-          execSync(`duckdb ${dbPath} < ${clumpFile}`, {
-            cwd: OUTPUT_DIR,
-            stdio: 'pipe'
-          });
+        // Get count before clumping
+        const beforeSQL = `SELECT COUNT(*) as count FROM pgs_staging WHERE pgs_id = '${pgsId}';`;
+        const beforeFile = path.join(OUTPUT_DIR, `count_before_${pgsId}.sql`);
+        await fs.writeFile(beforeFile, beforeSQL);
+        
+        const beforeResult = execSync(`duckdb ${dbPath} < ${beforeFile}`, {
+          cwd: OUTPUT_DIR,
+          stdio: 'pipe',
+          encoding: 'utf8'
+        });
+        
+        const beforeCount = parseInt(beforeResult.match(/│\s*(\d+)\s*│/)?.[1] || '0');
+        await fs.unlink(beforeFile);
+        
+        for (const chr of chromosomes) {
+          const clumpSQL = generateLDClumpingSQL('pgs_staging', chr);
+          const clumpFile = path.join(OUTPUT_DIR, `clump_${pgsId}_chr${chr}.sql`);
+          await fs.writeFile(clumpFile, clumpSQL);
           
-          // Get new count
-          const countSQL = `SELECT COUNT(*) as count FROM pgs_staging WHERE pgs_id = '${pgsId}';`;
-          const countFile = path.join(OUTPUT_DIR, `count_clumped_${pgsId}.sql`);
-          await fs.writeFile(countFile, countSQL);
-          
-          const result = execSync(`duckdb ${dbPath} < ${countFile}`, {
-            cwd: OUTPUT_DIR,
-            stdio: 'pipe',
-            encoding: 'utf8'
-          });
-          
-          const newCount = parseInt(result.match(/│\s*(\d+)\s*│/)?.[1] || '0');
-          const removed = totalVariants - newCount;
-          console.log(`    ✓ Clumped ${pgsId}: removed ${removed} variants (${newCount} remaining)`);
-          clumpedCount += removed;
-          totalVariants = newCount;
-          
-          await fs.unlink(countFile);
-        } catch (error) {
-          console.log(`    ⚠ Clumping failed for ${pgsId}: ${error.message}`);
+          try {
+            execSync(`duckdb ${dbPath} < ${clumpFile}`, {
+              cwd: OUTPUT_DIR,
+              stdio: 'pipe'
+            });
+            await fs.unlink(clumpFile);
+          } catch (error) {
+            console.log(`    ⚠ Clumping failed for ${pgsId} chr${chr}: ${error.message}`);
+            await fs.unlink(clumpFile).catch(() => {});
+          }
         }
         
-        await fs.unlink(clumpFile);
+        // Get new count after clumping all chromosomes
+        const countSQL = `SELECT COUNT(*) as count FROM pgs_staging WHERE pgs_id = '${pgsId}';`;
+        const countFile = path.join(OUTPUT_DIR, `count_clumped_${pgsId}.sql`);
+        await fs.writeFile(countFile, countSQL);
+        
+        const result = execSync(`duckdb ${dbPath} < ${countFile}`, {
+          cwd: OUTPUT_DIR,
+          stdio: 'pipe',
+          encoding: 'utf8'
+        });
+        
+        const afterCount = parseInt(result.match(/│\s*(\d+)\s*│/)?.[1] || '0');
+        const removed = beforeCount - afterCount;
+        console.log(`    ✓ Clumped ${pgsId}: removed ${removed} variants (${afterCount} remaining)`);
+        clumpedCount += removed;
+        totalVariants = totalVariants - beforeCount + afterCount;
+        
+        await fs.unlink(countFile);
       }
     }
     

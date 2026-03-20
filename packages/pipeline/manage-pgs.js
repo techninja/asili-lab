@@ -3,13 +3,36 @@ import prompts from 'prompts';
 import { execSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { readFileSync, existsSync } from 'fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, '..', '..');
 
-async function calcRefStats() {
+const envPath = path.join(rootDir, '.env');
+let NODE_MAX_OLD_SPACE_SIZE = '16384';
+if (existsSync(envPath)) {
+  const envContent = readFileSync(envPath, 'utf8');
+  const match = envContent.match(/NODE_MAX_OLD_SPACE_SIZE=(\d+)/);
+  if (match) NODE_MAX_OLD_SPACE_SIZE = match[1];
+}
+
+const nodeFlags = `--expose-gc --max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}`;
+
+async function calcRefStats(pgsIdArg) {
   console.log(chalk.cyan('\n=== Calculate PGS Reference Statistics ===\n'));
-  
+
+  if (pgsIdArg && pgsIdArg !== 'batch') {
+    console.log(chalk.blue(`\nCalculating reference statistics for ${pgsIdArg}...\n`));
+    execSync(`node ${nodeFlags} scripts/calc-pgs-refstats.js ${pgsIdArg}`, { cwd: rootDir, stdio: 'inherit' });
+    return;
+  }
+
+  if (pgsIdArg === 'batch') {
+    console.log(chalk.blue('\nCalculating reference statistics for batch...\n'));
+    execSync(`node scripts/calc-pgs-refstats.js batch`, { cwd: rootDir, stdio: 'inherit' });
+    return;
+  }
+
   const { mode } = await prompts({
     type: 'select',
     name: 'mode',
@@ -32,9 +55,9 @@ async function calcRefStats() {
     });
 
     if (!pgsId) return;
-    
+
     console.log(chalk.blue(`\nCalculating reference statistics for ${pgsId}...\n`));
-    execSync(`node scripts/calc-pgs-refstats.js ${pgsId}`, { cwd: rootDir, stdio: 'inherit' });
+    execSync(`node ${nodeFlags} scripts/calc-pgs-refstats.js ${pgsId}`, { cwd: rootDir, stdio: 'inherit' });
   } else if (mode === 'reset') {
     const { confirm } = await prompts({
       type: 'confirm',
@@ -44,18 +67,18 @@ async function calcRefStats() {
     });
 
     if (!confirm) return;
-    
+
     console.log(chalk.blue('\nResetting all PGS statistics...\n'));
-    execSync('node scripts/calc-pgs-refstats.js reset', { cwd: rootDir, stdio: 'inherit' });
+    execSync(`node ${nodeFlags} scripts/calc-pgs-refstats.js reset`, { cwd: rootDir, stdio: 'inherit' });
   } else {
     console.log(chalk.blue('\nCalculating reference statistics for all missing PGS...\n'));
-    execSync('node scripts/calc-pgs-refstats.js batch', { cwd: rootDir, stdio: 'inherit' });
+    execSync(`node scripts/calc-pgs-refstats.js batch`, { cwd: rootDir, stdio: 'inherit' });
   }
 }
 
 async function checkPGS() {
   console.log(chalk.cyan('\n=== Check PGS Score ===\n'));
-  
+
   const { pgsId } = await prompts({
     type: 'text',
     name: 'pgsId',
@@ -64,7 +87,7 @@ async function checkPGS() {
   });
 
   if (!pgsId) return;
-  
+
   console.log(chalk.blue(`\nChecking ${pgsId}...\n`));
   execSync(`node scripts/check-pgs.js ${pgsId}`, { cwd: rootDir, stdio: 'inherit' });
 }
@@ -83,27 +106,28 @@ async function viewScores() {
 
 async function main() {
   const command = process.argv[2];
-  
-  if (command === 'calc') {
-    await calcRefStats();
+  const arg = process.argv[3];
+
+  if (command === 'calc' || command === 'refstats') {
+    await calcRefStats(arg);
     return;
   }
-  
+
   if (command === 'check') {
     await checkPGS();
     return;
   }
-  
+
   if (command === 'analyze') {
     await analyzeProblematic();
     return;
   }
-  
+
   if (command === 'scores') {
     await viewScores();
     return;
   }
-  
+
   console.log(chalk.bold.blue('\n🧬 Asili PGS Manager\n'));
 
   const { action } = await prompts({

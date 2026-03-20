@@ -22,8 +22,10 @@ let conn = null;
 
 export async function getConnection() {
   if (!db) {
+    console.log('[shared-db] Creating new database instance');
     try {
       db = new duckdb.Database(DB_PATH);
+      console.log('[shared-db] Database opened successfully');
     } catch (error) {
       const errMsg = error.message || '';
       if (errMsg.includes('lock') || errMsg.includes('locked')) {
@@ -42,12 +44,22 @@ export async function getConnection() {
     }
   }
   if (!conn) {
+    console.log('[shared-db] Creating new connection');
     conn = db.connect();
+    // Run checkpoint to recover WAL
+    await new Promise((resolve, reject) => {
+      conn.run('CHECKPOINT', (err) => {
+        if (err) console.log('[shared-db] Checkpoint warning:', err.message);
+        resolve();
+      });
+    });
+    console.log('[shared-db] Connection ready');
   }
   return conn;
 }
 
 export function closeConnection() {
+  console.log('[shared-db] closeConnection called');
   if (conn) {
     conn.close();
     conn = null;

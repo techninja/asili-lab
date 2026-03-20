@@ -215,11 +215,6 @@
       "title": "carbohydrate intake measurement",
       "description": "Quantification of the carbohydrate intake of an individual."
     },
-    "EFO_0005278": {
-      "trait_id": "EFO_0005278",
-      "title": "cardiovascular disease biomarker measurement",
-      "description": "cardiovascular disease biomarkers, such as ST2 cardiac biomarker and C-reactive protein, are used as indicators for cardiovascular disease and as predictors for therapeutic responses"
-    },
     "MONDO:0015129": {
       "trait_id": "MONDO:0015129",
       "title": "chronic primary adrenal insufficiency",
@@ -445,16 +440,6 @@
       "title": "lipoprotein A measurement",
       "description": "A measurement of a specific type of cholesterol particle that can increase heart disease risk when levels are high."
     },
-    "EFO_0010821": {
-      "trait_id": "EFO_0010821",
-      "title": "liver fat measurement",
-      "description": "A quantification of the fat content of the liver such as liver fat fraction, typically assessed by MRI."
-    },
-    "EFO_0004611": {
-      "trait_id": "EFO_0004611",
-      "title": "low density lipoprotein cholesterol measurement",
-      "description": "The measurement of LDL cholesterol in blood used as a risk indicator for heart disease."
-    },
     "MONDO:0021116": {
       "trait_id": "MONDO:0021116",
       "title": "luminal A breast carcinoma",
@@ -664,11 +649,6 @@
       "trait_id": "MONDO:0005147",
       "title": "type 1 diabetes mellitus",
       "description": "A lifelong condition where the pancreas produces little or no insulin, requiring daily insulin injections."
-    },
-    "MONDO:0005148": {
-      "trait_id": "MONDO:0005148",
-      "title": "type 2 diabetes mellitus",
-      "description": "The most common form of diabetes where the body doesn't use insulin properly, leading to high blood sugar. Often develops gradually and is linked to lifestyle and genetics."
     },
     "EFO_0004531": {
       "trait_id": "EFO_0004531",

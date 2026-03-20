@@ -1,12 +1,47 @@
-// Calculate theoretical PGS distribution from allele frequencies
-// Gold standard approach for consumer DNA normalization
+import { Worker } from 'worker_threads';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import os from 'os';
 
-import { gunzipSync } from 'zlib';
-import { readFileSync } from 'fs';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const workerPath = path.join(__dirname, '../decompress-worker.js');
+
+const POOL_SIZE = os.cpus().length;
+const workers = [];
+let requestId = 0;
+const pendingRequests = new Map();
+let nextWorker = 0;
+
+function initWorkerPool() {
+  for (let i = 0; i < POOL_SIZE; i++) {
+    const worker = new Worker(workerPath);
+    worker.on('message', ({ id, data, error }) => {
+      const resolve = pendingRequests.get(id);
+      if (resolve) {
+        pendingRequests.delete(id);
+        if (error) resolve(null);
+        else resolve(data);
+      }
+    });
+    workers.push(worker);
+  }
+}
+
+async function decompressFile(filePath) {
+  if (workers.length === 0) initWorkerPool();
+  return new Promise((resolve) => {
+    const id = requestId++;
+    pendingRequests.set(id, resolve);
+    workers[nextWorker].postMessage({ filePath, id });
+    nextWorker = (nextWorker + 1) % POOL_SIZE;
+  });
+}
 
 export async function calculateWeightStats(pgsId, pgsApiClient) {
   try {
-    const fileContent = await pgsApiClient.getPGSFile(pgsId);
+    const filePath = await pgsApiClient.getPGSFile(pgsId);
+    const fileContent = await decompressFile(filePath);
+    if (!fileContent) return null;
     
     // Find header and column indices
     let weightColIdx = -1;

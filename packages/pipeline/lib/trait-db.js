@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { getConnection } from './shared-db.js';
 import { readFileSync } from 'fs';
 import crypto from 'crypto';
+import { runMigrations } from './migrate.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OVERRIDES_PATH = path.join(__dirname, '../trait_overrides.json');
@@ -46,49 +47,7 @@ class TraitMetadataDB {
 
   async init() {
     if (this.initialized) return;
-    const conn = await this.getConnection();
-    await new Promise((resolve, reject) => {
-      conn.run(`CREATE TABLE IF NOT EXISTS traits (
-        trait_id VARCHAR PRIMARY KEY, 
-        name VARCHAR NOT NULL, 
-        description VARCHAR, 
-        categories VARCHAR, 
-        expected_variants BIGINT, 
-        estimated_unique_variants BIGINT,
-        unit VARCHAR,
-        emoji VARCHAR,
-        trait_type VARCHAR,
-        editorial_name VARCHAR,
-        editorial_description VARCHAR,
-        phenotype_mean DOUBLE,
-        phenotype_sd DOUBLE,
-        reference_population VARCHAR,
-        metadata_hash VARCHAR,
-        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )`, err => err ? reject(err) : resolve());
-    });
-    await new Promise((resolve, reject) => {
-      conn.run(`CREATE TABLE IF NOT EXISTS trait_pgs (trait_id VARCHAR NOT NULL, pgs_id VARCHAR NOT NULL, performance_weight DOUBLE DEFAULT 0.5, PRIMARY KEY (trait_id, pgs_id))`, err => err ? reject(err) : resolve());
-    });
-    await new Promise((resolve, reject) => {
-      conn.run(`CREATE TABLE IF NOT EXISTS trait_excluded_pgs (trait_id VARCHAR NOT NULL, pgs_id VARCHAR NOT NULL, reason VARCHAR NOT NULL, method VARCHAR, weight_type VARCHAR, PRIMARY KEY (trait_id, pgs_id))`, err => err ? reject(err) : resolve());
-    });
-    await new Promise((resolve, reject) => {
-      conn.run(`CREATE INDEX IF NOT EXISTS idx_trait_pgs_trait ON trait_pgs(trait_id)`, err => err ? reject(err) : resolve());
-    });
-    // Also create pgs tables since they share the same DB
-    await new Promise((resolve, reject) => {
-      conn.run(`CREATE TABLE IF NOT EXISTS pgs_scores (pgs_id VARCHAR PRIMARY KEY, weight_type VARCHAR, method_name VARCHAR, norm_mean DOUBLE, norm_sd DOUBLE, variants_number BIGINT, last_updated TIMESTAMP DEFAULT now())`, err => err ? reject(err) : resolve());
-    });
-    await new Promise((resolve, reject) => {
-      conn.run(`CREATE SEQUENCE IF NOT EXISTS pgs_performance_seq START 1`, err => err ? reject(err) : resolve());
-    });
-    await new Promise((resolve, reject) => {
-      conn.run(`CREATE TABLE IF NOT EXISTS pgs_performance (id INTEGER PRIMARY KEY DEFAULT nextval('pgs_performance_seq'), pgs_id VARCHAR NOT NULL, metric_type VARCHAR NOT NULL, metric_value DOUBLE NOT NULL, ci_lower DOUBLE, ci_upper DOUBLE, sample_size BIGINT, ancestry VARCHAR)`, err => err ? reject(err) : resolve());
-    });
-    await new Promise((resolve, reject) => {
-      conn.run(`CREATE INDEX IF NOT EXISTS idx_pgs_perf_id ON pgs_performance(pgs_id)`, err => err ? reject(err) : resolve());
-    });
+    await runMigrations();
     this.initialized = true;
   }
 

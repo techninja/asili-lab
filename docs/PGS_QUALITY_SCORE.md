@@ -1,124 +1,199 @@
-# PGS Quality Score
+# Asili PGS Quality Score
 
 ## Overview
 
-The PGS Quality Score is a unified metric (0-100) that ranks polygenic scores for each individual based on three factors:
+The quality score (0-100) ranks PGS results by combining **scientific validity**, **data reliability**, and **individual informativeness**. It determines which PGS is selected as "best" for a trait when multiple PGS are available.
 
-1. **Performance (R²)** - How well the PGS predicts the trait
-2. **Coverage** - Percentage of PGS variants found in the individual's DNA
-3. **Confidence** - Reliability based on number of matched variants
+The score lives in [`packages/core/src/genomic-processor/calculator.js`](../packages/core/src/genomic-processor/calculator.js) as `SharedRiskCalculator.calculatePGSQualityScore()`.
 
 ## Formula
 
 ```
-Quality Score = (R² × 50) + (Coverage × 30) + (Confidence × 20)
+Quality Score = (R² × 35 × CoveragePenalty)
+             + (GenotypedRatio × 15)
+             + (Coverage × 10)
+             + (log₁₀(matched/8) × 10)
+             + (Normalization × 10)
+             + (Signal × 20)
 ```
 
-### Components
+## Components
 
-#### Performance (50% weight)
-- R² value from PGS Catalog metadata (0-1)
-- Measures how much trait variance the PGS explains
-- Default: 0.05 (5%) if not available
+### 1. Predictive Accuracy (R²) — 35% weight
 
-#### Coverage (30% weight)
-- `matchedVariants / totalVariants` (0-1)
-- Higher coverage = more reliable individual prediction
-- Capped at 1.0 (100%)
+R² from PGS Catalog validation studies, measuring variance explained. Sourced from `pgs_performance` table (raw R² and "PGS R² (no covariates)" metrics only — incremental R² excluded as not comparable).
 
-#### Confidence (20% weight)
-- Based on absolute number of matched variants:
-  - `< 8 variants`: 0.1 (insufficient data, 90% penalty)
-  - `< 10 variants`: 0.5 (low confidence, 50% penalty)
-  - `< 100 variants`: 0.8 (medium confidence, 20% penalty)
-  - `≥ 100 variants`: 1.0 (high confidence, no penalty)
+Values >1 are treated as percentages and normalized to 0-1. Default 0.05 when no validation data exists.
 
-## Examples
+**Coverage Penalty** (applied to R² only):
+- **<5% coverage**: Severe — `(coverage/0.05)²`
+- **5-20% coverage**: Moderate — `√(coverage/0.20)`
+- **>20% coverage**: None
 
-### Example 1: High-quality PGS
-- R² = 0.20 (20% trait variance explained)
-- Coverage = 0.85 (85% of variants matched)
-- Matched variants = 150 (high confidence)
+**Why R² is primary**: A PGS with R²=0.13 explains 2.6× more variance than R²=0.05. This is the single most important differentiator when comparing PGS for the same trait.
+
+### 2. Data Reliability — 15% weight
+
+Proportion of matched variants that are directly genotyped (not imputed).
+
+Formula: `genotypedVariants / matchedVariants × 15`
+
+- 95% genotyped → **14.3 pts**
+- 50% genotyped → **7.5 pts**
+- 1% genotyped → **0.15 pts**
+
+**Why it matters**: Genotyped variants are direct measurements (0, 1, or 2 alleles). Imputed variants are statistical estimates with inherent uncertainty. The R² reported by PGS Catalog was validated on accurately genotyped/sequenced cohorts, not imputed data.
+
+### 3. Coverage — 10% weight
+
+Percentage of PGS variants found in user's DNA.
+
+Formula: `min(matched/total, 1) × 10`
+
+**Note**: `total` is the variant count from the parquet file (post-LD-clumping), not the PGS Catalog `variants_number` (pre-clumping). Some parquet files have duplicate entries from harmonization, which can push coverage above 100%.
+
+### 4. Sample Size — 10% weight
+
+Number of variants matched, log-scaled with diminishing returns.
+
+Formula: `min(log₁₀(matched/8) / 3.1, 1) × 10`
+
+The minimum threshold is 8 matched variants — below this, the PGS is marked `insufficientData` and excluded from best-PGS selection entirely.
+
+### 5. Normalization — 10% weight
+
+Whether population statistics (gnomAD mean/SD) exist for percentile calculation.
+
+- Has empirical mean/SD: **10 pts**
+- Missing: **5 pts**
+
+### 6. Signal Strength — 20% weight
+
+How informative the result is for this individual, based on absolute z-score.
+
+Formula: `min(|z| / 3, 1) × 20`
+
+**With >5σ penalty**: If `|z| > 5`, signal score is **0 points**. A z-score beyond 5σ almost certainly indicates incompatible normalization statistics (e.g., gnomAD stats computed on a different variant set than the parquet), not genuine extreme genetic risk. Zeroing the signal prevents bad-stats PGS from being boosted by their own broken z-scores.
+
+| z-score | Signal pts | Interpretation |
+|---------|-----------|----------------|
+| 0σ | 0 | Average — no signal |
+| 1σ | 6.7 | Moderate |
+| 2σ | 13.3 | Strong |
+| 3σ+ | 20 | Capped at maximum |
+| >5σ | **0** | Bad stats penalty |
+
+## Weight Summary
 
 ```
-Score = (0.20 × 50) + (0.85 × 30) + (1.0 × 20)
-      = 10 + 25.5 + 20
-      = 55.5
+Scientific Validity (35%):
+  R² × CoveragePenalty    35%   How well does this PGS predict the trait?
+
+Data Quality (25%):
+  Data Reliability         15%   Are we using real DNA or statistical estimates?
+  Coverage                 10%   Do we have the variants the PGS needs?
+
+Interpretability (20%):
+  Sample Size              10%   Enough data points?
+  Normalization            10%   Can we calculate percentiles?
+
+Informativeness (20%):
+  Signal Strength          20%   How much do we learn about this individual?
 ```
 
-### Example 2: Low-quality PGS
-- R² = 0.05 (5% trait variance explained)
-- Coverage = 0.30 (30% of variants matched)
-- Matched variants = 5 (insufficient data)
+## Normalization: How Z-Scores Are Calculated
 
-```
-Score = (0.05 × 50) + (0.30 × 30) + (0.1 × 20)
-      = 2.5 + 9 + 2
-      = 13.5
-```
+Z-scores convert raw PGS sums into population-relative measures. The normalization approach was overhauled during the genomic processor refactor (see [REFACTOR_GENOMIC_PROCESSOR.md](REFACTOR_GENOMIC_PROCESSOR.md)).
 
-### Example 3: Medium-quality PGS
-- R² = 0.12 (12% trait variance explained)
-- Coverage = 0.65 (65% of variants matched)
-- Matched variants = 45 (medium confidence)
+### The Old Bug (coverage-scaled normalization)
 
-```
-Score = (0.12 × 50) + (0.65 × 30) + (0.8 × 20)
-      = 6 + 19.5 + 16
-      = 41.5
+The old `shared-calculator.js` scaled gnomAD mean and SD by coverage:
+
+```js
+// OLD CODE (BROKEN)
+sd = sd * coverage;
+mean = mean * coverage;
 ```
 
-## Usage
+This produced **297 PGS with |z| > 5σ** across all traits — statistically impossible for a healthy person. The scaling assumes the matched variant subset is a random sample of the full PGS, which it isn't (it's biased by genotyping chip + imputation panel).
 
-### Backend (shared-calculator.js)
-The quality score is automatically calculated during `finalize()`:
+### The Fix (unscaled empirical stats)
 
-```javascript
-details.qualityScore = SharedRiskCalculator.calculatePGSQualityScore(
-  details.matchedVariants,
-  totalVariants,
-  performanceWeight
-);
+The new `calculator.js` never scales mean/SD by coverage:
+
+```js
+// NEW CODE (CORRECT)
+if (hasEmpiricalData && coverage >= 0.05) {
+  z = (rawScore - mean) / sd;  // Unscaled
+} else {
+  z = rawScore / theoreticalSD; // Fallback
+}
 ```
 
-### Frontend (trait-card.js)
-PGS are sorted by quality score (highest first):
+Coverage affects **confidence** (quality score), not the z-score calculation. A person's genetic risk doesn't change because we measured fewer variants — we're just less certain about it.
 
-```javascript
-.sort((a, b) => {
-  const scoreA = pgsDetails?.[a[0]]?.qualityScore ?? 0;
-  const scoreB = pgsDetails?.[b[0]]?.qualityScore ?? 0;
-  return scoreB - scoreA; // Descending
-});
+### When Unscaled Stats Are Still Wrong
+
+For PGS where the gnomAD stats were computed on a completely different variant set than the parquet (e.g., PGS was LD-clumped from 3.87M → 11K variants, but gnomAD stats cover the original 3.87M), the unscaled z-score will be extreme because the raw score (sum over 11K variants) is incomparable to the mean (expected sum over 3.87M variants).
+
+The >5σ signal penalty handles this: these PGS get 0 signal points, pushing them down in quality ranking. The long-term fix is Rule 4 from the refactor spec: recompute gnomAD stats against the actual parquet variants.
+
+### Normalization Decision Tree
+
+```
+Has empirical mean/SD?
+├── YES: Coverage ≥ 5%?
+│   ├── YES → Use empirical stats unscaled
+│   │         (coverage affects quality score, not z-score)
+│   └── NO  → Use theoretical normalization
+│             (mean=0, sd=√(Σw²×0.5))
+└── NO → Use theoretical normalization
 ```
 
-The best PGS is selected as the one with the highest quality score (with sufficient data).
+## Real-World Example: BMI-Adjusted Waist-Hip Ratio (EFO_0007788)
 
-## Display
+From Ethan's data (unified parquet, 13.6M variants):
 
-Quality scores are shown as green badges in the UI:
-- **55+**: Excellent quality
-- **40-54**: Good quality
-- **25-39**: Fair quality
-- **<25**: Poor quality
+| PGS | R² | Coverage | Matched | Geno/Imp | z-score | Quality | Notes |
+|-----|-----|----------|---------|----------|---------|---------|-------|
+| PGS003485 | 5.0% | 101.1% | 793,573 | 3,601g + 789,972i | -3.79 | **51.8** | Best — huge variant set, near-full coverage |
+| PGS005095 | 5.0% | 36.4% | 175 | 156g + 19i | -1.06 | **40.1** | Small PGS, decent genotyped ratio |
+| PGS000299 | 1.95% | 31.8% | 147 | 131g + 16i | -21.68 | **31.6** | Bad gnomAD stats → >5σ penalty zeroes signal |
+| PGS000843 | 5.0% | 0% | 0 | — | null | **0** | No matches at all |
 
-The score is displayed with the format: `[score]/100`
+**Old code** gave PGS000299 a z-score of 0.039 (looked normal) and quality of 31.57. The coverage scaling accidentally masked the incompatible stats. The new code exposes the truth (z=-21.68) and the >5σ penalty prevents it from ranking higher than it should.
 
-Example: `55` (shown as green badge)
+## Design Decisions
 
-## Benefits
+- **R² sourced from `pgs_performance` table**, not the pre-computed `trait_pgs.performance_weight` column. Only raw R² and "PGS R² (no covariates)" metrics are used.
+- **Genotyped ratio at 15%** (not higher) because imputed data still has value — TOPMed imputation at 74% coverage provides useful signal. But genotyped data is more trustworthy.
+- **Signal strength is personalized**: Same PGS scores differently for different people. A z=2.5σ result is more actionable than z=0.1σ.
+- **>5σ penalty**: Extreme z-scores are almost always bad normalization, not real signal. Zeroing signal prevents garbage-in-garbage-out from inflating quality scores.
+- **Coverage penalty only applies to R²**: Low coverage degrades the validated predictive power, but doesn't affect other components.
+- **No double-counting**: Genotyped ratio appears only in Data Reliability, not also inside the R² multiplier.
+- **Parquet variant count is the canonical denominator**: The parquet file is what we actually score against. The PGS Catalog `variants_number` is irrelevant after LD clumping.
 
-1. **Unified Ranking**: Single metric combines all quality factors
-2. **Individual-Specific**: Accounts for each person's variant coverage
-3. **Transparent**: Simple formula that can be displayed to users
-4. **Balanced**: Weights factors appropriately (performance > coverage > confidence)
-5. **Penalizes Insufficient Data**: Heavily reduces score when <8 variants matched
+## Interpretation
 
-## Implementation Notes
+| Score | Rating | Characteristics |
+|-------|--------|-----------------|
+| 65+ | Excellent | High R², good coverage, strong signal, mostly genotyped |
+| 55-65 | Good | Decent R² and coverage, moderate signal |
+| 40-55 | Moderate | Low coverage OR mostly imputed OR weak signal |
+| 0-40 | Limited | Very low coverage, missing data, or no validation |
 
-- Score is calculated in `SharedRiskCalculator.calculatePGSQualityScore()`
-- Stored in `pgsDetails[pgsId].qualityScore`
-- Used to determine `bestPGS` in finalize()
-- Frontend sorts by this score (descending)
-- Server DB sorts by `quality_score DESC` in queries
-- Replaces previous `sort_order` field and ad-hoc sorting
+## Testing
+
+Quality score logic is tested in [`packages/core/tests/calculator.test.js`](../packages/core/tests/calculator.test.js):
+
+```bash
+pnpm test core
+```
+
+Key test cases:
+- Higher R² produces higher score
+- Higher genotyped ratio produces higher score
+- Coverage penalty below 5%
+- >5σ z-scores get 0 signal points
+- Breakdown component scores sum to total
+- No matched variants → score 0

@@ -11,7 +11,7 @@ import { analyzeTraitPGSQuality } from './lib/pgs-enhanced-filter.js';
 import { getLDStatus } from './lib/ld-detector.js';
 import * as pgsDB from './lib/pgs-db.js';
 import * as traitDB from './lib/trait-db.js';
-import { closeConnection } from './lib/shared-db.js';
+import { closeConnection, getConnection } from './lib/shared-db.js';
 import { execSync } from 'child_process';
 import crypto from 'crypto';
 
@@ -279,11 +279,17 @@ async function analyzeTraitQuality(traitId) {
 
 
 
+import { Worker } from 'worker_threads';
+import os from 'os';
+
 async function refreshTraitData() {
   console.log(chalk.cyan('\n=== Refresh Trait Data ===\n'));
 
-  // Load traits from trait_catalog.json (source of truth)
-  console.log(chalk.blue('Loading traits from trait_catalog.json...'));
+  // Close any existing DB connections first
+  try {
+    closeConnection();
+  } catch {}
+
   const catalogData = await fs.readFile(CATALOG_PATH, 'utf8');
   const catalog = JSON.parse(catalogData);
   const catalogTraits = Object.entries(catalog.traits || {});
@@ -296,95 +302,123 @@ async function refreshTraitData() {
   console.log(chalk.blue(`Refreshing ${catalogTraits.length} traits from PGS Catalog API...\n`));
 
   const traitsToRemove = [];
+  const CONCURRENCY = 6;
 
-  for (const [traitId, traitMeta] of catalogTraits) {
-    console.log(chalk.gray(`Processing ${traitMeta.title} (${traitId})...`));
-
-    try {
-      const traitInfo = await pgsApiClient.getTraitInfo(traitId);
-      const pgsIds = [...new Set([
-        ...(traitInfo.associated_pgs_ids || []),
-        ...(traitInfo.child_associated_pgs_ids || [])
-      ])];
-
-      if (pgsIds.length === 0) {
-        console.log(chalk.yellow(`  No PGS scores found - marking for removal`));
-        traitsToRemove.push(traitId);
-        await traitDB.deleteTrait(traitId);
-        continue;
-      }
-
-      let totalVariants = 0;
-      let uniqueVariants = 0;
-      let includedCount = 0;
-
-      for (const pgsId of pgsIds) {
-        try {
-          const data = await pgsApiClient.getScore(pgsId);
-          const filterResult = await shouldExcludePGS(pgsId, data, pgsApiClient);
-
-          if (filterResult.exclude) {
-            await traitDB.addExcludedPGS(traitId, pgsId, filterResult.reason, data.method_name, data.weight_type);
-            continue;
-          }
-
-          if (data.variants_number) {
-            totalVariants += data.variants_number;
-            uniqueVariants += Math.floor(data.variants_number * 0.7);
-          }
-
-          const stats = await calculateWeightStats(pgsId, pgsApiClient);
-          const ldStatus = getLDStatus(data);
-
-          await pgsDB.upsertPGS(pgsId, {
-            weight_type: data.weight_type,
-            method: data.method_name,
-            norm_mean: stats?.mean ?? null,
-            norm_sd: stats?.sd ?? null,
-            variants_number: data.variants_number,
-            ld_aware: ldStatus.ld_aware,
-            needs_clumping: ldStatus.needs_clumping
-          });
-
-          if (filterResult.performance_metrics) {
-            await pgsDB.upsertPerformanceMetrics(pgsId, filterResult.performance_metrics);
-          }
-
-          await traitDB.addTraitPGS(traitId, pgsId, filterResult.performance_weight || 0.5);
-          includedCount++;
-        } catch (error) {
-          console.log(chalk.yellow(`  ⚠ ${pgsId}: ${error.message}`));
-        }
-      }
-
-      if (includedCount === 0) {
-        console.log(chalk.red(`  All PGS excluded - marking for removal`));
-        traitsToRemove.push(traitId);
-        await traitDB.deleteTrait(traitId);
-        continue;
-      }
-
-      await traitDB.upsertTrait(traitId, {
-        name: traitMeta.title,
-        description: traitMeta.description,
-        categories: (traitInfo.trait_categories || []).join(','),
-        expected_variants: totalVariants,
-        estimated_unique_variants: uniqueVariants
-      });
-
-      console.log(chalk.green(`  ✓ Updated: ${includedCount} PGS, ${totalVariants.toLocaleString()} variants`));
-    } catch (error) {
-      console.log(chalk.red(`  Error: ${error.message}`));
-      traitsToRemove.push(traitId);
-    }
+  // Fetch all trait info first (fast, cached)
+  let t = Date.now();
+  console.log(chalk.blue('Fetching trait info...'));
+  const traitsWithInfo = await Promise.all(catalogTraits.map(async ([traitId, traitMeta]) => {
+    const traitInfo = await pgsApiClient.getTraitInfo(traitId);
+    return { traitId, traitMeta, traitInfo };
+  }));
+  console.log(chalk.green(`✓ Fetched ${traitsWithInfo.length} trait infos in ${Date.now() - t}ms\n`));
+  
+  // Check which traits are already up-to-date in DB
+  console.log(chalk.blue('Checking for existing traits...'));
+  const existingTraits = await traitDB.getAllTraits();
+  const existingIds = new Set(existingTraits.map(t => t.trait_id));
+  
+  // Check if any existing traits are missing performance data
+  const conn = await getConnection();
+  const perfCount = await new Promise((resolve, reject) => {
+    conn.all('SELECT COUNT(DISTINCT pgs_id) as cnt FROM pgs_performance', (err, rows) => err ? reject(err) : resolve(rows[0]?.cnt || 0));
+  });
+  const forceRefresh = perfCount === 0;
+  
+  const traitsToProcess = forceRefresh 
+    ? traitsWithInfo 
+    : traitsWithInfo.filter(t => !existingIds.has(t.traitId));
+  
+  if (forceRefresh) {
+    console.log(chalk.yellow(`⚠ No performance metrics found - forcing full refresh of all ${traitsToProcess.length} traits`));
+  } else {
+    console.log(chalk.green(`✓ ${existingIds.size} traits already in DB, ${traitsToProcess.length} to process\n`));
   }
 
-  // Remove traits from catalog that have no valid PGS
+  // Process traits in worker threads
+  let completed = 0;
+  const results = [];
+  
+  for (let i = 0; i < traitsToProcess.length; i += CONCURRENCY) {
+    const batch = traitsToProcess.slice(i, i + CONCURRENCY);
+    
+    t = Date.now();
+    const batchResults = await Promise.all(batch.map(({ traitId, traitMeta, traitInfo }) => {
+      return new Promise((resolve) => {
+        console.log(chalk.cyan(`Processing ${traitMeta.title} (${traitId})...`));
+        const worker = new Worker(path.join(__dirname, 'refresh-worker.js'), {
+          workerData: { traitId, traitMeta, traitInfo }
+        });
+        
+        worker.on('message', (result) => {
+          completed++;
+          console.log(chalk.gray(`[${completed}/${traitsToProcess.length}] Completed ${traitId}`));
+          worker.terminate();
+          resolve(result);
+        });
+        
+        worker.on('error', (error) => {
+          console.log(chalk.red(`Worker error for ${traitId}: ${error.message}`));
+          worker.terminate();
+          resolve({ success: false, error: error.message, traitId });
+        });
+      });
+    }));
+    console.log(chalk.blue(`Batch ${Math.floor(i/CONCURRENCY)+1} completed in ${Date.now() - t}ms`));
+    
+    // Write batch results to DB immediately
+    t = Date.now();
+    console.log(chalk.blue(`Writing ${batchResults.length} results to DB...`));
+    for (const result of batchResults) {
+      if (!result.success || result.remove) {
+        traitsToRemove.push(result.traitId);
+        console.log(chalk.gray(`  Deleting ${result.traitId}...`));
+        await traitDB.deleteTrait(result.traitId);
+        continue;
+      }
+
+      console.log(chalk.gray(`  Writing ${result.traitId} (${result.valid.length} PGS)...`));
+      await Promise.all([
+        ...result.excluded.map(r => traitDB.addExcludedPGS(result.traitId, r.pgsId, r.reason, r.method, r.weightType)),
+        ...result.valid.map(r => pgsDB.upsertPGS(r.pgsId, r.pgsData)),
+        ...result.valid.filter(r => r.performanceMetrics).map(r => pgsDB.upsertPerformanceMetrics(r.pgsId, r.performanceMetrics)),
+        ...result.valid.map(r => traitDB.addTraitPGS(result.traitId, r.pgsId, r.performanceWeight))
+      ]);
+
+      console.log(chalk.gray(`  Writing trait metadata for ${result.traitId}...`));
+      await traitDB.upsertTrait(result.traitId, {
+        name: result.traitMeta.title,
+        description: result.traitMeta.description,
+        categories: (result.traitInfo.trait_categories || []).join(','),
+        expected_variants: result.totalVariants,
+        estimated_unique_variants: result.uniqueVariants
+      });
+
+      console.log(chalk.green(`  ✓ ${result.traitMeta.title}: ${result.valid.length} PGS, ${result.totalVariants.toLocaleString()} variants`));
+    }
+    console.log(chalk.green(`Batch DB writes: ${Date.now() - t}ms`));
+    
+    // Flush WAL to disk after each batch
+    try {
+      const conn = await getConnection();
+      await new Promise((resolve) => {
+        conn.run('CHECKPOINT', () => resolve());
+      });
+      console.log(chalk.gray('WAL flushed to disk'));
+    } catch (e) {
+      console.log(chalk.yellow('WAL flush warning:', e.message));
+    }
+    
+    results.push(...batchResults);
+  }
+
+  // All batches complete
+  console.log(chalk.green(`\n✓ All batches complete`));
+
   if (traitsToRemove.length > 0) {
-    console.log(chalk.yellow(`\nRemoving ${traitsToRemove.length} traits from catalog...`));
+    console.log(chalk.yellow(`Removing ${traitsToRemove.length} traits from catalog...`));
     for (const traitId of traitsToRemove) {
       delete catalog.traits[traitId];
-      console.log(chalk.gray(`  Removed ${traitId}`));
     }
     await saveCatalog(catalog);
     console.log(chalk.green(`✓ Catalog updated`));

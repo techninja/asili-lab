@@ -2,6 +2,7 @@ import duckdb from 'duckdb';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getConnection } from './shared-db.js';
+import { runMigrations } from './migrate.js';
 
 class PGSMetadataDB {
   constructor() {
@@ -14,19 +15,9 @@ class PGSMetadataDB {
 
   async init() {
     if (this.initialized) return;
-    const conn = await this.getConnection();
-    await new Promise((resolve, reject) => {
-      conn.run(`CREATE TABLE IF NOT EXISTS pgs_scores (pgs_id VARCHAR PRIMARY KEY, weight_type VARCHAR, method_name VARCHAR, norm_mean DOUBLE, norm_sd DOUBLE, variants_number BIGINT, ld_aware BOOLEAN DEFAULT false, needs_clumping BOOLEAN DEFAULT false, last_updated TIMESTAMP DEFAULT now())`, err => err ? reject(err) : resolve());
-    });
-    await new Promise((resolve, reject) => {
-      conn.run(`CREATE SEQUENCE IF NOT EXISTS pgs_performance_seq START 1`, err => err ? reject(err) : resolve());
-    });
-    await new Promise((resolve, reject) => {
-      conn.run(`CREATE TABLE IF NOT EXISTS pgs_performance (id INTEGER PRIMARY KEY DEFAULT nextval('pgs_performance_seq'), pgs_id VARCHAR NOT NULL, metric_type VARCHAR NOT NULL, metric_value DOUBLE NOT NULL, ci_lower DOUBLE, ci_upper DOUBLE, sample_size BIGINT, ancestry VARCHAR)`, err => err ? reject(err) : resolve());
-    });
-    await new Promise((resolve, reject) => {
-      conn.run(`CREATE INDEX IF NOT EXISTS idx_pgs_perf_id ON pgs_performance(pgs_id)`, err => err ? reject(err) : resolve());
-    });
+    console.log('[pgs-db] Initializing...');
+    await runMigrations();
+    console.log('[pgs-db] Migrations complete');
     this.initialized = true;
   }
 
@@ -35,11 +26,19 @@ class PGSMetadataDB {
     const conn = await this.getConnection();
     const now = new Date().toISOString();
     return new Promise((resolve, reject) => {
-      const stmt = conn.prepare(`INSERT INTO pgs_scores (pgs_id, weight_type, method_name, norm_mean, norm_sd, variants_number, ld_aware, needs_clumping, last_updated)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (pgs_id) DO UPDATE SET weight_type=EXCLUDED.weight_type, method_name=EXCLUDED.method_name,
-        norm_mean=EXCLUDED.norm_mean, norm_sd=EXCLUDED.norm_sd, variants_number=EXCLUDED.variants_number, ld_aware=EXCLUDED.ld_aware, needs_clumping=EXCLUDED.needs_clumping, last_updated=EXCLUDED.last_updated`);
-      stmt.run(pgsId, data.weight_type ?? null, data.method ?? null, data.norm_mean ?? null, data.norm_sd ?? null, data.variants_number ?? null, data.ld_aware ?? false, data.needs_clumping ?? false, now, err => {
+      const stmt = conn.prepare(`INSERT INTO pgs_scores (pgs_id, weight_type, method_name, norm_mean, norm_sd, variants_number, variants_in_parquet, ld_aware, needs_clumping, last_updated)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (pgs_id) DO UPDATE SET 
+        weight_type=COALESCE(EXCLUDED.weight_type, pgs_scores.weight_type), 
+        method_name=COALESCE(EXCLUDED.method_name, pgs_scores.method_name),
+        norm_mean=COALESCE(EXCLUDED.norm_mean, pgs_scores.norm_mean), 
+        norm_sd=COALESCE(EXCLUDED.norm_sd, pgs_scores.norm_sd), 
+        variants_number=COALESCE(EXCLUDED.variants_number, pgs_scores.variants_number), 
+        variants_in_parquet=COALESCE(EXCLUDED.variants_in_parquet, pgs_scores.variants_in_parquet), 
+        ld_aware=CASE WHEN EXCLUDED.ld_aware IS NOT NULL THEN EXCLUDED.ld_aware ELSE pgs_scores.ld_aware END, 
+        needs_clumping=CASE WHEN EXCLUDED.needs_clumping IS NOT NULL THEN EXCLUDED.needs_clumping ELSE pgs_scores.needs_clumping END, 
+        last_updated=EXCLUDED.last_updated`);
+      stmt.run(pgsId, data.weight_type ?? null, data.method ?? null, data.norm_mean ?? null, data.norm_sd ?? null, data.variants_number ?? null, data.variants_in_parquet ?? null, data.ld_aware ?? null, data.needs_clumping ?? null, now, err => {
         stmt.finalize();
         if (err) reject(err);
         else resolve();
