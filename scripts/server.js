@@ -19,7 +19,9 @@ const exec = (command) => {
 const dockerCommands = {
   up: () => exec('docker compose up -d'),
   down: () => exec('docker compose down'),
-  logs: (service) => exec(`docker compose logs -f ${service}`),
+  logs: (service) => {
+    exec(`node scripts/log-monitor.js asili-${service}`);
+  },
   restart: (service) => exec(`docker compose restart ${service}`),
   status: () => exec('docker compose ps'),
   build: (service) => exec(`docker compose build ${service}`)

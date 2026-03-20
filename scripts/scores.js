@@ -1,455 +1,417 @@
 #!/usr/bin/env node
+
+/**
+ * Asili Score Analysis & Validation
+ *
+ * Usage:
+ *   pnpm scores              — Interactive menu
+ *   pnpm scores summary      — Overall stats
+ *   pnpm scores extremes     — Analyze extreme z-scores
+ *   pnpm scores coverage     — Low coverage PGS
+ *   pnpm scores audit        — PGS selection audit (all traits)
+ *   pnpm scores audit EFO_0004340  — Audit specific trait
+ *   pnpm scores audit --flags      — Only flagged traits
+ *   pnpm scores validate     — Quick pass/fail validation
+ */
+
 import { execSync } from 'child_process';
 import chalk from 'chalk';
-import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import prompts from 'prompts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.join(__dirname, '../data_out/risk_scores.db');
 const MANIFEST_PATH = path.join(__dirname, '../data_out/trait_manifest.db');
-const CATALOG_PATH = path.join(__dirname, '../packages/pipeline/trait_catalog.json');
 
-const THRESHOLDS = {
-  extreme: 1000,
-  high: 100,
-  suspicious: 50
-};
+// ── Shared helpers ──────────────────────────────────────────────────────────
 
-function queryDB(sql) {
-  const result = execSync(`duckdb "${DB_PATH}" -json -c "${sql.replace(/"/g, '\\"')}"`, {
-    encoding: 'utf8',
-    maxBuffer: 50 * 1024 * 1024
-  });
-  return result.trim() ? JSON.parse(result) : [];
-}
-
-function queryManifest(sql) {
-  const result = execSync(`duckdb "${MANIFEST_PATH}" -json -c "${sql.replace(/"/g, '\\"')}"`, {
-    encoding: 'utf8',
-    maxBuffer: 50 * 1024 * 1024
-  });
-  return result.trim() ? JSON.parse(result) : [];
-}
-
-function loadCatalog() {
-  return JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
-}
-
-function analyzeScore(score, traitId, catalog) {
-  const trait = catalog.traits[traitId];
-  if (!trait) return { level: 'unknown', reason: 'Trait not in catalog' };
-  
-  const absScore = Math.abs(score);
-  
-  if (absScore > THRESHOLDS.extreme) {
-    return { level: 'extreme', reason: `Score ${score.toFixed(2)} exceeds extreme threshold` };
-  }
-  if (absScore > THRESHOLDS.high) {
-    return { level: 'high', reason: `Score ${score.toFixed(2)} exceeds high threshold` };
-  }
-  if (absScore > THRESHOLDS.suspicious) {
-    return { level: 'suspicious', reason: `Score ${score.toFixed(2)} exceeds suspicious threshold` };
-  }
-  
-  return { level: 'normal', reason: 'Within normal range' };
-}
-
-function analyzePGSScore(pgsId, pgsScore, trait) {
-  if (!trait.pgs_ids || !Array.isArray(trait.pgs_ids)) return null;
-  
-  const pgsInfo = trait.pgs_ids.find(p => p.id === pgsId);
-  if (!pgsInfo) return null;
-  
-  const { norm_mean, norm_sd, weight_type, method } = pgsInfo;
-  
-  if (!norm_mean || !norm_sd) {
-    return { issue: 'missing_stats', pgsId, weight_type, method };
-  }
-  
-  const zScore = (pgsScore - norm_mean) / norm_sd;
-  const absZ = Math.abs(zScore);
-  
-  if (absZ > 10) {
-    return { 
-      issue: 'extreme_zscore', 
-      pgsId, 
-      score: pgsScore, 
-      mean: norm_mean, 
-      sd: norm_sd, 
-      zScore: zScore.toFixed(2),
-      weight_type,
-      method
-    };
-  }
-  
-  if (absZ > 5) {
-    return { 
-      issue: 'high_zscore', 
-      pgsId, 
-      score: pgsScore, 
-      mean: norm_mean, 
-      sd: norm_sd, 
-      zScore: zScore.toFixed(2),
-      weight_type,
-      method
-    };
-  }
-  
-  return null;
-}
-
-function inspectTrait(traitId) {
-  console.log(chalk.cyan(`\n=== Inspecting ${traitId} ===\n`));
-  
-  const catalog = loadCatalog();
-  const trait = catalog.traits[traitId];
-  
-  if (!trait) {
-    console.log(chalk.red('Trait not found in catalog'));
-    return;
-  }
-  
-  console.log(chalk.yellow(`Title: ${trait.title}`));
-  
-  const pgsData = queryManifest(`
-    SELECT s.pgs_id, s.weight_type, s.method_name, s.variants_count, s.norm_mean, s.norm_sd
-    FROM trait_pgs tp
-    JOIN pgs_scores s ON tp.pgs_id = s.pgs_id
-    WHERE tp.trait_id = '${traitId}'
-    ORDER BY s.pgs_id
-  `);
-  
-  console.log(chalk.yellow(`PGS Count: ${pgsData.length}\n`));
-  
-  if (pgsData.length > 0) {
-    console.log(chalk.cyan('PGS Details:'));
-    pgsData.forEach(pgs => {
-      console.log(`\n  ${chalk.bold(pgs.pgs_id)}`);
-      console.log(`    Weight Type: ${pgs.weight_type}`);
-      console.log(`    Method: ${pgs.method_name}`);
-      console.log(`    Variants: ${pgs.variants_count}`);
-      console.log(`    Mean: ${pgs.norm_mean?.toFixed(2) || 'N/A'}`);
-      console.log(`    SD: ${pgs.norm_sd?.toFixed(2) || 'N/A'}`);
+function qr(sql) {
+  try {
+    const result = execSync(`duckdb "${DB_PATH}" -json -c "${sql.replace(/"/g, '\\"')}"`, {
+      encoding: 'utf8', maxBuffer: 50 * 1024 * 1024
     });
+    return result.trim() ? JSON.parse(result) : [];
+  } catch (e) {
+    console.error(chalk.red(`Query failed: ${e.message}`));
+    return [];
   }
-  
-  const scores = queryDB(`
-    SELECT individual_id, overall_z_score, value
-    FROM trait_results
-    WHERE trait_id = '${traitId}'
-    ORDER BY ABS(overall_z_score) DESC
+}
+
+function qm(sql) {
+  try {
+    const result = execSync(`duckdb "${MANIFEST_PATH}" -json -c "${sql.replace(/"/g, '\\"')}"`, {
+      encoding: 'utf8', maxBuffer: 50 * 1024 * 1024
+    });
+    return result.trim() ? JSON.parse(result) : [];
+  } catch (e) {
+    console.error(chalk.red(`Manifest query failed: ${e.message}`));
+    return [];
+  }
+}
+
+// ── Summary ─────────────────────────────────────────────────────────────────
+
+function summary() {
+  console.log(chalk.cyan('\n=== Overall Summary ===\n'));
+
+  const stats = qr(`
+    SELECT
+      COUNT(DISTINCT individual_id) as individuals,
+      COUNT(DISTINCT trait_id) as traits,
+      COUNT(*) as total_calculations,
+      SUM(CASE WHEN ABS(z_score) > 10 THEN 1 ELSE 0 END) as extreme_z,
+      SUM(CASE WHEN ABS(z_score) > 5 THEN 1 ELSE 0 END) as high_z,
+      SUM(CASE WHEN matched_variants::FLOAT / NULLIF(expected_variants, 0) < 0.05 THEN 1 ELSE 0 END) as low_coverage
+    FROM pgs_results
+    WHERE z_score IS NOT NULL
+  `)[0];
+
+  if (!stats) { console.log(chalk.red('No data found')); return stats; }
+
+  const pct = (n) => (n / stats.total_calculations * 100).toFixed(2);
+
+  console.log(`Individuals: ${stats.individuals}`);
+  console.log(`Traits: ${stats.traits}`);
+  console.log(`Total PGS calculations: ${stats.total_calculations.toLocaleString()}`);
+  console.log(chalk.red(`\nExtreme z-scores (>10σ): ${stats.extreme_z} (${pct(stats.extreme_z)}%)`));
+  console.log(chalk.yellow(`High z-scores (>5σ): ${stats.high_z} (${pct(stats.high_z)}%)`));
+  console.log(chalk.yellow(`Low coverage (<5%): ${stats.low_coverage} (${pct(stats.low_coverage)}%)`));
+
+  return stats;
+}
+
+// ── Extreme Z-Scores ────────────────────────────────────────────────────────
+
+function extremes() {
+  console.log(chalk.cyan('\n=== Extreme Z-Scores (|z| > 10σ) ===\n'));
+
+  const rows = qr(`
+    SELECT pgs_id, individual_id, raw_score, z_score, matched_variants, expected_variants,
+           ROUND(matched_variants::FLOAT / NULLIF(expected_variants, 0) * 100, 1) as coverage_pct
+    FROM pgs_results
+    WHERE ABS(z_score) > 10
+    ORDER BY ABS(z_score) DESC
+    LIMIT 50
   `);
-  
-  console.log(chalk.cyan(`\n\nIndividual Scores (${scores.length} total):\n`));
-  
-  scores.forEach(({ individual_id, overall_z_score, value }) => {
-    const displayValue = value !== null ? ` (value: ${value.toFixed(2)})` : '';
-    console.log(`  ${individual_id}: z=${chalk.bold(overall_z_score?.toFixed(2) || 'N/A')}${displayValue}`);
-    
-    const pgsScores = queryDB(`
-      SELECT pgs_id, raw_score, z_score, matched_variants, expected_variants
+
+  console.log(chalk.red(`Found ${rows.length} PGS with |z-score| > 10σ\n`));
+
+  const grouped = {};
+  for (const row of rows) {
+    if (!grouped[row.pgs_id]) grouped[row.pgs_id] = [];
+    grouped[row.pgs_id].push(row);
+  }
+
+  for (const [pgsId, pgsRows] of Object.entries(grouped)) {
+    const info = qm(`
+      SELECT norm_mean, norm_sd, variants_number, weight_type, method_name
+      FROM pgs_scores WHERE pgs_id = '${pgsId}'
+    `)[0];
+
+    console.log(chalk.yellow(`\n${pgsId} (${pgsRows.length} individuals affected)`));
+    if (info) {
+      console.log(`  Normalization: mean=${info.norm_mean?.toFixed(4)}, SD=${info.norm_sd?.toFixed(4)}`);
+      console.log(`  Total variants: ${info.variants_number?.toLocaleString()}`);
+      console.log(`  Type: ${info.weight_type} | Method: ${info.method_name}`);
+    }
+    for (const r of pgsRows.slice(0, 3)) {
+      console.log(chalk.red(`    ${r.individual_id}: z=${r.z_score.toFixed(1)}σ, raw=${r.raw_score.toFixed(4)}, coverage=${r.coverage_pct}%`));
+    }
+    if (pgsRows.length > 3) console.log(chalk.gray(`    ... and ${pgsRows.length - 3} more`));
+  }
+}
+
+// ── Low Coverage ────────────────────────────────────────────────────────────
+
+function coverage() {
+  console.log(chalk.cyan('\n=== Low Coverage PGS (<5%) ===\n'));
+
+  const rows = qr(`
+    SELECT pgs_id, COUNT(*) as affected,
+           AVG(matched_variants::FLOAT / NULLIF(expected_variants, 0) * 100) as avg_cov,
+           MAX(ABS(z_score)) as max_z
+    FROM pgs_results
+    WHERE matched_variants::FLOAT / NULLIF(expected_variants, 0) < 0.05
+    GROUP BY pgs_id ORDER BY max_z DESC LIMIT 20
+  `);
+
+  console.log(chalk.yellow(`Found ${rows.length} PGS with <5% coverage\n`));
+
+  for (const r of rows) {
+    const info = qm(`SELECT norm_sd, variants_number FROM pgs_scores WHERE pgs_id = '${r.pgs_id}'`)[0];
+    console.log(chalk.yellow(`${r.pgs_id}:`));
+    console.log(`  Avg coverage: ${r.avg_cov.toFixed(1)}% | Max |z|: ${r.max_z.toFixed(1)}σ | Affected: ${r.affected}`);
+    if (info) console.log(`  SD: ${info.norm_sd?.toFixed(6)} (${info.variants_number?.toLocaleString()} variants)`);
+  }
+}
+
+// ── Small SDs ───────────────────────────────────────────────────────────────
+
+function smallSDs() {
+  console.log(chalk.cyan('\n=== Suspiciously Small SDs ===\n'));
+
+  const rows = qm(`
+    SELECT pgs_id, norm_mean, norm_sd, variants_number, weight_type, method_name
+    FROM pgs_scores WHERE norm_sd < 0.1 AND norm_sd > 0
+    ORDER BY norm_sd ASC LIMIT 20
+  `);
+
+  console.log(chalk.yellow(`Found ${rows.length} PGS with SD < 0.1\n`));
+
+  for (const pgs of rows) {
+    const usage = qr(`SELECT COUNT(*) as count, MAX(ABS(z_score)) as max_z FROM pgs_results WHERE pgs_id = '${pgs.pgs_id}'`)[0];
+    console.log(chalk.yellow(`${pgs.pgs_id}:`));
+    console.log(`  SD: ${pgs.norm_sd.toFixed(6)} (mean: ${pgs.norm_mean.toFixed(6)}) | Variants: ${pgs.variants_number?.toLocaleString()}`);
+    console.log(`  Type: ${pgs.weight_type} | Method: ${pgs.method_name}`);
+    if (usage) console.log(`  Used in ${usage.count} calculations, max |z|: ${usage.max_z?.toFixed(1)}σ`);
+  }
+}
+
+// ── PGS Selection Audit ─────────────────────────────────────────────────────
+
+function audit(filterTrait, flagsOnly) {
+  // Load trait names
+  const traitNames = new Map();
+  for (const t of qm(`SELECT trait_id, editorial_name, name, emoji, trait_type, unit FROM traits`)) {
+    traitNames.set(t.trait_id, { name: t.editorial_name || t.name, emoji: t.emoji || '', type: t.trait_type, unit: t.unit });
+  }
+
+  // Load R² data
+  const r2Map = new Map();
+  for (const p of qm(`SELECT pgs_id, metric_value FROM pgs_performance WHERE metric_type IN ('R²', 'PGS R2 (no covariates)')`)) {
+    const val = p.metric_value > 1 ? p.metric_value / 100 : p.metric_value;
+    if (val > (r2Map.get(p.pgs_id) || 0)) r2Map.set(p.pgs_id, val);
+  }
+
+  const traitResults = qr(`
+    SELECT individual_id, trait_id, best_pgs_id, overall_z_score, overall_percentile, value
+    FROM trait_results ${filterTrait ? `WHERE trait_id = '${filterTrait}'` : ''}
+    ORDER BY trait_id, individual_id
+  `);
+
+  let totalTraits = 0, flaggedTraits = 0;
+  const allFlags = [];
+
+  for (const tr of traitResults) {
+    const trait = traitNames.get(tr.trait_id) || { name: tr.trait_id, emoji: '', type: 'disease_risk' };
+
+    const allPgs = qr(`
+      SELECT pgs_id, quality_score, raw_score, z_score, percentile,
+             matched_variants, expected_variants, genotyped_variants, imputed_variants,
+             performance_metric, insufficient_data,
+             ROUND(matched_variants::FLOAT / NULLIF(expected_variants, 0) * 100, 1) as coverage_pct,
+             CASE WHEN matched_variants > 0
+               THEN ROUND(genotyped_variants::FLOAT / matched_variants * 100, 1) ELSE 0 END as genotyped_pct
       FROM pgs_results
-      WHERE individual_id = '${individual_id}' AND trait_id = '${traitId}'
-      ORDER BY pgs_id
+      WHERE individual_id = '${tr.individual_id}' AND trait_id = '${tr.trait_id}'
+      ORDER BY quality_score DESC
     `);
-    
-    pgsScores.forEach(({ pgs_id, raw_score, z_score, matched_variants, expected_variants }) => {
-      console.log(`    ${pgs_id}: raw=${raw_score?.toFixed(2) || 'N/A'}, z=${z_score?.toFixed(2) || 'N/A'} (${matched_variants}/${expected_variants} variants)`);
-    });
-  });
-  
+
+    if (allPgs.length === 0) continue;
+    totalTraits++;
+
+    const best = allPgs[0];
+    const runnerUp = allPgs[1];
+    const bestR2 = r2Map.get(best.pgs_id) || best.performance_metric || 0.05;
+    const traitFlags = [];
+
+    // Flag: best uses default R² but alternatives have real R²
+    if (bestR2 <= 0.05 && allPgs.some(p => (r2Map.get(p.pgs_id) || 0) > 0.05))
+      traitFlags.push('🔴 Best PGS uses default R² (0.05) but alternatives have real R²');
+
+    // Flag: runner-up has much higher R²
+    if (runnerUp) {
+      const runnerR2 = r2Map.get(runnerUp.pgs_id) || runnerUp.performance_metric || 0.05;
+      if (runnerR2 > bestR2 * 2 && runnerR2 > 0.05)
+        traitFlags.push(`🟡 Runner-up ${runnerUp.pgs_id} has ${(runnerR2*100).toFixed(1)}% R² vs best's ${(bestR2*100).toFixed(1)}%`);
+    }
+
+    if (best.coverage_pct < 5)
+      traitFlags.push(`🔴 Best PGS has only ${best.coverage_pct}% coverage`);
+    if (best.genotyped_pct === 0 && best.matched_variants > 0)
+      traitFlags.push('🟡 Best PGS is 100% imputed (0% genotyped)');
+    if (best.z_score !== null && Math.abs(best.z_score) > 5)
+      traitFlags.push(`🔴 Extreme z-score: ${best.z_score.toFixed(1)}σ`);
+    if (runnerUp && best.quality_score - runnerUp.quality_score < 2)
+      traitFlags.push(`🟡 Tight race: best=${best.quality_score.toFixed(1)} vs runner-up=${runnerUp.quality_score.toFixed(1)} (Δ${(best.quality_score - runnerUp.quality_score).toFixed(1)})`);
+    if (best.insufficient_data)
+      traitFlags.push('🔴 Best PGS marked as insufficient data');
+
+    if (traitFlags.length > 0) flaggedTraits++;
+    if (flagsOnly && traitFlags.length === 0) continue;
+
+    // Print trait header
+    const valueStr = tr.value != null && trait.type === 'quantitative' ? ` → ${tr.value.toFixed(1)} ${trait.unit || ''}` : '';
+    const zStr = tr.overall_z_score != null ? `z=${tr.overall_z_score.toFixed(2)}σ` : 'z=N/A';
+
+    console.log(chalk.cyan(`\n${'─'.repeat(80)}`));
+    console.log(chalk.bold(`${trait.emoji} ${trait.name} (${tr.trait_id}) — ${tr.individual_id}`));
+    console.log(chalk.gray(`  Result: ${zStr}, P${tr.overall_percentile?.toFixed(0) || '?'}${valueStr}`));
+    console.log(chalk.gray(`  PGS count: ${allPgs.length}`));
+
+    if (traitFlags.length > 0) {
+      console.log(chalk.red(`  FLAGS:`));
+      for (const f of traitFlags) console.log(chalk.red(`    ${f}`));
+      allFlags.push({ trait: `${trait.emoji} ${trait.name}`, individual: tr.individual_id, flags: traitFlags });
+    }
+
+    // PGS comparison table
+    console.log('');
+    console.log(chalk.gray('  Rank  PGS ID       QS     R²      Coverage   Genotyped  Z-score  Matched'));
+    console.log(chalk.gray('  ' + '─'.repeat(76)));
+
+    for (let i = 0; i < Math.min(allPgs.length, 5); i++) {
+      const p = allPgs[i];
+      const r2 = r2Map.get(p.pgs_id) || p.performance_metric || 0.05;
+      const isChosen = p.pgs_id === tr.best_pgs_id;
+      const marker = isChosen ? chalk.green('★') : ' ';
+      const line = `  ${marker} #${i+1}  ${p.pgs_id.padEnd(12)} ${(p.quality_score?.toFixed(1) || '?').padStart(5)}  ${(r2*100).toFixed(1).padStart(5)}%  ${(p.coverage_pct+'%').padStart(8)}  ${(p.genotyped_pct+'%').padStart(8)}   ${p.z_score != null ? p.z_score.toFixed(2).padStart(7) : '   N/A'}  ${p.matched_variants?.toLocaleString().padStart(10)}`;
+
+      console.log(isChosen ? chalk.green(line) : i === 1 ? chalk.yellow(line) : chalk.gray(line));
+    }
+
+    if (allPgs.length > 5) {
+      const worst = allPgs[allPgs.length - 1];
+      const r2w = r2Map.get(worst.pgs_id) || worst.performance_metric || 0.05;
+      console.log(chalk.gray(`  ... ${allPgs.length - 5} more ...`));
+      console.log(chalk.gray(`   #${allPgs.length}  ${worst.pgs_id.padEnd(12)} ${(worst.quality_score?.toFixed(1) || '?').padStart(5)}  ${(r2w*100).toFixed(1).padStart(5)}%  ${(worst.coverage_pct+'%').padStart(8)}  ${(worst.genotyped_pct+'%').padStart(8)}   ${worst.z_score != null ? worst.z_score.toFixed(2).padStart(7) : '   N/A'}  ${worst.matched_variants?.toLocaleString().padStart(10)}`));
+    }
+  }
+
+  // Audit summary
+  console.log(chalk.cyan(`\n${'═'.repeat(80)}`));
+  console.log(chalk.bold(`\nAudit Summary`));
+  console.log(`  Total trait calculations: ${totalTraits}`);
+  console.log(`  Flagged: ${chalk.red(flaggedTraits)} (${(flaggedTraits/totalTraits*100).toFixed(1)}%)`);
+  console.log(`  Clean: ${chalk.green(totalTraits - flaggedTraits)}`);
+
+  if (allFlags.length > 0) {
+    console.log(chalk.red(`\n  All Flags:`));
+    for (const f of allFlags) {
+      console.log(chalk.yellow(`    ${f.trait} (${f.individual}):`));
+      for (const fl of f.flags) console.log(`      ${fl}`);
+    }
+  }
   console.log('');
+
+  return { totalTraits, flaggedTraits };
 }
+
+// ── Validate (quick pass/fail) ──────────────────────────────────────────────
 
 function validate() {
-  console.log(chalk.cyan('\n=== Risk Score Validation ===\n'));
-  
-  const catalog = loadCatalog();
-  const individuals = queryDB('SELECT DISTINCT individual_id FROM trait_results');
-  console.log(chalk.blue(`Found ${individuals.length} individuals\n`));
-  
-  const issues = {
-    extreme: [],
-    high: [],
-    suspicious: [],
-    pgs_extreme: [],
-    pgs_high: []
-  };
-  
-  for (const { individual_id } of individuals) {
-    console.log(chalk.yellow(`\nAnalyzing: ${individual_id}`));
-    
-    const scores = queryDB(`
-      SELECT trait_id, overall_z_score, value 
-      FROM trait_results 
-      WHERE individual_id = '${individual_id}' AND overall_z_score IS NOT NULL
-      ORDER BY ABS(overall_z_score) DESC
-    `);
-    
-    for (const { trait_id, overall_z_score, value } of scores) {
-      const analysis = analyzeScore(overall_z_score, trait_id, catalog);
-      
-      if (analysis.level !== 'normal' && analysis.level !== 'unknown') {
-        const trait = catalog.traits[trait_id];
-        const entry = {
-          individual_id,
-          trait_id,
-          trait_title: trait?.title || 'Unknown',
-          overall_z_score,
-          value,
-          ...analysis
-        };
-        
-        issues[analysis.level].push(entry);
-        
-        if (trait && trait.pgs_ids) {
-          const pgsScores = queryDB(`
-            SELECT pgs_id, raw_score, z_score
-            FROM pgs_results
-            WHERE individual_id = '${individual_id}' AND trait_id = '${trait_id}'
-          `);
-          
-          for (const { pgs_id, raw_score, z_score } of pgsScores) {
-            if (raw_score !== null) {
-              const pgsIssue = analyzePGSScore(pgs_id, raw_score, trait);
-              if (pgsIssue) {
-                if (pgsIssue.issue === 'extreme_zscore') {
-                  issues.pgs_extreme.push({ individual_id, trait_id, trait_title: trait.title, ...pgsIssue });
-                } else if (pgsIssue.issue === 'high_zscore') {
-                  issues.pgs_high.push({ individual_id, trait_id, trait_title: trait.title, ...pgsIssue });
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+  console.log(chalk.cyan('\n=== Score Validation ===\n'));
+
+  const checks = [];
+
+  // Check 1: All individuals have results
+  const indStats = qr(`
+    SELECT individual_id, COUNT(DISTINCT trait_id) as traits
+    FROM trait_results GROUP BY individual_id
+  `);
+  const totalTraits = qr(`SELECT COUNT(DISTINCT trait_id) as n FROM trait_results`)[0]?.n || 0;
+  for (const ind of indStats) {
+    const pass = ind.traits === totalTraits;
+    checks.push({ name: `${ind.individual_id} has all traits`, pass, detail: `${ind.traits}/${totalTraits}` });
   }
-  
-  console.log(chalk.cyan('\n\n=== Summary ===\n'));
-  
-  if (issues.extreme.length > 0) {
-    console.log(chalk.red(`\n🔴 EXTREME Risk Scores (>${THRESHOLDS.extreme}): ${issues.extreme.length}`));
-    for (const issue of issues.extreme.slice(0, 10)) {
-      console.log(chalk.red(`  ${issue.individual_id} | ${issue.trait_id} (${issue.trait_title})`));
-      console.log(chalk.red(`    Z-Score: ${issue.overall_z_score.toFixed(2)}${issue.value !== null ? `, Value: ${issue.value.toFixed(2)}` : ''}`));
-    }
-    if (issues.extreme.length > 10) {
-      console.log(chalk.gray(`  ... and ${issues.extreme.length - 10} more`));
-    }
+
+  // Check 2: Extreme z-score rate
+  const stats = qr(`
+    SELECT COUNT(*) as total,
+           SUM(CASE WHEN ABS(z_score) > 10 THEN 1 ELSE 0 END) as extreme
+    FROM pgs_results WHERE z_score IS NOT NULL
+  `)[0];
+  const extremeRate = stats.extreme / stats.total;
+  checks.push({ name: 'Extreme z-scores (>10σ) < 5%', pass: extremeRate < 0.05, detail: `${(extremeRate*100).toFixed(1)}% (${stats.extreme}/${stats.total})` });
+
+  // Check 3: No NaN/null best PGS
+  const nullBest = qr(`SELECT COUNT(*) as n FROM trait_results WHERE best_pgs_id IS NULL`)[0]?.n || 0;
+  checks.push({ name: 'All traits have a best PGS', pass: nullBest === 0, detail: `${nullBest} missing` });
+
+  // Check 4: Cross-individual consistency (same trait, z-scores within 3σ of each other)
+  const divergent = qr(`
+    SELECT trait_id, MAX(overall_z_score) - MIN(overall_z_score) as z_spread
+    FROM trait_results
+    GROUP BY trait_id HAVING z_spread > 10
+  `);
+  checks.push({ name: 'Cross-individual z-score spread < 10σ', pass: divergent.length === 0, detail: `${divergent.length} divergent traits` });
+
+  // Check 5: No PGS with 0 expected variants
+  const zeroExpected = qr(`SELECT COUNT(*) as n FROM pgs_results WHERE expected_variants = 0`)[0]?.n || 0;
+  checks.push({ name: 'No PGS with 0 expected variants', pass: zeroExpected === 0, detail: `${zeroExpected} found` });
+
+  // Check 6: Insufficient data rate
+  const insufficientRate = qr(`
+    SELECT COUNT(*) as total,
+           SUM(CASE WHEN insufficient_data THEN 1 ELSE 0 END) as insufficient
+    FROM pgs_results
+  `)[0];
+  const insRate = insufficientRate.insufficient / insufficientRate.total;
+  checks.push({ name: 'Insufficient data < 20%', pass: insRate < 0.20, detail: `${(insRate*100).toFixed(1)}%` });
+
+  // Print results
+  let passed = 0, failed = 0;
+  for (const c of checks) {
+    const icon = c.pass ? chalk.green('✓') : chalk.red('✗');
+    const detail = chalk.gray(`(${c.detail})`);
+    console.log(`  ${icon} ${c.name} ${detail}`);
+    if (c.pass) passed++; else failed++;
   }
-  
-  if (issues.high.length > 0) {
-    console.log(chalk.yellow(`\n🟡 HIGH Risk Scores (>${THRESHOLDS.high}): ${issues.high.length}`));
-    for (const issue of issues.high.slice(0, 10)) {
-      console.log(chalk.yellow(`  ${issue.individual_id} | ${issue.trait_id} (${issue.trait_title})`));
-      console.log(chalk.yellow(`    Z-Score: ${issue.overall_z_score.toFixed(2)}${issue.value !== null ? `, Value: ${issue.value.toFixed(2)}` : ''}`));
-    }
-    if (issues.high.length > 10) {
-      console.log(chalk.gray(`  ... and ${issues.high.length - 10} more`));
-    }
-  }
-  
-  if (issues.pgs_extreme.length > 0) {
-    console.log(chalk.red(`\n🔴 EXTREME PGS Z-Scores (>10σ): ${issues.pgs_extreme.length}`));
-    for (const issue of issues.pgs_extreme.slice(0, 10)) {
-      console.log(chalk.red(`  ${issue.individual_id} | ${issue.trait_id} (${issue.trait_title})`));
-      console.log(chalk.red(`    ${issue.pgsId}: score=${issue.score.toFixed(2)}, z=${issue.zScore}`));
-      console.log(chalk.red(`    mean=${issue.mean.toFixed(2)}, sd=${issue.sd.toFixed(2)}`));
-      console.log(chalk.gray(`    ${issue.weight_type} | ${issue.method}`));
-    }
-    if (issues.pgs_extreme.length > 10) {
-      console.log(chalk.gray(`  ... and ${issues.pgs_extreme.length - 10} more`));
-    }
-  }
-  
-  if (issues.pgs_high.length > 0) {
-    console.log(chalk.yellow(`\n🟡 HIGH PGS Z-Scores (>5σ): ${issues.pgs_high.length}`));
-    for (const issue of issues.pgs_high.slice(0, 10)) {
-      console.log(chalk.yellow(`  ${issue.individual_id} | ${issue.trait_id} (${issue.trait_title})`));
-      console.log(chalk.yellow(`    ${issue.pgsId}: score=${issue.score.toFixed(2)}, z=${issue.zScore}`));
-      console.log(chalk.yellow(`    mean=${issue.mean.toFixed(2)}, sd=${issue.sd.toFixed(2)}`));
-      console.log(chalk.gray(`    ${issue.weight_type} | ${issue.method}`));
-    }
-    if (issues.pgs_high.length > 10) {
-      console.log(chalk.gray(`  ... and ${issues.pgs_high.length - 10} more`));
-    }
-  }
-  
-  if (issues.extreme.length === 0 && issues.high.length === 0 && 
-      issues.pgs_extreme.length === 0 && issues.pgs_high.length === 0) {
-    console.log(chalk.green('✓ No significant issues found!'));
-  }
-  
-  console.log(chalk.cyan('\n=== Recommendations ===\n'));
-  
-  if (issues.extreme.length > 0 || issues.pgs_extreme.length > 0) {
-    console.log(chalk.yellow('1. Review extreme scores - likely incompatible PGS scales'));
-    console.log(chalk.yellow('2. Check trait catalog for affected traits'));
-    console.log(chalk.yellow('3. Consider adding filters to pgs-filter.js'));
-  }
-  
-  if (issues.high.length > 0 || issues.pgs_high.length > 0) {
-    console.log(chalk.yellow('4. Investigate high scores for potential scale mismatches'));
-    console.log(chalk.yellow('5. Verify weight_type and method for flagged PGS'));
-  }
-  
-  console.log('');
+
+  console.log(`\n  ${chalk.green(passed + ' passed')}, ${failed > 0 ? chalk.red(failed + ' failed') : chalk.green('0 failed')}\n`);
+  return failed === 0;
 }
 
-function analyze() {
-  console.log(chalk.cyan('\n=== Score Distribution Analysis ===\n'));
-  
-  console.log(chalk.yellow('Z-Score Distribution:'));
-  const dist = queryDB(`
-    SELECT 
-      CASE 
-        WHEN ABS(overall_z_score) < 1 THEN '0-1σ'
-        WHEN ABS(overall_z_score) < 2 THEN '1-2σ'
-        WHEN ABS(overall_z_score) < 3 THEN '2-3σ'
-        WHEN ABS(overall_z_score) < 5 THEN '3-5σ'
-        WHEN ABS(overall_z_score) < 10 THEN '5-10σ'
-        ELSE '>10σ'
-      END as range,
-      COUNT(*) as count,
-      ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 1) as pct
-    FROM trait_results 
-    WHERE overall_z_score IS NOT NULL
-    GROUP BY range
-    ORDER BY 
-      CASE range
-        WHEN '0-1σ' THEN 1
-        WHEN '1-2σ' THEN 2
-        WHEN '2-3σ' THEN 3
-        WHEN '3-5σ' THEN 4
-        WHEN '5-10σ' THEN 5
-        ELSE 6
-      END
-  `);
-  
-  dist.forEach(row => {
-    console.log(`  ${row.range.padEnd(10)} ${String(row.count).padStart(4)} (${row.pct}%)`);
-  });
-  
-  const zCheck = queryDB('SELECT COUNT(*) as total, COUNT(overall_z_score) as with_z FROM trait_results');
-  const { total, with_z } = zCheck[0];
-  
-  if (with_z === 0) {
-    console.log(chalk.red('\n⚠️  Z-scores not yet populated.\n'));
-    return;
-  }
-  
-  console.log(chalk.green(`\n✓ Z-scores populated: ${with_z}/${total}\n`));
-  
-  console.log(chalk.yellow('PGS Raw Score Distribution:'));
-  const pgsRawDist = queryDB(`
-    SELECT 
-      CASE 
-        WHEN ABS(z_score) < 1 THEN '0-1σ'
-        WHEN ABS(z_score) < 2 THEN '1-2σ'
-        WHEN ABS(z_score) < 3 THEN '2-3σ'
-        WHEN ABS(z_score) < 5 THEN '3-5σ'
-        WHEN ABS(z_score) < 10 THEN '5-10σ'
-        ELSE '>10σ'
-      END as range,
-      COUNT(*) as count,
-      ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 1) as pct
-    FROM pgs_results 
-    WHERE z_score IS NOT NULL
-    GROUP BY range
-    ORDER BY 
-      CASE range
-        WHEN '0-1σ' THEN 1
-        WHEN '1-2σ' THEN 2
-        WHEN '2-3σ' THEN 3
-        WHEN '3-5σ' THEN 4
-        WHEN '5-10σ' THEN 5
-        ELSE 6
-      END
-  `);
-  
-  pgsRawDist.forEach(row => {
-    const color = row.range === '>10σ' ? chalk.red : row.range === '5-10σ' ? chalk.yellow : chalk.white;
-    console.log(color(`  ${row.range.padEnd(10)} ${String(row.count).padStart(4)} (${row.pct}%)`));
-  });
-  
-  console.log(chalk.cyan('\n=== Outliers ===\n'));
-  
-  const extremeHigh = queryDB(`
-    SELECT trait_id, individual_id, ROUND(overall_z_score, 2) as z, ROUND(value, 2) as val
-    FROM trait_results 
-    WHERE overall_z_score > 10
-    ORDER BY overall_z_score DESC
-    LIMIT 5
-  `);
-  
-  const extremeLow = queryDB(`
-    SELECT trait_id, individual_id, ROUND(overall_z_score, 2) as z, ROUND(value, 2) as val
-    FROM trait_results 
-    WHERE overall_z_score < -10
-    ORDER BY overall_z_score
-    LIMIT 5
-  `);
-  
-  if (extremeHigh.length > 0) {
-    console.log(chalk.red('Extreme High Z-Scores (>10σ):'));
-    extremeHigh.forEach(row => {
-      console.log(chalk.red(`  ${row.trait_id}: z=${row.z}${row.val !== null ? `, value=${row.val}` : ''}`));
-    });
-  }
-  
-  if (extremeLow.length > 0) {
-    console.log(chalk.red('\nExtreme Low Z-Scores (<-10σ):'));
-    extremeLow.forEach(row => {
-      console.log(chalk.red(`  ${row.trait_id}: z=${row.z}${row.val !== null ? `, value=${row.val}` : ''}`));
-    });
-  }
-  
-  console.log('');
-}
+// ── CLI Router ──────────────────────────────────────────────────────────────
 
-async function main() {
-  const command = process.argv[2];
-  const traitArg = process.argv[3];
-  
-  if (command === 'validate') {
-    validate();
-  } else if (command === 'analyze') {
-    analyze();
-  } else if (command === 'inspect' && traitArg) {
-    inspectTrait(traitArg);
-  } else if (command === 'inspect') {
-    console.log(chalk.red('\nUsage: node scores.js inspect <TRAIT_ID>'));
-    console.log(chalk.yellow('\nExample: node scores.js inspect EFO_0007777\n'));
+const COMMANDS = {
+  summary:   { label: '📊 Summary — Overall score statistics', fn: () => { summary(); } },
+  extremes:  { label: '🔴 Extremes — Analyze extreme z-scores', fn: () => { extremes(); } },
+  coverage:  { label: '📉 Coverage — Low coverage PGS analysis', fn: () => { coverage(); } },
+  sds:       { label: '🔬 Small SDs — Suspiciously small standard deviations', fn: () => { smallSDs(); } },
+  audit:     { label: '🔍 Audit — PGS selection validation', fn: (args) => {
+    const filterTrait = args.find(a => /^[A-Z]+_\d+/.test(a));
+    const flagsOnly = args.includes('--flags');
+    audit(filterTrait, flagsOnly);
+  }},
+  validate:  { label: '✅ Validate — Quick pass/fail checks', fn: () => { validate(); } },
+  all:       { label: '🧬 All — Run everything', fn: () => {
+    summary(); extremes(); coverage(); smallSDs();
+    console.log(chalk.green('\n✓ Analysis complete\n'));
+  }},
+};
+
+const args = process.argv.slice(2);
+const cmd = args[0];
+
+if (cmd && cmd !== '--help' && COMMANDS[cmd]) {
+  COMMANDS[cmd].fn(args.slice(1));
+} else if (cmd === '--help') {
+  console.log(`\n🧬 Asili Score Analysis\n\nUsage:\n  pnpm scores              Interactive menu\n  pnpm scores <command>    Run a specific analysis\n\nCommands:`);
+  for (const [name, { label }] of Object.entries(COMMANDS)) {
+    console.log(`  ${name.padEnd(12)} ${label}`);
+  }
+  console.log(`\nAudit options:\n  pnpm scores audit EFO_0004340   Audit specific trait\n  pnpm scores audit --flags       Only show flagged traits\n`);
+} else if (cmd && !COMMANDS[cmd]) {
+  // Maybe they passed a trait ID directly (shortcut for audit)
+  if (/^[A-Z]+_\d+/.test(cmd)) {
+    audit(cmd, false);
   } else {
-    const response = await prompts({
-      type: 'select',
-      name: 'action',
-      message: 'What would you like to do?',
-      choices: [
-        { title: 'Validate risk scores', value: 'validate' },
-        { title: 'Analyze score distribution', value: 'analyze' },
-        { title: 'Inspect specific trait', value: 'inspect' }
-      ]
-    });
-    
-    if (response.action === 'validate') {
-      validate();
-    } else if (response.action === 'analyze') {
-      analyze();
-    } else if (response.action === 'inspect') {
-      const traitResponse = await prompts({
-        type: 'text',
-        name: 'traitId',
-        message: 'Enter trait ID to inspect:'
-      });
-      if (traitResponse.traitId) {
-        inspectTrait(traitResponse.traitId);
-      }
-    }
+    console.error(chalk.red(`Unknown command: "${cmd}"`));
+    console.error(`Run ${chalk.cyan('pnpm scores --help')} for available commands`);
+    process.exit(1);
   }
-}
+} else {
+  // Interactive menu
+  const prompts = (await import('prompts')).default;
 
-main();
+  const { selection } = await prompts({
+    type: 'select',
+    name: 'selection',
+    message: 'What would you like to analyze?',
+    choices: Object.entries(COMMANDS).map(([value, { label }]) => ({ title: label, value }))
+  });
+
+  if (!selection) { console.log('Cancelled.'); process.exit(0); }
+  COMMANDS[selection].fn(args);
+}

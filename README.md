@@ -29,6 +29,7 @@ Asili is a privacy-first genomic risk analysis platform that processes DNA data 
 - **Multi-format DNA Support**: 23andMe, AncestryDNA, MyHeritage, and more
 - **Family Genomics**: Manage multiple individuals with separate profiles
 - **Comprehensive Traits**: 100+ polygenic risk scores from PGS Catalog
+- **Genotype Imputation**: Beagle 5.4 imputation with TOPMed panel (60-80% coverage)
 - **Real-time Processing**: WebSocket-based progress tracking
 - **Hybrid Architecture**: Browser-only or server-assisted processing
 - **Cache Management**: Export/import results for backup and sharing
@@ -48,6 +49,21 @@ pnpm etl local
 # Run in Docker (uses gnomAD if GNOMAD_DB_PATH set in .env)
 pnpm etl docker
 ```
+
+### Imputation Setup
+
+```bash
+# Setup Beagle + 1000 Genomes (9GB, 2.2% coverage)
+pnpm imputation setup
+
+# Upgrade to TOPMed (150GB, 60-80% coverage) - Recommended
+pnpm imputation setup-topmed
+
+# Impute user DNA
+pnpm imputation impute
+```
+
+See [docs/IMPUTATION.md](docs/IMPUTATION.md) for detailed imputation guide.
 
 ### Single Command Deployment
 

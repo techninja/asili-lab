@@ -17,7 +17,10 @@
     "imputation": "node scripts/imputation.js",
     "start": "node scripts/server.js",
     "calc-server": "node scripts/server.js calc dev",
-    "test:core": "cd packages/core && node test.js",
+    "scores": "node scripts/scores.js",
+    "test": "node scripts/test.js",
+    "test:ci": "npx vitest run",
+    "test:core": "npx vitest run --project core",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -27,8 +30,10 @@
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "better-sqlite3": "^12.6.2",
+    "blessed": "^0.1.81",
     "chalk": "^5.3.0",
-    "duckdb": "1.4.3",
+    "clipboardy": "^5.3.1",
+    "duckdb": "1.4.4",
     "parquet-wasm": "^0.7.1",
     "prompts": "^2.4.2",
     "ws": "^8.18.3"
@@ -38,7 +43,8 @@
     "eslint": "^9.15.0",
     "eslint-config-prettier": "^9.1.0",
     "globals": "^15.12.0",
-    "prettier": "^3.1.1"
+    "prettier": "^3.1.1",
+    "vitest": "^4.1.0"
   },
   "keywords": [
     "genomics",
