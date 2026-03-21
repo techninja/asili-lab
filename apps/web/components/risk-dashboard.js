@@ -541,14 +541,12 @@ export class RiskDashboard extends HTMLElement {
         );
 
         if (results.length > 0) {
-          useTraitStore
-            .getState()
-            .setTraitCacheBatch(
-              results.map(result => ({
-                traitId: result.traitId,
-                cached: result
-              }))
-            );
+          useTraitStore.getState().setTraitCacheBatch(
+            results.map(result => ({
+              traitId: result.traitId,
+              cached: result
+            }))
+          );
           Debug.log(
             1,
             'RiskDashboard',
