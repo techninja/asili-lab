@@ -10,7 +10,7 @@ import { WebSocketManager } from './websocket-manager.js';
 import { ServerQueueManager } from './server-queue-manager.js';
 import { TraitCacheManager } from './trait-cache-manager.js';
 import { Debug } from '@asili/debug';
-import { PATHS } from '@asili/core/constants/paths.js';
+import { PATHS as _PATHS } from '@asili/core/constants/paths.js';
 
 export class HybridProcessor {
   constructor() {
@@ -104,7 +104,7 @@ export class HybridProcessor {
     });
   }
 
-  shouldUseServer(operation = 'default') {
+  shouldUseServer(_operation = 'default') {
     return !!this.serverClient;
   }
 

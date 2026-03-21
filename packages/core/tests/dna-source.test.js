@@ -13,7 +13,7 @@ class MockDuckDB {
     return this.traitRows.length;
   }
 
-  async query(sql) {
+  async query(_sql) {
     // Simple: return all rows (ignores LIMIT/OFFSET for test simplicity)
     return this.traitRows;
   }

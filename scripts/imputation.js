@@ -103,12 +103,12 @@ async function imputeUser() {
   try {
     await fs.access('./cache/topmed_reference/chr1.topmed.vcf.gz');
     panels.push({ name: 'TOPMed', path: './cache/topmed_reference', coverage: '60-80%', time: '2-3 hours' });
-  } catch {}
+  } catch { /* ignore */ }
   
   try {
     await fs.access('./cache/1000g_reference/chr1.1kg.phase3.v5a.vcf.gz');
     panels.push({ name: '1000 Genomes', path: './cache/1000g_reference', coverage: '2.2%', time: '45-60 min' });
-  } catch {}
+  } catch { /* ignore */ }
   
   if (panels.length === 0) {
     console.log('\n❌ No reference panel found. Run "pnpm imputation setup" first.\n');

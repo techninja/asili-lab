@@ -96,7 +96,7 @@ export class ServerQueueManager {
     });
   }
 
-  add(traitId, individualId, priority = 3) {
+  add(traitId, individualId, _priority = 3) {
     this.wsManager.addToQueue(traitId, individualId);
     return `${traitId}_${individualId}_${Date.now()}`;
   }
@@ -124,12 +124,12 @@ export class ServerQueueManager {
     };
   }
 
-  moveToNext(itemId) {
+  moveToNext(_itemId) {
     // Server handles prioritization
     return true;
   }
 
-  remove(itemId) {
+  remove(_itemId) {
     // Server handles removal
     return true;
   }

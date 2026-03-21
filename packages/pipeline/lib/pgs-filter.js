@@ -14,9 +14,9 @@ const WEIGHT_THRESHOLDS = {
   mean_sd_ratio: 8
 };
 
-const PERFORMANCE_MIN_WEIGHT = 0.3;
+const _PERFORMANCE_MIN_WEIGHT = 0.3;
 
-async function validateWeights(pgsId, pgsApiClient) {
+async function _validateWeights(pgsId, pgsApiClient) {
   try {
     const fileContent = await pgsApiClient.getPGSFile(pgsId);
     
@@ -41,7 +41,7 @@ async function validateWeights(pgsId, pgsApiClient) {
     
     // Sample up to 1000 weights
     const weights = [];
-    let count = 0;
+    let _count = 0;
     
     while (pos < fileContent.length && weights.length < 1000) {
       const nextNewline = fileContent.indexOf('\n', pos);
@@ -76,7 +76,7 @@ async function validateWeights(pgsId, pgsApiClient) {
     }
     
     return { valid: true, stats: { mean, std: Math.sqrt(variance) } };
-  } catch (error) {
+  } catch (_error) {
     return { valid: true }; // Don't exclude if we can't validate
   }
 }
@@ -167,7 +167,7 @@ async function getPerformanceMetrics(pgsId, pgsApiClient) {
 async function shouldExcludePGS(pgsId, scoreData, pgsApiClient = null) {
   const methodName = (scoreData.method_name || '').toLowerCase();
   const methodParams = (scoreData.method_params || '').toLowerCase();
-  const weightType = scoreData.weight_type || '';
+  const _weightType = scoreData.weight_type || '';
   
   // Exclude PGS with too few variants (unreliable)
   if (scoreData.variants_number && scoreData.variants_number < 8) {

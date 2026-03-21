@@ -1,4 +1,4 @@
-import { Debug } from '@asili/debug';
+import { Debug as _Debug } from '@asili/debug';
 import { useAppStore } from '../lib/store.js';
 
 export class QueueControl extends HTMLElement {
@@ -102,7 +102,7 @@ export class QueueControl extends HTMLElement {
     }
   }
 
-  updateCardForProcessing(traitId, individualId) {
+  updateCardForProcessing(traitId, _individualId) {
     const riskDashboard = document.querySelector('risk-dashboard');
     if (riskDashboard) {
       const card = riskDashboard.shadowRoot.querySelector(`[data-trait-id="${traitId}"]`);

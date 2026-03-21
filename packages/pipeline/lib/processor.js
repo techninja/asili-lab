@@ -6,20 +6,20 @@ import { gunzip } from 'zlib';
 import { promisify } from 'util';
 import {
   initSync,
-  Compression,
-  Table,
-  writeParquet,
-  readParquet,
-  WriterPropertiesBuilder
+  Compression as _Compression,
+  Table as _Table,
+  writeParquet as _writeParquet,
+  readParquet as _readParquet,
+  WriterPropertiesBuilder as _WriterPropertiesBuilder
 } from 'parquet-wasm/esm';
 import pgsApiClient from '../pgs-api-client.js';
 import {
-  collectPgsMetadata,
+  collectPgsMetadata as _collectPgsMetadata,
   needsUpdate,
-  loadExistingManifest,
-  collectSourceHashes,
-  runDuckDBQuery,
-  createStandardSchema,
+  loadExistingManifest as _loadExistingManifest,
+  collectSourceHashes as _collectSourceHashes,
+  runDuckDBQuery as _runDuckDBQuery,
+  createStandardSchema as _createStandardSchema,
   createStandardizedExportQuery,
   validateParquetFile,
   prepareFileForProcessing
@@ -27,7 +27,7 @@ import {
 import { shouldExcludePGS } from './pgs-filter.js';
 import { detectFormat, generateInsertSQL } from './harmonization.js';
 import { getLDStatus } from './ld-detector.js';
-import { generateLDClumpingSQL, generateClumpingSQL, shouldClumpPGS } from './ld-clumping.js';
+import { generateLDClumpingSQL, generateClumpingSQL as _generateClumpingSQL, shouldClumpPGS } from './ld-clumping.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(__dirname, '..', '..', '..', 'data_out');
@@ -97,7 +97,7 @@ async function streamProcessWithDuckDB(traitName, config) {
     // Clear and recreate temp SQL directory and ensure packs directory exists
     try {
       await fs.rm(TEMP_SQL_DIR, { recursive: true, force: true });
-    } catch {}
+    } catch { /* ignore */ }
     await fs.mkdir(TEMP_SQL_DIR, { recursive: true });
     await fs.mkdir(PACKS_DIR, { recursive: true });
 
@@ -415,12 +415,12 @@ async function streamProcessWithDuckDB(traitName, config) {
           await fs.unlink(path.join(OUTPUT_DIR, file));
         }
       }
-    } catch {}
+    } catch { /* ignore */ }
 
     // Only remove DB after successful completion
     try {
       await fs.unlink(dbPath);
-    } catch {}
+    } catch { /* ignore */ }
 
     console.log(`  - Created unified file (${totalVariants} variants)`);
     return {
@@ -444,7 +444,7 @@ async function streamProcessWithDuckDB(traitName, config) {
           await fs.unlink(path.join(OUTPUT_DIR, file));
         }
       }
-    } catch {}
+    } catch { /* ignore */ }
 
     throw error;
   }
@@ -470,7 +470,7 @@ export async function generateTraitPack(traitName, config, allMetadataCache = nu
   return await generateTraitPackOriginal(traitName, config, allMetadataCache);
 }
 
-async function generateTraitPackOriginal(traitName, config, allMetadataCache = null) {
+async function generateTraitPackOriginal(traitName, config, _allMetadataCache = null) {
   const needsFileUpdate = await needsUpdate(traitName, config);
 
   if (!needsFileUpdate) {

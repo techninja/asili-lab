@@ -1,10 +1,9 @@
-import duckdb from 'duckdb';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { getConnection } from './shared-db.js';
 import { readFileSync } from 'fs';
 import crypto from 'crypto';
 import { runMigrations } from './migrate.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OVERRIDES_PATH = path.join(__dirname, '../trait_overrides.json');

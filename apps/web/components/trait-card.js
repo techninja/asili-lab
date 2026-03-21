@@ -90,7 +90,7 @@ export class TraitCard extends HTMLElement {
         }
         useTraitStore.getState().setTraitCache(this.trait.id, cached);
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently fail - card will show "Add to Queue" button
     } finally {
       useTraitStore.getState().setTraitLoading(this.trait.id, false);
@@ -125,7 +125,7 @@ export class TraitCard extends HTMLElement {
               marginOfError: this.calculateMarginOfErrorForIndividual(cached)
             });
           }
-        } catch (error) {
+        } catch (_error) {
           // Skip individuals without cached results
         }
       }
@@ -225,7 +225,7 @@ export class TraitCard extends HTMLElement {
     
     // Check if all PGS have insufficient data
     const allPGSInsufficient = cached.pgsDetails && Object.values(cached.pgsDetails).every(d => d.insufficientData);
-    const bestPGSInsufficient = cached.pgsDetails && cached.bestPGS && cached.pgsDetails[cached.bestPGS]?.insufficientData;
+    const _bestPGSInsufficient = cached.pgsDetails && cached.bestPGS && cached.pgsDetails[cached.bestPGS]?.insufficientData;
     
     if (allPGSInsufficient || (cached.matchedVariants === 0)) {
       return `
@@ -265,7 +265,7 @@ export class TraitCard extends HTMLElement {
     // Use z-score and confidence from backend calculation
     const overallZScore = cached.zScore ?? this.calculateOverallZScore(cached.pgsDetails);
     const percentile = Math.round(cached.percentile ?? this.zScoreToPercentile(overallZScore));
-    const confidence = cached.confidence || 'medium';
+    const _confidence = cached.confidence || 'medium';
     const level = percentile >= 70 ? 'high' : percentile <= 30 ? 'low' : 'medium';
     
     let bestPGS = cached.bestPGS;
@@ -359,7 +359,7 @@ export class TraitCard extends HTMLElement {
       const score = data.positiveSum + data.negativeSum;
       const details = pgsDetails?.[pgsId];
       const name = details?.metadata?.name || this.trait?.pgs_metadata?.[pgsId]?.name || pgsId;
-      const performance = details?.performanceMetric;
+      const _performance = details?.performanceMetric;
       const confidence = details?.confidence || 'medium';
       const confidenceTooltip = this.getConfidenceTooltip(confidence, details?.matchedVariants, details?.totalVariants);
       const isBest = pgsId === bestPGS && !details?.insufficientData;

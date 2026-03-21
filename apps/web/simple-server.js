@@ -101,7 +101,7 @@ const wss = new WebSocketServer({ server });
 calcServer.wsServer = wss;
 wss.on('connection', (ws, req) => calcServer.handleWebSocket(ws, req));
 
-const httpServer = server.listen(80, () => console.log('🌐 Simple server running on port 80'));
+const _httpServer = server.listen(80, () => console.log('🌐 Simple server running on port 80'));
 
 // Graceful shutdown handling
 process.on('SIGTERM', gracefulShutdown);

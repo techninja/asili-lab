@@ -119,7 +119,7 @@ function main() {
             }
           }
         }
-      } catch (e) {
+      } catch (_e) {
         // Skip parsing errors
       }
     }

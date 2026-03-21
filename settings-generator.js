@@ -108,7 +108,7 @@ class SettingsGenerator {
       console.log(`   Generated: ${settings.generated?.timestamp || 'Unknown'}`);
       
       return settings;
-    } catch (error) {
+    } catch (_error) {
       console.log('❌ No valid settings found');
       return null;
     }
@@ -136,10 +136,11 @@ async function main() {
       await generator.validateSettings();
       break;
       
-    case 'show':
+    case 'show': {
       const settings = await generator.generateSettings();
       console.log(JSON.stringify(settings, null, 2));
       break;
+    }
       
     default:
       console.log('Usage: node settings-generator.js <command> [data_out_dir]');

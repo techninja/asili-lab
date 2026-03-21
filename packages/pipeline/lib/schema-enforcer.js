@@ -13,7 +13,7 @@ export const STANDARD_SCHEMA = {
 };
 
 export function enforceStandardSchema(db, tableName) {
-  const columns = Object.entries(STANDARD_SCHEMA)
+  const _columns = Object.entries(STANDARD_SCHEMA)
     .map(([col, type]) => `${col} ${type}`)
     .join(', ');
 

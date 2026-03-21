@@ -5,7 +5,6 @@
  */
 
 import { spawn } from 'child_process';
-import { existsSync } from 'fs';
 
 const MODES = {
   etl: {

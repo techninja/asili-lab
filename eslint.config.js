@@ -19,7 +19,8 @@ export default [
         'error',
         {
           varsIgnorePattern: '^_',
-          argsIgnorePattern: '^_'
+          argsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_'
         }
       ],
       'no-console': 'off',

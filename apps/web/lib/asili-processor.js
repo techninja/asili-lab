@@ -133,7 +133,7 @@ export class AsiliProcessor {
   }
 
   // Process all traits for an individual
-  async processAllTraits(individualId, progressCallback) {
+  async processAllTraits(individualId, _progressCallback) {
     if (!this.unifiedProcessor) {
       throw new Error('Processor not initialized');
     }

@@ -47,7 +47,7 @@ export async function getConnection() {
     console.log('[shared-db] Creating new connection');
     conn = db.connect();
     // Run checkpoint to recover WAL
-    await new Promise((resolve, reject) => {
+    await new Promise((resolve, _reject) => {
       conn.run('CHECKPOINT', (err) => {
         if (err) console.log('[shared-db] Checkpoint warning:', err.message);
         resolve();

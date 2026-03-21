@@ -23,7 +23,8 @@ export class DNASource {
    * @param {Object} [options]
    * @returns {AsyncGenerator<VariantMatch>}
    */
-  async *matchVariants(traitUrl, options = {}) {
+  // eslint-disable-next-line require-yield
+  async *matchVariants(_traitUrl, _options = {}) {
     throw new Error('matchVariants must be implemented');
   }
 

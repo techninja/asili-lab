@@ -13,10 +13,10 @@ import * as pgsDB from './lib/pgs-db.js';
 import * as traitDB from './lib/trait-db.js';
 import { closeConnection, getConnection } from './lib/shared-db.js';
 import { execSync } from 'child_process';
-import crypto from 'crypto';
+import _crypto from 'crypto';
 
 
-function generateCanonicalURI(traitId) {
+function _generateCanonicalURI(traitId) {
   if (traitId.startsWith('TRAIT:')) {
     return `https://monarchinitiative.org/disease/${traitId}`;
   } else if (traitId.startsWith('EFO_')) {
@@ -280,7 +280,7 @@ async function analyzeTraitQuality(traitId) {
 
 
 import { Worker } from 'worker_threads';
-import os from 'os';
+import _os from 'os';
 
 async function refreshTraitData() {
   console.log(chalk.cyan('\n=== Refresh Trait Data ===\n'));
@@ -288,7 +288,7 @@ async function refreshTraitData() {
   // Close any existing DB connections first
   try {
     closeConnection();
-  } catch {}
+  } catch { /* ignore */ }
 
   const catalogData = await fs.readFile(CATALOG_PATH, 'utf8');
   const catalog = JSON.parse(catalogData);
@@ -737,7 +737,7 @@ async function processSingleTrait(input, catalog) {
     return;
   }
 
-  const traitData = {
+  const _traitData = {
     trait_id: canonicalId,
     title: selectedTrait.title,
     description: description || undefined

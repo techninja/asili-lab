@@ -1,6 +1,3 @@
-import duckdb from 'duckdb';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { getConnection } from './shared-db.js';
 import { runMigrations } from './migrate.js';
 

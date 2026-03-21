@@ -1,8 +1,8 @@
 import { HybridProcessor } from '../lib/hybrid-processor.js';
-import { IndividualManager } from './individual-manager.js';
-import { RiskDashboard } from './risk-dashboard.js';
-import { ProgressBar } from './progress-bar.js';
-import { QueueControl } from './queue-control.js';
+import { IndividualManager as _IndividualManager } from './individual-manager.js';
+import { RiskDashboard as _RiskDashboard } from './risk-dashboard.js';
+import { ProgressBar as _ProgressBar } from './progress-bar.js';
+import { QueueControl as _QueueControl } from './queue-control.js';
 import { useAppStore } from '../lib/store.js';
 
 class AsiliApp extends HTMLElement {

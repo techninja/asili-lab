@@ -22,7 +22,7 @@ const gunzipAsync = promisify(gunzip);
 // Global metadata cache to avoid duplicate API calls
 const globalMetadataCache = new Map();
 
-export async function collectPgsMetadata(pgsIds, existingMetadata = {}, traitId = null) {
+export async function collectPgsMetadata(pgsIds, existingMetadata = {}, _traitId = null) {
   const metadata = {};
   const uncachedIds = [];
   const excludedIds = [];
@@ -102,7 +102,7 @@ export async function collectPgsMetadata(pgsIds, existingMetadata = {}, traitId 
   return metadata;
 }
 
-export async function needsUpdate(traitName, config) {
+export async function needsUpdate(traitName, _config) {
   console.log(`    Checking if ${traitName} needs update...`);
 
   // Check if file exists
@@ -121,9 +121,6 @@ export async function needsUpdate(traitName, config) {
       console.log(`    File integrity check failed: ${error.message}, will regenerate`);
       return true;
     }
-
-    console.log('    File exists, skipping generation');
-    return false;
   } catch {
     console.log('    No output file found, will generate');
     return true;
@@ -151,7 +148,7 @@ export async function collectSourceHashes(pgsIds) {
           date_released: scoreData.date_release
         };
       }
-    } catch (error) {
+    } catch (_error) {
       console.log(`    Warning: Could not get file info for ${pgsId}`);
     }
   }
@@ -177,7 +174,7 @@ export async function countVariantsInFile(filePath) {
       console.log(`    Corrupted file ${filePath}, removing from cache`);
       try {
         await fs.unlink(filePath);
-      } catch { }
+      } catch { /* ignore */ }
       throw new Error(`Corrupted file removed: ${filePath}`);
     }
     console.log(
@@ -270,7 +267,7 @@ export function createStandardSchema() {
     `;
 }
 
-export function createStandardizedExportQuery(tableName, outputPath, normalizationParams = {}) {
+export function createStandardizedExportQuery(tableName, outputPath, _normalizationParams = {}) {
   // Keep raw weights - normalization will be applied to final sum
   return `
         CREATE OR REPLACE TABLE ${tableName}_standardized AS
@@ -316,7 +313,7 @@ export async function validateParquetFile(filePath) {
         variantCount,
         fileName: path.basename(filePath)
       };
-    } catch (error) {
+    } catch (_error) {
       // DuckDB not available or query failed - just return file stats
       return {
         size: stats.size,

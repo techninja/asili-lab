@@ -51,7 +51,7 @@ export async function exportTraitManifestJSON() {
     let categories = [];
     try {
       categories = trait.categories ? JSON.parse(trait.categories) : [];
-    } catch (e) {
+    } catch (_e) {
       // If categories is not valid JSON, split by comma
       categories = trait.categories ? trait.categories.split(',').map(c => c.trim()).filter(Boolean) : [];
     }

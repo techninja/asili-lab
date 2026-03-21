@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import blessed from 'blessed';
 import { spawn, execSync } from 'child_process';
-import chalk from 'chalk';
+import _chalk from 'chalk';
 import clipboardy from 'clipboardy';
 
 const containerName = process.argv[2] || 'asili-hybrid';

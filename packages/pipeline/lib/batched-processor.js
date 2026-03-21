@@ -6,11 +6,11 @@ import { promisify } from 'util';
 import { spawn } from 'child_process';
 import pgsApiClient from '../pgs-api-client.js';
 import {
-  collectPgsMetadata,
+  collectPgsMetadata as _collectPgsMetadata,
   needsUpdate,
-  collectSourceHashes,
+  collectSourceHashes as _collectSourceHashes,
   countVariantsInFile,
-  runDuckDBQuery,
+  runDuckDBQuery as _runDuckDBQuery,
   validateParquetFile,
   prepareFileForProcessing
 } from './processor-core.js';
@@ -29,7 +29,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(__dirname, '..', '..', '..', 'data_out');
 const BATCH_DIR = path.join(OUTPUT_DIR, 'batches');
 const PACKS_DIR = path.join(OUTPUT_DIR, 'packs');
-const gunzipAsync = promisify(gunzip);
+const _gunzipAsync = promisify(gunzip);
 
 import os from 'os';
 
@@ -373,10 +373,10 @@ async function processBatchWithDuckDB(
     duckdb.stdin.write(pragmas + duckdbScript);
     duckdb.stdin.end();
 
-    let stdout = '';
+    let _stdout = '';
     let stderr = '';
 
-    duckdb.stdout.on('data', data => {
+    duckdb.stdout.on('data', _data => {
       // Silent - no debug output
     });
 
@@ -395,9 +395,9 @@ async function processBatchWithDuckDB(
           const dataPath = file.file_path.replace('.gz', '_data.tsv');
           try {
             await fs.unlink(dataPath);
-          } catch {}
+          } catch { /* ignore */ }
         }
-      } catch {}
+      } catch { /* ignore */ }
 
       if (
         code === 0 &&
@@ -489,7 +489,7 @@ async function hierarchicalMerge(batchFiles, finalOutputPath, safeFileName) {
       for (const filePath of group) {
         try {
           await fs.unlink(filePath);
-        } catch {}
+        } catch { /* ignore */ }
       }
     }
 
@@ -502,7 +502,7 @@ async function hierarchicalMerge(batchFiles, finalOutputPath, safeFileName) {
   return await directAppend(currentFiles, finalOutputPath, safeFileName);
 }
 
-async function directAppend(batchFiles, outputPath, baseName) {
+async function directAppend(batchFiles, outputPath, _baseName) {
   console.log(
     `    Direct append: ${batchFiles.length} files -> ${path.basename(outputPath)}`
   );
@@ -560,14 +560,14 @@ async function directAppend(batchFiles, outputPath, baseName) {
 }
 
 
-export async function generateTraitPackBatched(traitName, config, allMetadataCache = null) {
+export async function generateTraitPackBatched(traitName, config, _allMetadataCache = null) {
   const logger = createLogger('batched-processor');
   const traitTitle = config.title || traitName;
   logger.log(`🧬 Starting batched processing for ${traitTitle} (${traitName})`);
   logger.log(`   Target: ${config.pgs_ids.length} PGS files`);
 
   const safeFileName = traitName.replace(':', '_');
-  const finalOutputPath = path.join(PACKS_DIR, `${safeFileName}_hg38.parquet`);
+  const _finalOutputPath = path.join(PACKS_DIR, `${safeFileName}_hg38.parquet`);
 
   const needsFileUpdate = await needsUpdate(traitName, config);
 
@@ -593,7 +593,7 @@ export async function generateTraitPackBatched(traitName, config, allMetadataCac
     if (progress.completed_batches.length > 0) {
       logger.log(`📂 Resuming: ${progress.completed_batches.length} batches already completed`);
     }
-  } catch {}
+  } catch { /* ignore */ }
 
   const batches = await createBatches(config.pgs_ids);
   
@@ -617,7 +617,7 @@ export async function generateTraitPackBatched(traitName, config, allMetadataCac
           logger.log(`   📌 ${pgsId}: needs LD clumping (method=${dbData.method_name}, variants=${dbData.variants_number})`);
         }
       }
-    } catch (error) {
+    } catch (_error) {
       logger.log(`   ⚠️  Warning: Could not get LD status for ${pgsId}`);
     }
   }
@@ -671,17 +671,12 @@ export async function generateTraitPackBatched(traitName, config, allMetadataCac
     await Promise.all(Array.from(activeBatches.values()));
   }
 
-  let finalFile;
-  try {
-    finalFile = await mergeBatchResults(batchFiles, traitName);
-  } catch (error) {
-    throw error;
-  }
+  const finalFile = await mergeBatchResults(batchFiles, traitName);
 
   for (const filePath of batchFiles) {
     try {
       await fs.unlink(filePath);
-    } catch {}
+    } catch { /* ignore */ }
   }
 
   const finalStats = await fs.stat(finalFile);
@@ -689,7 +684,7 @@ export async function generateTraitPackBatched(traitName, config, allMetadataCac
 
   try {
     await fs.unlink(progressFile);
-  } catch {}
+  } catch { /* ignore */ }
 
   const validation = await validateParquetFile(finalFile);
   let actualVariantCount = validation.variantCount;
@@ -699,7 +694,7 @@ export async function generateTraitPackBatched(traitName, config, allMetadataCac
     try {
       const duckdbCmd = process.env.DUCKDB_CLI || 'duckdb';
       const result = execSync(`${duckdbCmd} -c "SELECT COUNT(*) as count FROM '${finalFile}';"`, { encoding: 'utf8' });
-      const match = result.match(/\│\s*(\d+)\s*\│/);
+      const match = result.match(/│\s*(\d+)\s*│/);
       actualVariantCount = match ? parseInt(match[1]) : 0;
     } catch {
       actualVariantCount = 0;
@@ -719,14 +714,14 @@ export async function generateTraitPackBatched(traitName, config, allMetadataCac
       const duckdbCmd = process.env.DUCKDB_CLI || 'duckdb';
       const pgsIdList = clumpedPGS.map(([id]) => `'${id}'`).join(',');
       const result = execSync(`${duckdbCmd} -c "SELECT COUNT(*) as total FROM '${finalFile}' WHERE pgs_id IN (${pgsIdList});"`, { encoding: 'utf8' });
-      const match = result.match(/\│\s*(\d+)\s*\│/);
+      const match = result.match(/│\s*(\d+)\s*│/);
       const totalAfter = match ? parseInt(match[1]) : 0;
       const removed = totalBefore - totalAfter;
       
       // Check if any PGS was completely removed
       for (const [pgsId] of clumpedPGS) {
         const countResult = execSync(`${duckdbCmd} -c "SELECT COUNT(*) as cnt FROM '${finalFile}' WHERE pgs_id = '${pgsId}';"`, { encoding: 'utf8' });
-        const countMatch = countResult.match(/\│\s*(\d+)\s*\│/);
+        const countMatch = countResult.match(/│\s*(\d+)\s*│/);
         const afterCount = countMatch ? parseInt(countMatch[1]) : 0;
         
         if (afterCount === 0) {

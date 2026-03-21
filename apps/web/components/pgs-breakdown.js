@@ -85,7 +85,7 @@ export class PGSBreakdown extends HTMLElement {
     const pgsBreakdown = state.cached.pgsBreakdown[this.pgsId];
     const navigation = state.pgsNavigation;
     const score = pgsBreakdown.positiveSum + pgsBreakdown.negativeSum;
-    const gridCols = `12em repeat(${allIndividuals.length}, auto) auto auto auto`;
+    const _gridCols = `12em repeat(${allIndividuals.length}, auto) auto auto auto`;
     
     content.innerHTML = `
 
@@ -214,7 +214,7 @@ export class PGSBreakdown extends HTMLElement {
 
             const maxAbs = Math.max(...waterfall.map(v => Math.abs(v.end)), 0.01);
 
-            return waterfall.map((variant, idx) => {
+            return waterfall.map((variant) => {
               const variantId = variant.rsid || 'Unknown';
               let displayId, linkUrl, linkTitle;
               if (variantId.startsWith('rs')) {
@@ -427,7 +427,7 @@ export class PGSBreakdown extends HTMLElement {
     if (modal) modal.remove();
   }
 
-  async createChart(pgsData) {
+  async createChart(_pgsData) {
     const canvas = this.shadowRoot.getElementById(`distributionChart-${this.pgsId}`);
     if (!canvas) return;
 
@@ -446,10 +446,10 @@ export class PGSBreakdown extends HTMLElement {
       return;
     }
 
-    if (typeof Chart === 'undefined') {
+    if (typeof globalThis.Chart === 'undefined') {
       await window.loadChartJS?.();
     }
-    if (typeof Chart === 'undefined') return;
+    if (typeof globalThis.Chart === 'undefined') return;
 
     // Create linear x-axis labels based on bucket positions
     const labels = buckets.map((b, i) => {
@@ -459,7 +459,7 @@ export class PGSBreakdown extends HTMLElement {
       return '';
     });
 
-    this.chart = new Chart(canvas, {
+    this.chart = new globalThis.Chart(canvas, {
       type: 'line',
       data: {
         labels: labels,

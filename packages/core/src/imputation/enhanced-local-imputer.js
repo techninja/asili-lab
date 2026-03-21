@@ -96,7 +96,7 @@ export class EnhancedLocalImputer {
     return imputed;
   }
 
-  async detectArrayType(userDNA) {
+  async detectArrayType(_userDNA) {
     // Check for user-specific array by looking for individualId in manifest files
     const manifestPath = path.join(this.dataPath, 'manifests');
     

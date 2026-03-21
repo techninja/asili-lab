@@ -25,8 +25,8 @@ export async function extractEffectAlleleWeights(pgsId, pgsApiClient) {
     if (!headerLine) return null;
     
     const cols = headerLine.split('\t');
-    const effectAlleleIdx = cols.findIndex(c => c === 'effect_allele');
-    const otherAlleleIdx = cols.findIndex(c => c === 'other_allele');
+    const _effectAlleleIdx = cols.findIndex(c => c === 'effect_allele');
+    const _otherAlleleIdx = cols.findIndex(c => c === 'other_allele');
     const effectWeightIdx = cols.findIndex(c => c === 'effect_weight' || c === 'weight');
     const eafIdx = cols.findIndex(c => c === 'effect_allele_frequency' || c === 'allelefrequency_effect');
     

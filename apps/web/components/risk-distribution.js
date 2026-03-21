@@ -128,7 +128,7 @@ export class RiskDistribution extends HTMLElement {
         <text x="${userX}" y="${userY - 10}" class="user-label" text-anchor="middle">${this.emoji}</text>
         
         <!-- Other individuals -->
-        ${positionedOthers.map((other, idx) => {
+        ${positionedOthers.map((other) => {
           const lineStartY = other.shifted ? other.y : (other.y < userY - 10 ? other.y + 5 : 20*sy);
           return `
             <g class="other-individual">

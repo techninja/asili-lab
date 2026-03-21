@@ -19,7 +19,7 @@ const MANIFEST_DB = path.join(ROOT, 'data_out', 'trait_manifest.db');
 const GNOMAD_PARQUET = '/home/techninja/web/gnomad.genomes.v4.1.sites.parquet';
 const PACKS_DIR = path.join(ROOT, 'data_out', 'packs');
 
-function loadEnv() {
+function _loadEnv() {
   const envPath = path.join(ROOT, '.env');
   if (!existsSync(envPath)) return {};
   

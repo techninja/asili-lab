@@ -177,7 +177,7 @@ export class SharedRiskCalculator {
    * KEY FIX: Never scale mean/SD by coverage.
    * Coverage affects confidence (quality score), not the z-score itself.
    */
-  async finalize(traitType = 'disease_risk', unit = null, phenotypeMean = null, phenotypeSd = null, pgsPerformanceMetrics = {}) {
+  async finalize(traitType = 'disease_risk', _unit = null, phenotypeMean = null, phenotypeSd = null, pgsPerformanceMetrics = {}) {
     // Initialize any PGS from normalizationParams that weren't matched
     for (const pgsId in this.normalizationParams) {
       this.initializePGS(pgsId, this.normalizationParams[pgsId]);

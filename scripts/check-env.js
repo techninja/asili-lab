@@ -39,7 +39,7 @@ if (!existsSync(packsDir)) {
 try {
   await import('better-sqlite3');
   console.log('✅ better-sqlite3 installed');
-} catch (e) {
+} catch (_e) {
   console.log('❌ better-sqlite3 not installed');
   console.log('   Fix: pnpm install');
   allGood = false;
@@ -48,7 +48,7 @@ try {
 try {
   await import('duckdb');
   console.log('✅ duckdb installed');
-} catch (e) {
+} catch (_e) {
   console.log('❌ duckdb not installed');
   console.log('   Fix: pnpm install');
   allGood = false;

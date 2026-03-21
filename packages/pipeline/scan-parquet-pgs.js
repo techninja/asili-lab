@@ -88,7 +88,7 @@ export default async function scanParquetFiles(singleTraitId = null) {
   // Now populate pgs_scores table
   console.log('\n📝 Populating pgs_scores table...');
   let inserted = 0;
-  let updated = 0;
+  let _updated = 0;
   
   for (const [pgsId, metadata] of allPGS.entries()) {
     try {

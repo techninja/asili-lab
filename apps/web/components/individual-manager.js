@@ -460,7 +460,7 @@ export class IndividualManager extends HTMLElement {
   async importIndividual() {
     const nameInput = this.shadowRoot.getElementById('nameInput');
     const selectedEmoji = this.shadowRoot.querySelector('.emoji-btn.selected');
-    const progressText = this.shadowRoot.getElementById('progressText');
+    const _progressText = this.shadowRoot.getElementById('progressText');
 
     const name = nameInput?.value.trim();
     const emoji = selectedEmoji?.dataset.emoji || '👤';

@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { loadTraitCatalog, getTraitConfigs } from './lib/catalog.js';

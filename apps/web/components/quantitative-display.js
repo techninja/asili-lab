@@ -62,7 +62,7 @@ export class QuantitativeDisplay extends HTMLElement {
     const others = this.otherIndividuals;
     const phenotypeMean = this.phenotypeMean;
     const phenotypeSd = this.phenotypeSd;
-    const refPop = this.referencePopulation;
+    const _refPop = this.referencePopulation;
     
     // Calculate range for visualization
     const allValues = [value, ...others.map(o => o.value)].filter(v => v != null);
@@ -105,17 +105,13 @@ export class QuantitativeDisplay extends HTMLElement {
       return Math.max(20, Math.min(380, ((val - minVal) / range) * 360 + 20));
     };
     
-    const userX = getPosition(value);
+    const _userX = getPosition(value);
     
     // Calculate margin of error box for current user
     const margin = this.marginOfError;
-    let userMarginBox = '';
     if (margin > 0) {
-      const marginStart = getPosition(Math.max(minVal, value - margin));
-      const marginEnd = getPosition(Math.min(maxVal, value + margin));
-      userMarginBox = `
-        <rect x="${marginStart}" y="55" width="${Math.max(0, marginEnd - marginStart)}" height="10" fill="#007acc" opacity="0.15" rx="2"/>
-      `;
+      getPosition(Math.max(minVal, value - margin));
+      getPosition(Math.min(maxVal, value + margin));
     }
     
     // Add reference zones with percentile bands
@@ -228,7 +224,7 @@ export class QuantitativeDisplay extends HTMLElement {
         <text x="380" y="75" class="label" text-anchor="end">${maxVal.toFixed(1)}</text>
         
         <!-- Individuals (grouped by proximity) -->
-        ${groups.map((group, groupIdx) => {
+        ${groups.map((group) => {
           return group.individuals.map((ind) => {
             const dataX = ind.position;
             const displayX = ind.displayX;
@@ -261,7 +257,7 @@ export class QuantitativeDisplay extends HTMLElement {
     const individualGroups = this.shadowRoot.querySelectorAll('.individual-group');
     
     individualGroups.forEach(group => {
-      group.addEventListener('mouseenter', (e) => {
+      group.addEventListener('mouseenter', () => {
         this.classList.add('hovering');
         const name = group.dataset.name;
         const val = group.dataset.value;

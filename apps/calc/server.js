@@ -612,7 +612,7 @@ class AsiliCalcServer {
           'Accept-Ranges': 'bytes'
         });
         res.end(data);
-      } catch (error) {
+      } catch (_error) {
         this.send404(res, `Cache file not found: ${filename}`);
       }
     }
@@ -936,7 +936,7 @@ class AsiliCalcServer {
     return riskData;
   }
 
-  async calculateBatchAsync(jobId, individualId) {
+  async calculateBatchAsync(jobId, _individualId) {
     try {
       this.broadcastProgress(jobId, 'Starting batch calculation...', 0);
 
@@ -970,7 +970,7 @@ class AsiliCalcServer {
   }
 
   handleWebSocket(ws, req) {
-    const url = new URL(req.url, `ws://localhost:${this.port}`);
+    const _url = new URL(req.url, `ws://localhost:${this.port}`);
 
     // All connections go to general events channel
     ws.on('message', (data) => {
@@ -1192,7 +1192,7 @@ class AsiliCalcServer {
     }
   }
 
-  async getCacheStatsPerIndividual(individuals) {
+  async getCacheStatsPerIndividual(_individuals) {
     const stats = new Map();
 
     try {
@@ -1224,7 +1224,7 @@ class AsiliCalcServer {
       const cacheFile = PATHS.RISK_SCORES_DB;
       const stats = await fs.stat(cacheFile);
       return stats.size;
-    } catch (error) {
+    } catch (_error) {
       return 0;
     }
   }
@@ -1304,7 +1304,7 @@ class AsiliCalcServer {
         cachedByIndividual: byIndividual,
         overallProgress: Object.values(byIndividual).reduce((sum, count) => sum + count, 0)
       };
-    } catch (error) {
+    } catch (_error) {
       return { totalTraits: 0, cachedByIndividual: {}, overallProgress: 0 };
     }
   }

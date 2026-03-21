@@ -120,7 +120,7 @@ export class UnifiedProcessor {
       let categories = [];
       try {
         categories = trait.categories ? JSON.parse(trait.categories) : [];
-      } catch (e) {
+      } catch (_e) {
         categories = trait.categories ? trait.categories.split(',').map(c => c.trim()).filter(Boolean) : [];
       }
       
@@ -294,7 +294,7 @@ export class UnifiedProcessor {
       // Get user DNA data (use preloaded if available)
       progressCallback?.('Loading user DNA...', 0);
       let userDNA;
-      let isHybridLookup = false;
+      let _isHybridLookup = false;
       
       if (preloadedDNA) {
         // Check if it's a HybridVariantLookup instance
@@ -302,7 +302,7 @@ export class UnifiedProcessor {
             (preloadedDNA.genotypedMap && preloadedDNA.get && typeof preloadedDNA.get === 'function')) {
           // It's a HybridVariantLookup - pass it directly
           userDNA = preloadedDNA;
-          isHybridLookup = true;
+          _isHybridLookup = true;
           Debug.log(2, 'UnifiedProcessor', `Using HybridVariantLookup with ${preloadedDNA.genotypedMap?.size || 0} genotyped variants`);
         } else if (preloadedDNA instanceof Map) {
           // Convert Map to array
@@ -499,7 +499,7 @@ export class UnifiedProcessor {
             traitId,
             individualId,
             (message, percent) => {
-              const adjustedProgress = overallProgress + (percent / totalTraits);
+              const _adjustedProgress = overallProgress + (percent / totalTraits);
               // Don't emit every progress update to avoid spam
             }
           );

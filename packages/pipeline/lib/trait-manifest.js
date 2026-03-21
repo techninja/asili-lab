@@ -1,4 +1,4 @@
-import { upsertPGS, upsertPerformanceMetrics } from './pgs-db.js';
+import { upsertPGS, upsertPerformanceMetrics as _upsertPerformanceMetrics } from './pgs-db.js';
 import { upsertTrait, deleteTrait } from './trait-db.js';
 import { getConnection, closeConnection } from './shared-db.js';
 

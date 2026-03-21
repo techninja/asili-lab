@@ -87,7 +87,7 @@ export class ServerStorageManager extends StorageManager {
     // DuckDB doesn't handle prepared statements the same way, use direct SQL
     let finalSql = sql;
     if (params.length > 0) {
-      params.forEach((param, index) => {
+      params.forEach((param, _index) => {
         const value = typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
         finalSql = finalSql.replace('?', value);
       });
@@ -111,7 +111,7 @@ export class ServerStorageManager extends StorageManager {
   async _getQuery(sql, params = []) {
     let finalSql = sql;
     if (params.length > 0) {
-      params.forEach((param, index) => {
+      params.forEach((param, _index) => {
         const value = typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
         finalSql = finalSql.replace('?', value);
       });
@@ -139,7 +139,7 @@ export class ServerStorageManager extends StorageManager {
   async _allQuery(sql, params = []) {
     let finalSql = sql;
     if (params.length > 0) {
-      params.forEach((param, index) => {
+      params.forEach((param, _index) => {
         const value = typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
         finalSql = finalSql.replace('?', value);
       });
@@ -388,7 +388,7 @@ export class ServerStorageManager extends StorageManager {
         quality: 1.0
       };
 
-    } catch (error) {
+    } catch (_error) {
       Debug.log(3, 'ServerStorageManager', `No imputed variant ${variantId} for ${individualId}`);
       return null;
     }
@@ -801,7 +801,7 @@ export class ServerStorageManager extends StorageManager {
           else resolve();
         });
       });
-    } catch (error) {
+    } catch (_error) {
       // Risk DB might not exist yet
     }
 
@@ -809,7 +809,7 @@ export class ServerStorageManager extends StorageManager {
     const variantFile = path.join(this.dataDir, 'variants', `${individualId}.json`);
     try {
       await fs.unlink(variantFile);
-    } catch (error) {
+    } catch (_error) {
       // File might not exist, ignore
     }
   }
@@ -835,7 +835,7 @@ export class ServerStorageManager extends StorageManager {
           else resolve();
         });
       });
-    } catch (error) {
+    } catch (_error) {
       // DB might not exist yet
     }
   }

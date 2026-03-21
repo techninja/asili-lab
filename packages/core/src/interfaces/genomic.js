@@ -60,7 +60,7 @@ export class GenomicProcessor {
    * @param {DataSource} source - Data source configuration
    * @returns {Promise<Dataset>} Loaded dataset
    */
-  async loadDataset(source) {
+  async loadDataset(_source) {
     throw new Error('loadDataset must be implemented');
   }
 
@@ -70,7 +70,7 @@ export class GenomicProcessor {
    * @param {Array<TraitConfig>} traits - Traits to calculate
    * @returns {Promise<Array<RiskScore>>} Risk scores
    */
-  async calculatePGS(dna, traits) {
+  async calculatePGS(_dna, _traits) {
     throw new Error('calculatePGS must be implemented');
   }
 
@@ -79,7 +79,7 @@ export class GenomicProcessor {
    * @param {Array<RiskScore>} results - Results to cache
    * @returns {Promise<void>}
    */
-  async cacheResults(results) {
+  async cacheResults(_results) {
     throw new Error('cacheResults must be implemented');
   }
 }
@@ -101,7 +101,7 @@ export class StorageManager {
    * @param {any} data - Data to store
    * @returns {Promise<void>}
    */
-  async store(key, data) {
+  async store(_key, _data) {
     throw new Error('store must be implemented');
   }
 
@@ -110,7 +110,7 @@ export class StorageManager {
    * @param {string} key - Storage key
    * @returns {Promise<any>} Retrieved data
    */
-  async retrieve(key) {
+  async retrieve(_key) {
     throw new Error('retrieve must be implemented');
   }
 
@@ -149,7 +149,7 @@ export class RiskCalculator {
    * @param {Dataset} pgsData - PGS dataset
    * @returns {Promise<RiskScore>} Calculated risk score
    */
-  async calculateRisk(dna, trait, pgsData) {
+  async calculateRisk(_dna, _trait, _pgsData) {
     throw new Error('calculateRisk must be implemented');
   }
 

@@ -76,7 +76,7 @@ class PGSApiClient {
       } else {
         console.log(`        ⚠ Cache EXPIRED: ${url.split('/').pop()} (${ageInDays} days old) - ${filePath}`);
       }
-    } catch (err) {
+    } catch (_err) {
       // console.log(`        ✗ Cache MISS: ${url.split('/').pop()} (${err.code || err.message}) - ${filePath}`);
     }
     return null;
@@ -152,7 +152,7 @@ class PGSApiClient {
           let responseText = '';
           try {
             responseText = await response.text();
-          } catch {}
+          } catch { /* ignore */ }
 
           console.log(
             `❌ HTTP ${response.status} ${response.statusText} - ${url}`
@@ -270,14 +270,14 @@ class PGSApiClient {
       await fs.access(harmonizedPath);
       console.log(`        Using cached harmonized file: ${pgsId}_hmPOS_GRCh38.txt.gz`);
       return harmonizedPath;
-    } catch {}
+    } catch { /* ignore */ }
 
     // 2. Try downloading harmonized if API provides one
     let harmonizedUrl = null;
     try {
       const scoreData = await this.getScore(pgsId);
       harmonizedUrl = this.getHarmonizedUrl(scoreData);
-    } catch {}
+    } catch { /* ignore */ }
 
     if (harmonizedUrl) {
       try {
@@ -294,7 +294,7 @@ class PGSApiClient {
       await fs.access(rawPath);
       console.log(`        Using cached PGS file: ${pgsId}.txt.gz`);
       return rawPath;
-    } catch {}
+    } catch { /* ignore */ }
 
     // 4. Download raw
     console.log(`        Downloading PGS file: ${pgsId}.txt.gz`);
@@ -308,13 +308,13 @@ class PGSApiClient {
     try {
       await fs.access(harmonizedPath);
       return harmonizedPath;
-    } catch {}
+    } catch { /* ignore */ }
 
     const rawPath = path.join(PGS_FILES_DIR, `${pgsId}.txt.gz`);
     try {
       await fs.access(rawPath);
       return rawPath;
-    } catch {}
+    } catch { /* ignore */ }
 
     // Download - downloadPGSFile will prefer harmonized
     const scoreData = await this.getScore(pgsId);

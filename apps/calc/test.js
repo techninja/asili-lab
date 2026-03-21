@@ -75,7 +75,7 @@ async function testWebSocket() {
       console.log('   ✅ WebSocket closed');
     });
     
-  } catch (error) {
+  } catch (_error) {
     console.log('   ⚠️  WebSocket test skipped (ws module not available)');
   }
 }

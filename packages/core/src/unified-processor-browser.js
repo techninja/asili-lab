@@ -284,7 +284,7 @@ export class UnifiedProcessor {
             traitId,
             individualId,
             (message, percent) => {
-              const adjustedProgress = overallProgress + (percent / totalTraits);
+              const _adjustedProgress = overallProgress + (percent / totalTraits);
             }
           );
           
