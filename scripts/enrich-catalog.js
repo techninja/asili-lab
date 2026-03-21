@@ -6,13 +6,19 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MANIFEST_PATH = path.join(__dirname, '../data_out/trait_manifest.db');
-const CATALOG_PATH = path.join(__dirname, '../packages/pipeline/trait_catalog.json');
+const CATALOG_PATH = path.join(
+  __dirname,
+  '../packages/pipeline/trait_catalog.json'
+);
 
 function queryDB(sql) {
-  const result = execSync(`duckdb "${MANIFEST_PATH}" -json -c "${sql.replace(/"/g, '\\"')}"`, {
-    encoding: 'utf8',
-    maxBuffer: 50 * 1024 * 1024
-  });
+  const result = execSync(
+    `duckdb "${MANIFEST_PATH}" -json -c "${sql.replace(/"/g, '\\"')}"`,
+    {
+      encoding: 'utf8',
+      maxBuffer: 50 * 1024 * 1024
+    }
+  );
   return result.trim() ? JSON.parse(result) : [];
 }
 
@@ -28,8 +34,8 @@ const MEASUREMENT_CATEGORIES = [
 function classifyTrait(categories) {
   try {
     const cats = JSON.parse(categories);
-    return cats.some(cat => MEASUREMENT_CATEGORIES.includes(cat)) 
-      ? 'quantitative' 
+    return cats.some(cat => MEASUREMENT_CATEGORIES.includes(cat))
+      ? 'quantitative'
       : 'disease_risk';
   } catch {
     return 'disease_risk';
@@ -49,7 +55,7 @@ for (const trait of traits) {
   if (catalog.traits[trait.trait_id]) {
     const traitType = classifyTrait(trait.categories);
     catalog.traits[trait.trait_id].trait_type = traitType;
-    
+
     if (traitType === 'quantitative') {
       quantCount++;
     } else {

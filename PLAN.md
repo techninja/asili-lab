@@ -145,6 +145,7 @@
 ### Problem
 
 DTC DNA tests (23andMe, AncestryDNA) only genotype ~600K variants, but PGS often require millions. This results in:
+
 - 1-5% coverage on many PGS scores
 - Unreliable risk calculations
 - Quality penalties that can't compensate for missing data
@@ -152,6 +153,7 @@ DTC DNA tests (23andMe, AncestryDNA) only genotype ~600K variants, but PGS often
 ### Solution
 
 Pre-computed reference panels from 1000 Genomes that enable local imputation:
+
 - **Coverage improvement**: 1-5% → 60-80%
 - **Privacy-preserving**: All processing local, no external APIs
 - **Efficient**: 2-8GB reference panels vs 100GB+ full imputation
@@ -203,6 +205,7 @@ done
 - Developer documentation and examples
 
 **AGPLv3 Protection:**
+
 - Prevents proprietary forks
 - Requires sharing of modifications
 - Network copyleft for web services

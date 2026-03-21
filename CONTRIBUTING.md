@@ -284,6 +284,7 @@ export class MyHeritageParser {
 By contributing, you agree that your contributions will be licensed under the AGPLv3 License.
 
 **What this means:**
+
 - Your contributions will be open source and freely available
 - Anyone using your code must also keep their modifications open source
 - This protects the community from proprietary forks

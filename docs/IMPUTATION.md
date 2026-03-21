@@ -79,6 +79,7 @@ pnpm imputation clean
 ## Architecture
 
 ### Input
+
 - User DNA file: `server-data/variants/{id}_{name}.json`
 - Format: 23andMe, AncestryDNA, etc. (~600K variants)
 
@@ -91,6 +92,7 @@ pnpm imputation clean
 5. **Parquet Export**: Convert to efficient columnar format
 
 ### Output
+
 - Imputed file: `server-data/imputed/{id}_{name}_imputed.parquet`
 - Format: `variant_id` (chr:pos:ref:alt), `genotype_dosage` (0.0-2.0)
 
@@ -99,7 +101,7 @@ pnpm imputation clean
 ### 1000 Genomes
 
 | Chromosome | Time | Variants Out |
-|------------|------|--------------|
+| ---------- | ---- | ------------ |
 | chr1       | 3m   | ~1,200       |
 | chr10      | 2m   | ~700         |
 | chr22      | 1m   | ~300         |
@@ -108,7 +110,7 @@ pnpm imputation clean
 ### TOPMed
 
 | Chromosome | Time | Variants Out |
-|------------|------|--------------|
+| ---------- | ---- | ------------ |
 | chr1       | 8m   | ~40,000      |
 | chr10      | 6m   | ~25,000      |
 | chr22      | 4m   | ~10,000      |
@@ -116,11 +118,11 @@ pnpm imputation clean
 
 ## Storage Requirements
 
-| Component | 1000G | TOPMed |
-|-----------|-------|--------|
-| Reference Panel | 9GB | 150GB |
-| Temp Files (peak) | 5GB | 15GB |
-| Output Parquet | 64MB | 2GB |
+| Component         | 1000G | TOPMed |
+| ----------------- | ----- | ------ |
+| Reference Panel   | 9GB   | 150GB  |
+| Temp Files (peak) | 5GB   | 15GB   |
+| Output Parquet    | 64MB  | 2GB    |
 
 ## Environment Variables
 
@@ -163,6 +165,7 @@ Cache hit rate: 85-95% after warmup
 **Problem**: Only 2.2% of PGS variants found
 
 **Solution**: Upgrade to TOPMed panel
+
 ```bash
 pnpm imputation setup-topmed
 pnpm imputation impute  # Re-run for user
@@ -173,6 +176,7 @@ pnpm imputation impute  # Re-run for user
 **Problem**: Beagle crashes with OOM error
 
 **Solution**: Reduce memory allocation in `scripts/impute_user.py`:
+
 ```python
 cmd = ['java', '-Xmx4g', '-jar', BEAGLE_JAR, ...]  # Change from 8g to 4g
 ```
@@ -182,6 +186,7 @@ cmd = ['java', '-Xmx4g', '-jar', BEAGLE_JAR, ...]  # Change from 8g to 4g
 **Problem**: Not enough space for TOPMed
 
 **Solution**: Use external drive
+
 ```bash
 export REF_PANEL_DIR=/mnt/external/topmed_reference
 pnpm imputation setup-topmed
@@ -192,6 +197,7 @@ pnpm imputation setup-topmed
 **Problem**: TOPMed download failed mid-way
 
 **Solution**: Resume (script auto-skips existing files)
+
 ```bash
 pnpm imputation setup-topmed
 ```

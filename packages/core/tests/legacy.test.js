@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { ProgressTracker, PROGRESS_STAGES, PROGRESS_SUBSTAGES } from '../src/progress/index.js';
+import {
+  ProgressTracker,
+  PROGRESS_STAGES,
+  PROGRESS_SUBSTAGES
+} from '../src/progress/index.js';
 import { BasicRiskCalculator } from '../src/risk-calculator/basic.js';
 
 describe('ProgressTracker', () => {
@@ -7,11 +11,16 @@ describe('ProgressTracker', () => {
     const tracker = new ProgressTracker();
     const updates = [];
 
-    const unsubscribe = tracker.subscribe(status => updates.push({ ...status }));
+    const unsubscribe = tracker.subscribe(status =>
+      updates.push({ ...status })
+    );
 
     tracker.setStage(PROGRESS_STAGES.INITIALIZING, 'Starting up...');
     tracker.setProgress(25, 'Loading components...');
-    tracker.setSubstage(PROGRESS_SUBSTAGES.FETCHING_TRAITS, 'Fetching trait data...');
+    tracker.setSubstage(
+      PROGRESS_SUBSTAGES.FETCHING_TRAITS,
+      'Fetching trait data...'
+    );
     tracker.setProgress(50, 'Processing data...');
     tracker.complete('All done!');
 
@@ -39,7 +48,12 @@ describe('BasicRiskCalculator', () => {
       metadata: { source: 'test' }
     };
 
-    const trait = { id: 'test_trait', name: 'Test Trait', category: 'test', pgsIds: ['PGS000001'] };
+    const trait = {
+      id: 'test_trait',
+      name: 'Test Trait',
+      category: 'test',
+      pgsIds: ['PGS000001']
+    };
 
     const pgsData = {
       id: 'test_pgs',

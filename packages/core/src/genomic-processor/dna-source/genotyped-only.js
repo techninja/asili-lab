@@ -29,7 +29,8 @@ export class GenotypedDNASource extends DNASource {
    * @param {Object} options - must include `duckdb` adapter
    */
   async *matchVariants(traitUrl, { duckdb, chunkSize = 500_000 } = {}) {
-    if (!duckdb) throw new Error('GenotypedDNASource requires duckdb adapter in options');
+    if (!duckdb)
+      throw new Error('GenotypedDNASource requires duckdb adapter in options');
 
     const total = await duckdb.count(traitUrl);
 
@@ -46,7 +47,11 @@ export class GenotypedDNASource extends DNASource {
         const variant = pk ? this.posMap.get(pk) : null;
         if (!variant) continue;
 
-        const dosage = countEffectAlleles(variant.allele1, variant.allele2, row.effect_allele);
+        const dosage = countEffectAlleles(
+          variant.allele1,
+          variant.allele2,
+          row.effect_allele
+        );
         if (dosage === 0) continue;
 
         batch.push({

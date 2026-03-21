@@ -23,8 +23,12 @@ export class EnhancedLocalImputer {
     console.log('🔥 targetRSIDs count:', targetRSIDs.length);
     console.log('🔥 userDNA count:', userDNA.length);
     console.log('🔥 useUnifiedDB:', this.useUnifiedDB);
-    
-    Debug.log(2, 'EnhancedLocalImputer', `Imputing ${targetRSIDs.length} variants for ${this.population}`);
+
+    Debug.log(
+      2,
+      'EnhancedLocalImputer',
+      `Imputing ${targetRSIDs.length} variants for ${this.population}`
+    );
 
     // Auto-detect array type if not specified
     if (!this.arrayType) {
@@ -34,7 +38,7 @@ export class EnhancedLocalImputer {
 
     const userLookup = this.buildUserLookup(userDNA);
     console.log('🔥 userLookup size:', userLookup.size);
-    
+
     // Create mapping from normalized ID back to original
     const idMap = new Map();
     targetRSIDs.forEach(rsid => {
@@ -48,7 +52,7 @@ export class EnhancedLocalImputer {
         idMap.set(rsid, rsid);
       }
     });
-    
+
     console.log('🔥 Querying reference panel...');
     const refData = await this.queryReferencePanel(targetRSIDs, chromosome);
     console.log('🔥 Reference panel returned:', refData.length, 'variants');
@@ -57,22 +61,22 @@ export class EnhancedLocalImputer {
     let highQuality = 0;
     let nullResults = 0;
     let lowQuality = 0;
-    
+
     for (let idx = 0; idx < refData.length; idx++) {
       const variant = refData[idx];
-      
+
       const result = this.calculateDosage(variant, userLookup);
-      
+
       if (!result) {
         nullResults++;
         continue;
       }
-      
+
       if (result.quality < this.minQuality) {
         lowQuality++;
         continue;
       }
-      
+
       const originalRsid = idMap.get(variant.rsid) || variant.rsid;
       imputed.push({
         rsid: originalRsid,
@@ -88,41 +92,64 @@ export class EnhancedLocalImputer {
 
       if (result.quality >= 0.8) highQuality++;
     }
-    
-    console.log('🔥 Imputation complete:', imputed.length, 'imputed,', highQuality, 'high quality');
+
+    console.log(
+      '🔥 Imputation complete:',
+      imputed.length,
+      'imputed,',
+      highQuality,
+      'high quality'
+    );
     console.log('🔥 Null results:', nullResults, ', Low quality:', lowQuality);
 
-    Debug.log(2, 'EnhancedLocalImputer', `Imputed ${imputed.length} variants (high quality: ${highQuality})`);
+    Debug.log(
+      2,
+      'EnhancedLocalImputer',
+      `Imputed ${imputed.length} variants (high quality: ${highQuality})`
+    );
     return imputed;
   }
 
   async detectArrayType(_userDNA) {
     // Check for user-specific array by looking for individualId in manifest files
     const manifestPath = path.join(this.dataPath, 'manifests');
-    
+
     try {
-      const files = await import('fs/promises').then(fs => fs.readdir(manifestPath));
-      
+      const files = await import('fs/promises').then(fs =>
+        fs.readdir(manifestPath)
+      );
+
       // Look for manifest files matching pattern: {id}_{name}.positions.txt
       for (const file of files) {
         if (file.endsWith('.positions.txt') && file.includes('_')) {
           const arrayName = file.replace('.positions.txt', '');
           // Check if this array exists in the database
-          const check = await new Promise((resolve) => {
-            this.db.all(`SELECT COUNT(*) as cnt FROM imputation_panels WHERE array_type = '${arrayName}' LIMIT 1`, (err, rows) => {
-              resolve(!err && rows && rows[0]?.cnt > 0);
-            });
+          const check = await new Promise(resolve => {
+            this.db.all(
+              `SELECT COUNT(*) as cnt FROM imputation_panels WHERE array_type = '${arrayName}' LIMIT 1`,
+              (err, rows) => {
+                resolve(!err && rows && rows[0]?.cnt > 0);
+              }
+            );
           });
           if (check) {
-            Debug.log(2, 'EnhancedLocalImputer', `Using user-specific array: ${arrayName}`);
+            Debug.log(
+              2,
+              'EnhancedLocalImputer',
+              `Using user-specific array: ${arrayName}`
+            );
             return arrayName;
           }
         }
       }
     } catch (err) {
-      Debug.log(2, 'EnhancedLocalImputer', `Array detection failed: ${err.message}`);
+      Debug.log(
+        2,
+        'EnhancedLocalImputer',
+        `Array detection failed: ${err.message}`
+      );
     }
-    
+
     Debug.log(2, 'EnhancedLocalImputer', 'Falling back to generic array');
     return 'generic';
   }
@@ -130,7 +157,7 @@ export class EnhancedLocalImputer {
   buildUserLookup(userDNA) {
     const lookup = new Map();
     console.log('🔥 Building user lookup from', userDNA.length, 'variants');
-    
+
     for (const variant of userDNA) {
       // Index by rsid
       if (variant.rsid) {
@@ -142,7 +169,7 @@ export class EnhancedLocalImputer {
         lookup.set(chrPos, variant);
       }
     }
-    
+
     console.log('🔥 User lookup built with', lookup.size, 'entries');
     return lookup;
   }
@@ -157,13 +184,13 @@ export class EnhancedLocalImputer {
 
   async queryUnifiedDB(targetRSIDs, chromosome = null) {
     const dbPath = path.join(this.dataPath, 'imputation.duckdb');
-    
+
     Debug.log(2, 'EnhancedLocalImputer', `🔍 Querying unified DB: ${dbPath}`);
 
     try {
       // Attach database first
       await new Promise((resolve, reject) => {
-        this.db.all(`ATTACH '${dbPath}' AS imputation_db (READ_ONLY)`, (err) => {
+        this.db.all(`ATTACH '${dbPath}' AS imputation_db (READ_ONLY)`, err => {
           if (err) reject(err);
           else resolve();
         });
@@ -181,16 +208,16 @@ export class EnhancedLocalImputer {
         }
         return rsid;
       });
-      
+
       // Process in batches of 10K to avoid query size limits
       const batchSize = 10000;
       const allResults = [];
-      
+
       for (let i = 0; i < normalizedRSIDs.length; i += batchSize) {
         const batch = normalizedRSIDs.slice(i, i + batchSize);
         const rsidList = batch.map(r => `'${r}'`).join(',');
         const chrFilter = chromosome ? `AND chr = '${chromosome}'` : '';
-        
+
         const query = `
           SELECT chr, pos, rsid, ref, alt, maf, tag_snps, tag_r2, haplotype_probs, imputation_quality
           FROM imputation_db.imputation_panels
@@ -208,26 +235,37 @@ export class EnhancedLocalImputer {
             else resolve(rows || []);
           });
         });
-        
+
         allResults.push(...rows);
-        
+
         if (i % 50000 === 0 && i > 0) {
-          Debug.log(2, 'EnhancedLocalImputer', `Processed ${i}/${normalizedRSIDs.length} queries...`);
+          Debug.log(
+            2,
+            'EnhancedLocalImputer',
+            `Processed ${i}/${normalizedRSIDs.length} queries...`
+          );
         }
       }
 
       // Detach database
-      await new Promise((resolve) => {
+      await new Promise(resolve => {
         this.db.all('DETACH imputation_db', () => resolve());
       });
 
-      Debug.log(2, 'EnhancedLocalImputer', `✅ Found ${allResults.length} variants in unified DB`);
+      Debug.log(
+        2,
+        'EnhancedLocalImputer',
+        `✅ Found ${allResults.length} variants in unified DB`
+      );
       return this.sanitizeResults(allResults);
-      
     } catch (err) {
-      Debug.log(1, 'EnhancedLocalImputer', `❌ Unified DB query failed: ${err.message}`);
+      Debug.log(
+        1,
+        'EnhancedLocalImputer',
+        `❌ Unified DB query failed: ${err.message}`
+      );
       // Try to detach on error
-      await new Promise((resolve) => {
+      await new Promise(resolve => {
         this.db.all('DETACH imputation_db', () => resolve());
       });
       // Fallback to legacy panels
@@ -236,7 +274,7 @@ export class EnhancedLocalImputer {
   }
 
   async queryLegacyPanels(targetRSIDs, chromosome = null) {
-    const filePattern = chromosome 
+    const filePattern = chromosome
       ? `${this.dataPath}/1000g_${this.population.toLowerCase()}_chr${chromosome}.parquet`
       : `${this.dataPath}/1000g_${this.population.toLowerCase()}_chr*.parquet`;
 
@@ -253,9 +291,9 @@ export class EnhancedLocalImputer {
       }
       return rsid;
     });
-    
+
     const rsidList = normalizedRSIDs.map(r => `'${r}'`).join(',');
-    
+
     const query = `
       SELECT chr, pos, rsid, ref, alt, maf, tag_snps, tag_r2, haplotype_probs, imputation_quality
       FROM read_parquet('${filePattern}')
@@ -265,10 +303,18 @@ export class EnhancedLocalImputer {
     return new Promise((resolve, reject) => {
       this.db.all(query, (err, rows) => {
         if (err) {
-          Debug.log(1, 'EnhancedLocalImputer', `❌ Query failed: ${err.message}`);
+          Debug.log(
+            1,
+            'EnhancedLocalImputer',
+            `❌ Query failed: ${err.message}`
+          );
           reject(err);
         } else {
-          Debug.log(2, 'EnhancedLocalImputer', `✅ Found ${rows.length} variants in legacy panels`);
+          Debug.log(
+            2,
+            'EnhancedLocalImputer',
+            `✅ Found ${rows.length} variants in legacy panels`
+          );
           resolve(this.sanitizeResults(rows));
         }
       });
@@ -308,22 +354,24 @@ export class EnhancedLocalImputer {
     const haplotypeProbs = JSON.parse(variant.haplotype_probs);
     let dosage = 0;
     let totalWeight = 0;
-    
+
     for (const tag of availableTags) {
       const weight = tag.r2;
       const tagDosage = this.countEffectAlleles(tag.genotype, variant.alt);
       const expectedDosage = haplotypeProbs.p_01 + 2 * haplotypeProbs.p_11;
       const adjustment = (tagDosage - 1) * 0.5;
-      
+
       dosage += (expectedDosage + adjustment) * weight;
       totalWeight += weight;
     }
-    
-    return totalWeight > 0 ? {
-      dosage: Math.max(0, Math.min(2, dosage / totalWeight)),
-      quality: Math.min(1, totalWeight / availableTags.length),
-      tagsUsed: availableTags.length
-    } : null;
+
+    return totalWeight > 0
+      ? {
+          dosage: Math.max(0, Math.min(2, dosage / totalWeight)),
+          quality: Math.min(1, totalWeight / availableTags.length),
+          tagsUsed: availableTags.length
+        }
+      : null;
   }
 
   countEffectAlleles(variant, effectAllele) {

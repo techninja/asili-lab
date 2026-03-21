@@ -31,7 +31,8 @@ const footer = blessed.box({
   left: 0,
   width: '100%',
   height: 1,
-  content: ' {bold}q{/bold} quit | {bold}↑↓{/bold} scroll | {bold}c{/bold} copy all | {bold}l{/bold} copy last 2 | {bold}p{/bold} copy prev run',
+  content:
+    ' {bold}q{/bold} quit | {bold}↑↓{/bold} scroll | {bold}c{/bold} copy all | {bold}l{/bold} copy last 2 | {bold}p{/bold} copy prev run',
   tags: true,
   style: {
     fg: 'white',
@@ -74,7 +75,10 @@ let previousRunLogs = [];
 
 function getContainerStatus() {
   try {
-    const output = execSync(`docker inspect -f '{{.State.Status}}|{{.State.StartedAt}}' ${containerName} 2>/dev/null`, { encoding: 'utf8' });
+    const output = execSync(
+      `docker inspect -f '{{.State.Status}}|{{.State.StartedAt}}' ${containerName} 2>/dev/null`,
+      { encoding: 'utf8' }
+    );
     const [status, startedAt] = output.trim().split('|');
     return { status, startedAt };
   } catch {
@@ -84,14 +88,21 @@ function getContainerStatus() {
 
 function updateHeader() {
   const { status } = getContainerStatus();
-  const statusColor = status === 'running' ? '{green-fg}●{/green-fg}' : '{red-fg}●{/red-fg}';
+  const statusColor =
+    status === 'running' ? '{green-fg}●{/green-fg}' : '{red-fg}●{/red-fg}';
   let uptime = '';
   if (containerStartTime) {
-    const secs = Math.floor((Date.now() - new Date(containerStartTime).getTime()) / 1000);
-    const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
+    const secs = Math.floor(
+      (Date.now() - new Date(containerStartTime).getTime()) / 1000
+    );
+    const h = Math.floor(secs / 3600),
+      m = Math.floor((secs % 3600) / 60),
+      s = secs % 60;
     uptime = `${h}h ${m}m ${s}s`;
   }
-  header.setContent(` ${statusColor} {bold}${containerName}{/bold} | ${status} | up ${uptime}`);
+  header.setContent(
+    ` ${statusColor} {bold}${containerName}{/bold} | ${status} | up ${uptime}`
+  );
   screen.render();
 }
 
@@ -103,7 +114,9 @@ function startLogs() {
 
   const { status, startedAt } = getContainerStatus();
   if (status !== 'running') {
-    logBox.log(`{yellow-fg}[${new Date().toLocaleTimeString()}] Container not running, waiting...{/yellow-fg}`);
+    logBox.log(
+      `{yellow-fg}[${new Date().toLocaleTimeString()}] Container not running, waiting...{/yellow-fg}`
+    );
     scheduleReconnect();
     return;
   }
@@ -118,24 +131,40 @@ function startLogs() {
     screen.render();
   }
 
-  logBox.log(`{green-fg}[${new Date().toLocaleTimeString()}] Connected to ${containerName}{/green-fg}`);
-  
-  logsProcess = spawn('docker', ['logs', '-f', '--since', startedAt, containerName]);
+  logBox.log(
+    `{green-fg}[${new Date().toLocaleTimeString()}] Connected to ${containerName}{/green-fg}`
+  );
 
-  logsProcess.stdout.on('data', (data) => {
-    data.toString().split('\n').forEach(line => {
-      if (line.trim()) logBox.log(sanitize(line));
-    });
+  logsProcess = spawn('docker', [
+    'logs',
+    '-f',
+    '--since',
+    startedAt,
+    containerName
+  ]);
+
+  logsProcess.stdout.on('data', data => {
+    data
+      .toString()
+      .split('\n')
+      .forEach(line => {
+        if (line.trim()) logBox.log(sanitize(line));
+      });
   });
 
-  logsProcess.stderr.on('data', (data) => {
-    data.toString().split('\n').forEach(line => {
-      if (line.trim()) logBox.log(`{red-fg}${sanitize(line)}{/red-fg}`);
-    });
+  logsProcess.stderr.on('data', data => {
+    data
+      .toString()
+      .split('\n')
+      .forEach(line => {
+        if (line.trim()) logBox.log(`{red-fg}${sanitize(line)}{/red-fg}`);
+      });
   });
 
   logsProcess.on('close', () => {
-    logBox.log(`{yellow-fg}[${new Date().toLocaleTimeString()}] Connection lost, reconnecting...{/yellow-fg}`);
+    logBox.log(
+      `{yellow-fg}[${new Date().toLocaleTimeString()}] Connection lost, reconnecting...{/yellow-fg}`
+    );
     scheduleReconnect();
   });
 }
@@ -158,25 +187,42 @@ async function copyToClipboard(text, label) {
   try {
     const clean = text.replace(/\{[^}]+\}/g, '');
     await clipboardy.write(clean);
-    logBox.log(`{green-fg}[${new Date().toLocaleTimeString()}] Copied ${label} to clipboard{/green-fg}`);
+    logBox.log(
+      `{green-fg}[${new Date().toLocaleTimeString()}] Copied ${label} to clipboard{/green-fg}`
+    );
   } catch (err) {
-    logBox.log(`{red-fg}[${new Date().toLocaleTimeString()}] Failed to copy: ${err.message}{/red-fg}`);
+    logBox.log(
+      `{red-fg}[${new Date().toLocaleTimeString()}] Failed to copy: ${err.message}{/red-fg}`
+    );
   }
 }
 
-screen.key(['c'], () => copyToClipboard(logBox.getContent(), `${logBox.getContent().split('\n').length} lines`));
+screen.key(['c'], () =>
+  copyToClipboard(
+    logBox.getContent(),
+    `${logBox.getContent().split('\n').length} lines`
+  )
+);
 
 screen.key(['l'], () => {
-  const lines = logBox.getContent().split('\n').filter(l => l.trim());
+  const lines = logBox
+    .getContent()
+    .split('\n')
+    .filter(l => l.trim());
   copyToClipboard(lines.slice(-2).join('\n'), 'last 2 lines');
 });
 
 screen.key(['p'], () => {
   if (!previousRunLogs.length) {
-    logBox.log(`{yellow-fg}[${new Date().toLocaleTimeString()}] No previous run logs available{/yellow-fg}`);
+    logBox.log(
+      `{yellow-fg}[${new Date().toLocaleTimeString()}] No previous run logs available{/yellow-fg}`
+    );
     return;
   }
-  copyToClipboard(previousRunLogs.join('\n'), `${previousRunLogs.length} lines from previous run`);
+  copyToClipboard(
+    previousRunLogs.join('\n'),
+    `${previousRunLogs.length} lines from previous run`
+  );
 });
 
 logBox.focus();

@@ -22,12 +22,16 @@ export class LocalImputer {
     console.log('🔥 userDNA count:', userDNA.length);
     console.log('🔥 this.population:', this.population);
     console.log('🔥 this.dataPath:', this.dataPath);
-    
-    Debug.log(2, 'LocalImputer', `Imputing ${targetRSIDs.length} variants for ${this.population}`);
+
+    Debug.log(
+      2,
+      'LocalImputer',
+      `Imputing ${targetRSIDs.length} variants for ${this.population}`
+    );
 
     const userLookup = this.buildUserLookup(userDNA);
     console.log('🔥 userLookup size:', userLookup.size);
-    
+
     // Create mapping from normalized ID back to original
     const idMap = new Map();
     targetRSIDs.forEach(rsid => {
@@ -41,7 +45,7 @@ export class LocalImputer {
         idMap.set(rsid, rsid);
       }
     });
-    
+
     console.log('🔥 Querying reference panel...');
     const refData = await this.queryReferencePanel(targetRSIDs, chromosome);
     console.log('🔥 Reference panel returned:', refData.length, 'variants');
@@ -50,22 +54,22 @@ export class LocalImputer {
     let highQuality = 0;
     let nullResults = 0;
     let lowQuality = 0;
-    
+
     for (let idx = 0; idx < refData.length; idx++) {
       const variant = refData[idx];
-      
+
       const result = this.calculateDosage(variant, userLookup);
-      
+
       if (!result) {
         nullResults++;
         continue;
       }
-      
+
       if (result.quality < this.minQuality) {
         lowQuality++;
         continue;
       }
-      
+
       const originalRsid = idMap.get(variant.rsid) || variant.rsid;
       imputed.push({
         rsid: originalRsid,
@@ -81,11 +85,21 @@ export class LocalImputer {
 
       if (result.quality >= 0.8) highQuality++;
     }
-    
-    console.log('🔥 Imputation complete:', imputed.length, 'imputed,', highQuality, 'high quality');
+
+    console.log(
+      '🔥 Imputation complete:',
+      imputed.length,
+      'imputed,',
+      highQuality,
+      'high quality'
+    );
     console.log('🔥 Null results:', nullResults, ', Low quality:', lowQuality);
 
-    Debug.log(2, 'LocalImputer', `Imputed ${imputed.length} variants (high quality: ${highQuality})`);
+    Debug.log(
+      2,
+      'LocalImputer',
+      `Imputed ${imputed.length} variants (high quality: ${highQuality})`
+    );
     return imputed;
   }
 
@@ -93,7 +107,7 @@ export class LocalImputer {
     const lookup = new Map();
     console.log('🔥 Building user lookup from', userDNA.length, 'variants');
     console.log('🔥 Sample userDNA[0]:', userDNA[0]);
-    
+
     for (const variant of userDNA) {
       // Index by rsid
       if (variant.rsid) {
@@ -105,19 +119,23 @@ export class LocalImputer {
         lookup.set(chrPos, variant);
       }
     }
-    
+
     console.log('🔥 User lookup built with', lookup.size, 'entries');
     console.log('🔥 Sample keys:', Array.from(lookup.keys()).slice(0, 5));
     return lookup;
   }
 
   async queryReferencePanel(targetRSIDs, chromosome = null) {
-    const filePattern = chromosome 
+    const filePattern = chromosome
       ? `${this.dataPath}/1000g_${this.population.toLowerCase()}_chr${chromosome}.parquet`
       : `${this.dataPath}/1000g_${this.population.toLowerCase()}_chr*.parquet`;
 
     Debug.log(2, 'LocalImputer', `🔍 Query pattern: ${filePattern}`);
-    Debug.log(2, 'LocalImputer', `🔍 Sample target RSIDs: ${targetRSIDs.slice(0, 5).join(', ')}`);
+    Debug.log(
+      2,
+      'LocalImputer',
+      `🔍 Sample target RSIDs: ${targetRSIDs.slice(0, 5).join(', ')}`
+    );
 
     // Normalize rsIDs to match reference panel format (chr:pos)
     const normalizedRSIDs = targetRSIDs.map(rsid => {
@@ -133,10 +151,14 @@ export class LocalImputer {
       }
       return rsid;
     });
-    
-    Debug.log(2, 'LocalImputer', `🔍 Sample normalized: ${normalizedRSIDs.slice(0, 5).join(', ')}`);
+
+    Debug.log(
+      2,
+      'LocalImputer',
+      `🔍 Sample normalized: ${normalizedRSIDs.slice(0, 5).join(', ')}`
+    );
     const rsidList = normalizedRSIDs.map(r => `'${r}'`).join(',');
-    
+
     const query = `
       SELECT chr, pos, rsid, ref, alt, maf, tag_snps, tag_r2, haplotype_probs, imputation_quality
       FROM read_parquet('${filePattern}')
@@ -151,8 +173,12 @@ export class LocalImputer {
           Debug.log(1, 'LocalImputer', `❌ Query failed: ${err.message}`);
           reject(err);
         } else {
-          Debug.log(2, 'LocalImputer', `✅ Found ${rows.length} variants in reference panel`);
-          
+          Debug.log(
+            2,
+            'LocalImputer',
+            `✅ Found ${rows.length} variants in reference panel`
+          );
+
           // Convert BigInt values to regular numbers to avoid serialization issues
           const sanitized = rows.map(row => ({
             ...row,
@@ -161,9 +187,13 @@ export class LocalImputer {
             tag_snps: Array.isArray(row.tag_snps) ? row.tag_snps : [],
             tag_r2: Array.isArray(row.tag_r2) ? row.tag_r2 : []
           }));
-          
+
           if (sanitized.length > 0) {
-            Debug.log(3, 'LocalImputer', `🔍 Sample result: chr=${sanitized[0].chr}, pos=${sanitized[0].pos}, tags=${sanitized[0].tag_snps?.length}`);
+            Debug.log(
+              3,
+              'LocalImputer',
+              `🔍 Sample result: chr=${sanitized[0].chr}, pos=${sanitized[0].pos}, tags=${sanitized[0].tag_snps?.length}`
+            );
           }
           resolve(sanitized);
         }
@@ -175,8 +205,9 @@ export class LocalImputer {
     if (!variant.tag_snps || variant.tag_snps.length === 0) {
       return null;
     }
-    
-    if (Math.random() < 0.01) { // Log 1% of variants
+
+    if (Math.random() < 0.01) {
+      // Log 1% of variants
       console.log('🔥 Sample tag_snps:', variant.tag_snps.slice(0, 3));
     }
 
@@ -198,22 +229,24 @@ export class LocalImputer {
     const haplotypeProbs = JSON.parse(variant.haplotype_probs);
     let dosage = 0;
     let totalWeight = 0;
-    
+
     for (const tag of availableTags) {
       const weight = tag.r2;
       const tagDosage = this.countEffectAlleles(tag.genotype, variant.alt);
       const expectedDosage = haplotypeProbs.p_01 + 2 * haplotypeProbs.p_11;
       const adjustment = (tagDosage - 1) * 0.5;
-      
+
       dosage += (expectedDosage + adjustment) * weight;
       totalWeight += weight;
     }
-    
-    return totalWeight > 0 ? {
-      dosage: Math.max(0, Math.min(2, dosage / totalWeight)),
-      quality: Math.min(1, totalWeight / availableTags.length),
-      tagsUsed: availableTags.length
-    } : null;
+
+    return totalWeight > 0
+      ? {
+          dosage: Math.max(0, Math.min(2, dosage / totalWeight)),
+          quality: Math.min(1, totalWeight / availableTags.length),
+          tagsUsed: availableTags.length
+        }
+      : null;
   }
 
   countEffectAlleles(variant, effectAllele) {

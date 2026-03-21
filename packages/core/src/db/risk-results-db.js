@@ -8,16 +8,44 @@ export class RiskResultsDB {
     this.conn = conn;
   }
 
-  async storeResults(individualId, traitId, calculatorResults, traitLastUpdated) {
-    const { bestPGS, bestPGSPerformance, zScore, percentile, confidence, totalMatches, pgsBreakdown, pgsDetails, value } = calculatorResults;
+  async storeResults(
+    individualId,
+    traitId,
+    calculatorResults,
+    traitLastUpdated
+  ) {
+    const {
+      bestPGS,
+      bestPGSPerformance,
+      zScore,
+      percentile,
+      confidence,
+      totalMatches,
+      pgsBreakdown,
+      pgsDetails,
+      value
+    } = calculatorResults;
 
     // Store trait-level result
-    await this.conn.query(`
+    await this.conn.query(
+      `
       INSERT OR REPLACE INTO trait_results VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      individualId, traitId, bestPGS, bestPGSPerformance, zScore, percentile, confidence,
-      totalMatches, this._getTotalExpectedVariants(pgsDetails), traitLastUpdated, Date.now(), value
-    ]);
+    `,
+      [
+        individualId,
+        traitId,
+        bestPGS,
+        bestPGSPerformance,
+        zScore,
+        percentile,
+        confidence,
+        totalMatches,
+        this._getTotalExpectedVariants(pgsDetails),
+        traitLastUpdated,
+        Date.now(),
+        value
+      ]
+    );
 
     // Store PGS-level results
     for (const [pgsId, breakdown] of Object.entries(pgsBreakdown)) {
@@ -25,42 +53,73 @@ export class RiskResultsDB {
       if (!details) continue;
 
       const values = [
-        individualId, traitId, pgsId, details.score, details.zScore, details.percentile,
-        details.matchedVariants, details.metadata?.variants_number || 0,
-        details.genotypedVariants || 0, details.imputedVariants || 0,
+        individualId,
+        traitId,
+        pgsId,
+        details.score,
+        details.zScore,
+        details.percentile,
+        details.matchedVariants,
+        details.metadata?.variants_number || 0,
+        details.genotypedVariants || 0,
+        details.imputedVariants || 0,
         details.confidence,
-        details.insufficientData, details.performanceMetric, breakdown.positive, breakdown.positiveSum,
-        breakdown.negative, breakdown.negativeSum, details.value ?? null, details.qualityScore ?? null,
+        details.insufficientData,
+        details.performanceMetric,
+        breakdown.positive,
+        breakdown.positiveSum,
+        breakdown.negative,
+        breakdown.negativeSum,
+        details.value ?? null,
+        details.qualityScore ?? null,
         JSON.stringify(breakdown.weightBuckets || []),
         JSON.stringify(breakdown.chromosomeCoverage || {}),
         JSON.stringify(breakdown.chrTotals || {}),
         JSON.stringify(details.topVariants || [])
       ];
-      
-      await this.conn.query(`
+
+      await this.conn.query(
+        `
         INSERT OR REPLACE INTO pgs_results VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, values);
+      `,
+        values
+      );
 
       // Store top variants
       if (details.topVariants) {
         for (let i = 0; i < details.topVariants.length; i++) {
           const v = details.topVariants[i];
-          await this.conn.query(`
+          await this.conn.query(
+            `
             INSERT INTO pgs_top_variants VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `, [
-            individualId, traitId, pgsId, v.rsid, v.effect_allele, v.effect_weight,
-            v.userGenotype, v.chromosome, v.contribution, v.standardizedContribution, i + 1
-          ]);
+          `,
+            [
+              individualId,
+              traitId,
+              pgsId,
+              v.rsid,
+              v.effect_allele,
+              v.effect_weight,
+              v.userGenotype,
+              v.chromosome,
+              v.contribution,
+              v.standardizedContribution,
+              i + 1
+            ]
+          );
         }
       }
     }
   }
 
   async getTraitResult(individualId, traitId) {
-    const result = await this.conn.query(`
+    const result = await this.conn.query(
+      `
       SELECT * FROM trait_results WHERE individual_id = ? AND trait_id = ?
-    `, [individualId, traitId]);
-    
+    `,
+      [individualId, traitId]
+    );
+
     const rows = result.toArray();
     return rows.length > 0 ? rows[0] : null;
   }
@@ -80,39 +139,51 @@ export class RiskResultsDB {
       orderClause = 'ORDER BY ABS(positive_sum + negative_sum) DESC';
     }
 
-    const result = await this.conn.query(`
+    const result = await this.conn.query(
+      `
       SELECT * FROM pgs_results 
       WHERE individual_id = ? AND trait_id = ?
       ${orderClause}
-    `, [individualId, traitId]);
+    `,
+      [individualId, traitId]
+    );
 
     return result.toArray();
   }
 
   async getPgsTopVariants(individualId, traitId, pgsId) {
-    const result = await this.conn.query(`
+    const result = await this.conn.query(
+      `
       SELECT * FROM pgs_top_variants 
       WHERE individual_id = ? AND trait_id = ? AND pgs_id = ?
       ORDER BY rank ASC
-    `, [individualId, traitId, pgsId]);
+    `,
+      [individualId, traitId, pgsId]
+    );
 
     return result.toArray();
   }
 
   async getBestPgs(individualId, traitId) {
-    const result = await this.conn.query(`
+    const result = await this.conn.query(
+      `
       SELECT pgs_id, performance_metric, z_score, percentile, confidence
       FROM pgs_results 
       WHERE individual_id = ? AND trait_id = ? AND insufficient_data = FALSE
       ORDER BY performance_metric DESC NULLS LAST
       LIMIT 1
-    `, [individualId, traitId]);
+    `,
+      [individualId, traitId]
+    );
 
     const rows = result.toArray();
     return rows.length > 0 ? rows[0] : null;
   }
 
   _getTotalExpectedVariants(pgsDetails) {
-    return Object.values(pgsDetails).reduce((sum, d) => sum + (d.metadata?.variants_number || 0), 0);
+    return Object.values(pgsDetails).reduce(
+      (sum, d) => sum + (d.metadata?.variants_number || 0),
+      0
+    );
   }
 }

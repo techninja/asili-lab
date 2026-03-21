@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { positionKey, resolveAlleleDosage, countEffectAlleles, buildPositionMap } from '../src/genomic-processor/matcher.js';
+import {
+  positionKey,
+  resolveAlleleDosage,
+  countEffectAlleles,
+  buildPositionMap
+} from '../src/genomic-processor/matcher.js';
 
 describe('matcher', () => {
   describe('positionKey', () => {
@@ -60,7 +65,7 @@ describe('matcher', () => {
     it('builds map keyed by chr:pos', () => {
       const variants = [
         { chromosome: '1', position: 100, allele1: 'A', allele2: 'G' },
-        { chromosome: '2', position: 200, allele1: 'T', allele2: 'C' },
+        { chromosome: '2', position: 200, allele1: 'T', allele2: 'C' }
       ];
       const map = buildPositionMap(variants);
       expect(map.size).toBe(2);
@@ -71,7 +76,7 @@ describe('matcher', () => {
     it('skips variants without chromosome or position', () => {
       const variants = [
         { chromosome: '1', position: 100, allele1: 'A', allele2: 'G' },
-        { rsid: 'rs123' }, // no chr/pos
+        { rsid: 'rs123' } // no chr/pos
       ];
       const map = buildPositionMap(variants);
       expect(map.size).toBe(1);

@@ -18,17 +18,17 @@ graph TB
         B[Position 1050: ?/?<br/>NOT tested]
         C[Position 1100: C/T<br/>KNOWN from 23andMe]
     end
-    
+
     subgraph "Reference Panel: 1000 Genomes"
         D[2,504 people with<br/>complete genomes]
     end
-    
+
     A --> E{Pattern Matching}
     C --> E
     D --> E
-    
+
     E --> F[Statistical Inference:<br/>Position 1050 is likely C/C<br/>Confidence: 0.95]
-    
+
     style B fill:#ff9999
     style F fill:#99ff99
 ```
@@ -42,7 +42,7 @@ flowchart TD
         Extract --> TargetList[Target List<br/>~2M unique positions<br/>CHR:POS format]
         Extract --> ParquetDB[Scoring Database<br/>variant_id | pgs_id | weight]
     end
-    
+
     subgraph Phase2["Phase 2: User Upload Pipeline"]
         Upload[User uploads<br/>23andMe file<br/>~600K variants] --> JSON[Convert to JSON<br/>server-data/variants/]
         JSON --> VCF[Generate VCF.gz<br/>Filter: A,C,G,T only]
@@ -52,16 +52,16 @@ flowchart TD
         Filter --> Sparse[Sparse BCF<br/>Only PGS-relevant variants]
         Sparse --> Parquet[User Parquet<br/>variant_id | dosage]
     end
-    
+
     subgraph Phase3["Phase 3: Scoring Engine"]
         Parquet --> Join[Inner Join on variant_id]
         ParquetDB --> Join
         Join --> Calc["PGS = Σ(weight × dosage)"]
         Calc --> Results[100+ trait scores<br/>with percentiles]
     end
-    
+
     TargetList -.->|Used for filtering| Filter
-    
+
     style Upload fill:#e1f5ff
     style Beagle fill:#fff4e1
     style Results fill:#e8f5e9
@@ -95,22 +95,22 @@ graph LR
         Y2[Pos 2000: ?]
         Y3[Pos 3000: G]
     end
-    
+
     subgraph "Reference Panel"
         R1[Person 1: A-C-G]
         R2[Person 2: A-C-G]
         R3[Person 3: A-T-G]
         R4[Person 4: G-T-A]
     end
-    
+
     Y1 --> Match{Find Best Match}
     Y3 --> Match
     R1 --> Match
     R2 --> Match
     R3 --> Match
-    
+
     Match --> Infer[Position 2000<br/>likely = C<br/>Confidence: 0.92]
-    
+
     style Infer fill:#99ff99
 ```
 
@@ -136,6 +136,7 @@ Imputed:
 ### Example: Type 2 Diabetes Risk (PGS000001)
 
 **Without Imputation:**
+
 ```
 PGS requires 6,917,436 variants
 Your 23andMe has ~600,000 variants
@@ -146,6 +147,7 @@ Missing 96% of the signal!
 ```
 
 **With Imputation (actual results):**
+
 ```
 PGS requires 6,917,436 variants
 After imputation: 12,904,570 variants
@@ -167,16 +169,16 @@ graph LR
         D2[Rare SNPs: 5%]
         D3[Indels: 0%]
     end
-    
+
     subgraph "With Imputation"
         I1[Common SNPs: 85%]
         I2[Rare SNPs: 35%]
         I3[Indels: 0%]
     end
-    
+
     D1 -.->|Beagle| I1
     D2 -.->|Beagle| I2
-    
+
     style I1 fill:#99ff99
     style I2 fill:#ffeb99
 ```
@@ -190,7 +192,7 @@ graph TD
     C -->|5-10 min/chr| D[Imputed VCF.gz<br/>~800 MB/chr<br/>~10M variants]
     D -->|30 sec| E[Filtered BCF<br/>~50 MB/chr<br/>~100K PGS variants]
     E -->|5 sec| F[User Parquet<br/>~20 MB total<br/>~2M variants]
-    
+
     style A fill:#e1f5ff
     style D fill:#fff4e1
     style F fill:#e8f5e9
@@ -199,8 +201,9 @@ graph TD
 **Total Pipeline Time:** ~2 hours for 22 chromosomes
 
 **Actual Performance (tested):**
+
 - Chr1 (largest): ~2 minutes
-- Chr22 (smallest): ~24 seconds  
+- Chr22 (smallest): ~24 seconds
 - Average: ~5 minutes per chromosome
 - Total: ~1.5-2 hours for full genome
 
@@ -232,19 +235,20 @@ graph TD
     B --> C[Imputed Variants]
     C --> D[Filtered to PGS Only]
     D --> E[Stored Locally]
-    
+
     F[1000G Reference] -.->|Downloaded once| B
-    
+
     G[❌ Never Uploaded] -.-> A
     G -.-> C
     G -.-> E
-    
+
     style A fill:#e8f5e9
     style E fill:#e8f5e9
     style G fill:#ffebee
 ```
 
 All imputation happens **on your hardware**:
+
 - Reference panel downloaded once (~50 GB)
 - No data sent to external servers
 - Results stored in local IndexedDB/filesystem
@@ -265,6 +269,6 @@ All imputation happens **on your hardware**:
 
 ## References
 
-- Browning BL, et al. (2021) "A one-penny imputed genome from next-generation reference panels" *Am J Hum Genet* 103(3):338-348
-- 1000 Genomes Project Consortium (2015) "A global reference for human genetic variation" *Nature* 526:68-74
-- Lambert SA, et al. (2021) "The Polygenic Score Catalog" *Nat Genet* 53:1243-1251
+- Browning BL, et al. (2021) "A one-penny imputed genome from next-generation reference panels" _Am J Hum Genet_ 103(3):338-348
+- 1000 Genomes Project Consortium (2015) "A global reference for human genetic variation" _Nature_ 526:68-74
+- Lambert SA, et al. (2021) "The Polygenic Score Catalog" _Nat Genet_ 53:1243-1251

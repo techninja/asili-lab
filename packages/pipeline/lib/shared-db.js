@@ -6,8 +6,11 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Use /output in Docker, data_out locally
-const OUTPUT_DIR = process.env.OUTPUT_DIR ||
-  (fs.existsSync('/output') ? '/output' : path.join(path.resolve(__dirname, '../../..'), 'data_out'));
+const OUTPUT_DIR =
+  process.env.OUTPUT_DIR ||
+  (fs.existsSync('/output')
+    ? '/output'
+    : path.join(path.resolve(__dirname, '../../..'), 'data_out'));
 const DB_PATH = path.join(OUTPUT_DIR, 'trait_manifest.db');
 
 // Ensure output directory exists
@@ -30,15 +33,28 @@ export async function getConnection() {
       const errMsg = error.message || '';
       if (errMsg.includes('lock') || errMsg.includes('locked')) {
         console.error('\n❌ Database is locked by another process!');
-        console.error('💡 Are you running any other servers or have DB connections open?');
-        console.error('   Please close all connections and retry the pipeline.\n');
+        console.error(
+          '💡 Are you running any other servers or have DB connections open?'
+        );
+        console.error(
+          '   Please close all connections and retry the pipeline.\n'
+        );
         throw new Error('Database locked - close other connections and retry');
       }
-      if (errMsg.includes('Serialization Error') || errMsg.includes('deserialize')) {
+      if (
+        errMsg.includes('Serialization Error') ||
+        errMsg.includes('deserialize')
+      ) {
         console.error('\n❌ Database version mismatch!');
-        console.error('💡 The database was created with a different DuckDB version.');
-        console.error('   Please rebuild the pipeline container: docker compose build pipeline\n');
-        throw new Error('Database version mismatch - rebuild pipeline container');
+        console.error(
+          '💡 The database was created with a different DuckDB version.'
+        );
+        console.error(
+          '   Please rebuild the pipeline container: docker compose build pipeline\n'
+        );
+        throw new Error(
+          'Database version mismatch - rebuild pipeline container'
+        );
       }
       throw error;
     }
@@ -48,7 +64,7 @@ export async function getConnection() {
     conn = db.connect();
     // Run checkpoint to recover WAL
     await new Promise((resolve, _reject) => {
-      conn.run('CHECKPOINT', (err) => {
+      conn.run('CHECKPOINT', err => {
         if (err) console.log('[shared-db] Checkpoint warning:', err.message);
         resolve();
       });

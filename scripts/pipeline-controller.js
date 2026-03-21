@@ -28,13 +28,17 @@ function printUsage() {
   for (const [mode, config] of Object.entries(MODES)) {
     console.log(`  ${mode.padEnd(20)} ${config.desc}`);
     if (config.requires) {
-      console.log(`  ${' '.repeat(20)} Requires: ${config.requires.join(', ')}`);
+      console.log(
+        `  ${' '.repeat(20)} Requires: ${config.requires.join(', ')}`
+      );
     }
   }
   console.log('\nOptions:');
   console.log('  --on-host            Run directly on host (faster for Linux)');
   console.log('  --traits <id1,id2>   Only process specific trait IDs');
-  console.log('  --populations <pop>  Compute for specific populations (ALL,EUR,AFR,EAS,SAS,AMR)');
+  console.log(
+    '  --populations <pop>  Compute for specific populations (ALL,EUR,AFR,EAS,SAS,AMR)'
+  );
   console.log('\nExamples:');
   console.log('  pnpm pipeline etl');
   console.log('  pnpm pipeline empirical-setup --on-host');
@@ -105,13 +109,13 @@ function runPipeline(mode, options) {
   console.log('');
 
   const cmd = buildCommand(mode, options);
-  
+
   const proc = spawn(cmd[0], cmd.slice(1), {
     stdio: 'inherit',
     cwd: options.onHost ? './packages/pipeline' : process.cwd()
   });
 
-  proc.on('exit', (code) => {
+  proc.on('exit', code => {
     if (code === 0) {
       console.log('\n✅ Pipeline completed successfully');
     } else {
@@ -120,7 +124,7 @@ function runPipeline(mode, options) {
     }
   });
 
-  proc.on('error', (err) => {
+  proc.on('error', err => {
     console.error('❌ Failed to start pipeline:', err.message);
     process.exit(1);
   });

@@ -26,9 +26,11 @@ export class ServerAPIClient {
 
     try {
       const response = await fetch(url, config);
-      
+
       if (!response.ok) {
-        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Server error: ${response.status} ${response.statusText}`
+        );
       }
 
       const contentType = response.headers.get('content-type');
@@ -80,15 +82,25 @@ export class ServerAPIClient {
   }
 
   // DNA data management
-  async uploadDNA(dnaFile, individualId, individualName, emoji = '👤', progressCallback) {
+  async uploadDNA(
+    dnaFile,
+    individualId,
+    individualName,
+    emoji = '👤',
+    progressCallback
+  ) {
     const dnaContent = await dnaFile.text();
-    
-    Debug.log(1, 'ServerAPIClient', `Uploading DNA for ${individualName} (${individualId})`);
+
+    Debug.log(
+      1,
+      'ServerAPIClient',
+      `Uploading DNA for ${individualName} (${individualId})`
+    );
 
     // Subscribe to WebSocket progress updates if callback provided
     let wsUnsubscribe = null;
     if (progressCallback) {
-      wsUnsubscribe = this.subscribeToUpdates(individualId, (data) => {
+      wsUnsubscribe = this.subscribeToUpdates(individualId, data => {
         if (data.type === 'upload-progress') {
           progressCallback(data.message, data.progress);
         }
@@ -113,8 +125,12 @@ export class ServerAPIClient {
       }
 
       const result = await response.json();
-      Debug.log(1, 'ServerAPIClient', `DNA upload complete: ${result.variantCount} variants`);
-      
+      Debug.log(
+        1,
+        'ServerAPIClient',
+        `DNA upload complete: ${result.variantCount} variants`
+      );
+
       return result;
     } catch (error) {
       Debug.log(1, 'ServerAPIClient', `DNA upload failed: ${error.message}`);
@@ -133,8 +149,12 @@ export class ServerAPIClient {
 
   // Risk calculation with progress tracking
   async calculateRisk(traitId, individualId, progressCallback) {
-    Debug.log(2, 'ServerAPIClient', `Requesting risk calculation: ${individualId}:${traitId}`);
-    
+    Debug.log(
+      2,
+      'ServerAPIClient',
+      `Requesting risk calculation: ${individualId}:${traitId}`
+    );
+
     const response = await this.request('/calculate/risk', {
       method: 'POST',
       body: JSON.stringify({ individualId, traitId })
@@ -142,8 +162,11 @@ export class ServerAPIClient {
 
     // If progressCallback provided, subscribe to progress updates
     if (progressCallback && response.jobId) {
-      const unsubscribe = this.subscribeToProgress(response.jobId, progressCallback);
-      
+      const unsubscribe = this.subscribeToProgress(
+        response.jobId,
+        progressCallback
+      );
+
       // Return both result and unsubscribe function
       return { ...response, unsubscribe };
     }
@@ -152,15 +175,22 @@ export class ServerAPIClient {
   }
 
   async calculateAllRisks(individualId, progressCallback) {
-    Debug.log(1, 'ServerAPIClient', `Requesting batch risk calculation for ${individualId}`);
-    
+    Debug.log(
+      1,
+      'ServerAPIClient',
+      `Requesting batch risk calculation for ${individualId}`
+    );
+
     const response = await this.request('/calculate/batch', {
       method: 'POST',
       body: JSON.stringify({ individualId })
     });
 
     if (progressCallback && response.jobId) {
-      const unsubscribe = this.subscribeToProgress(response.jobId, progressCallback);
+      const unsubscribe = this.subscribeToProgress(
+        response.jobId,
+        progressCallback
+      );
       return { ...response, unsubscribe };
     }
 
@@ -214,7 +244,9 @@ export class ServerAPIClient {
   }
 
   async exportCache(format = 'parquet') {
-    const response = await fetch(`${this.baseUrl}/cache/export?format=${format}`);
+    const response = await fetch(
+      `${this.baseUrl}/cache/export?format=${format}`
+    );
     if (!response.ok) {
       throw new Error(`Cache export failed: ${response.status}`);
     }
@@ -222,7 +254,9 @@ export class ServerAPIClient {
   }
 
   async clearCache(individualId = null) {
-    const endpoint = individualId ? `/cache/clear/${individualId}` : '/cache/clear';
+    const endpoint = individualId
+      ? `/cache/clear/${individualId}`
+      : '/cache/clear';
     return await this.request(endpoint, { method: 'POST' });
   }
 
@@ -230,8 +264,8 @@ export class ServerAPIClient {
   subscribeToUpdates(individualId, callback) {
     const wsUrl = this.baseUrl.replace(/^http/, 'ws') + `/ws/${individualId}`;
     const ws = new WebSocket(wsUrl);
-    
-    ws.onmessage = (event) => {
+
+    ws.onmessage = event => {
       try {
         const data = JSON.parse(event.data);
         callback(data);
@@ -240,7 +274,7 @@ export class ServerAPIClient {
       }
     };
 
-    ws.onerror = (error) => {
+    ws.onerror = error => {
       Debug.log(2, 'ServerAPIClient', 'WebSocket error:', error);
     };
 
@@ -251,15 +285,20 @@ export class ServerAPIClient {
   subscribeToProgress(jobId, callback) {
     const wsUrl = this.baseUrl.replace(/^http/, 'ws') + `/ws/progress/${jobId}`;
     const ws = new WebSocket(wsUrl);
-    
-    ws.onmessage = (event) => {
+
+    ws.onmessage = event => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'progress') {
           callback(data.message, data.percent);
         }
       } catch (error) {
-        Debug.log(2, 'ServerAPIClient', 'Failed to parse progress data:', error);
+        Debug.log(
+          2,
+          'ServerAPIClient',
+          'Failed to parse progress data:',
+          error
+        );
       }
     };
 
@@ -287,12 +326,12 @@ export class ServerAPIClient {
 // Factory function with settings integration
 export async function createServerClient(settings) {
   const calculationServer = settings.getCalculationServer();
-  
+
   // Use current origin if no server specified (same-origin requests)
   const serverUrl = calculationServer || window.location.origin;
-  
+
   const client = new ServerAPIClient(serverUrl);
-  
+
   // Test connection
   const health = await client.checkHealth();
   if (!health.healthy) {

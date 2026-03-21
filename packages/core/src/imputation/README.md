@@ -68,12 +68,12 @@ const result = await calculateRisk(traitId, allVariants);
 
 ## Storage Requirements
 
-| Scope | Variants | Size | Coverage Gain |
-|-------|----------|------|---------------|
-| Chr22 only | ~300K | 200MB | Testing |
-| Common (MAF>5%) | ~8M | 2GB | 10-20% → 60-80% |
-| Low-freq (1-5%) | ~15M | 4GB | Additional 5-10% |
-| All (MAF>1%) | ~25M | 8GB | Maximum coverage |
+| Scope           | Variants | Size  | Coverage Gain    |
+| --------------- | -------- | ----- | ---------------- |
+| Chr22 only      | ~300K    | 200MB | Testing          |
+| Common (MAF>5%) | ~8M      | 2GB   | 10-20% → 60-80%  |
+| Low-freq (1-5%) | ~15M     | 4GB   | Additional 5-10% |
+| All (MAF>1%)    | ~25M     | 8GB   | Maximum coverage |
 
 ## Performance
 

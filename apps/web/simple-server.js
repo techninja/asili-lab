@@ -15,24 +15,30 @@ app.use(express.raw({ limit: '100mb', type: 'application/octet-stream' }));
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Range');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept, Range'
+  );
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
 
 // Asili risk, caluclation, and trait DB Data files FIRST (before any other routes)
-app.use('/data', express.static('/app/data_out', { 
-  acceptRanges: true,
-  etag: true,
-  lastModified: true,
-  maxAge: '1d',
-  setHeaders: (res, path) => {
-    if (path.endsWith('.parquet')) {
-      res.set('Cache-Control', 'public, max-age=86400');
-      res.set('Accept-Ranges', 'bytes');
+app.use(
+  '/data',
+  express.static('/app/data_out', {
+    acceptRanges: true,
+    etag: true,
+    lastModified: true,
+    maxAge: '1d',
+    setHeaders: (res, path) => {
+      if (path.endsWith('.parquet')) {
+        res.set('Cache-Control', 'public, max-age=86400');
+        res.set('Accept-Ranges', 'bytes');
+      }
     }
-  }
-}));
+  })
+);
 
 // Calc server routes
 const calcServer = new AsiliCalcServer({
@@ -72,7 +78,9 @@ app.get('/api/risk-score/:individualId/:traitId', async (req, res) => {
 });
 app.get('/api/risk-score/:individualId', async (req, res) => {
   try {
-    const results = await calcServer.processor.storage.getCachedResults(req.params.individualId);
+    const results = await calcServer.processor.storage.getCachedResults(
+      req.params.individualId
+    );
     res.json(results);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -101,7 +109,9 @@ const wss = new WebSocketServer({ server });
 calcServer.wsServer = wss;
 wss.on('connection', (ws, req) => calcServer.handleWebSocket(ws, req));
 
-const _httpServer = server.listen(80, () => console.log('🌐 Simple server running on port 80'));
+const _httpServer = server.listen(80, () =>
+  console.log('🌐 Simple server running on port 80')
+);
 
 // Graceful shutdown handling
 process.on('SIGTERM', gracefulShutdown);
@@ -110,22 +120,22 @@ process.on('SIGHUP', gracefulShutdown);
 
 function gracefulShutdown(signal) {
   console.log(`Received ${signal}, shutting down gracefully...`);
-  
+
   // Force close all handles
   const handles = process._getActiveHandles();
-  handles.forEach((handle) => {
+  handles.forEach(handle => {
     if (handle.constructor.name === 'Socket') {
       handle.destroy();
     } else if (handle.constructor.name === 'Server') {
       handle.close();
     }
   });
-  
+
   // Cleanup calc server
   if (calcServer?.cleanup) {
     calcServer.cleanup().catch(console.error);
   }
-  
+
   // Force exit after 2 seconds
   setTimeout(() => {
     process.exit(0);

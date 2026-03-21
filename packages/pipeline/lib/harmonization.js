@@ -143,11 +143,16 @@ export function generateColumnExpressions(formatType, columns) {
 
       const hasOtherAllele = columns.includes('other_allele');
       const hasHmOther = columns.includes('hm_inferOtherAllele');
-      const otherExpr = hasOtherAllele ? otherAlleleCol : (hasHmOther ? hmOtherAlleleCol : "''");
+      const otherExpr = hasOtherAllele
+        ? otherAlleleCol
+        : hasHmOther
+          ? hmOtherAlleleCol
+          : "''";
 
-      const variantId = (hasOtherAllele || hasHmOther)
-        ? `CONCAT(${hmChrCol}, ':', ${hmPosCol}, ':', ${effectAlleleCol}, ':', ${otherExpr})`
-        : `CONCAT(${hmChrCol}, ':', ${hmPosCol}, ':', ${effectAlleleCol})`;
+      const variantId =
+        hasOtherAllele || hasHmOther
+          ? `CONCAT(${hmChrCol}, ':', ${hmPosCol}, ':', ${effectAlleleCol}, ':', ${otherExpr})`
+          : `CONCAT(${hmChrCol}, ':', ${hmPosCol}, ':', ${effectAlleleCol})`;
 
       return {
         variant_id: variantId,
@@ -203,20 +208,26 @@ export function generateInsertSQL(
 ) {
   const expressions = generateColumnExpressions(formatType, columns);
   const columnDefs = generateColumnDefinitions(columns);
-  const weightCol = formatType === FORMAT_TYPES.DOSAGE_WEIGHTS
-    ? getColumnRef(columns, 'dosage_1_weight')
-    : getColumnRef(columns, 'effect_weight');
+  const weightCol =
+    formatType === FORMAT_TYPES.DOSAGE_WEIGHTS
+      ? getColumnRef(columns, 'dosage_1_weight')
+      : getColumnRef(columns, 'effect_weight');
 
   const hasOtherAllele = columns.includes('other_allele');
   const gnomadPath = process.env.GNOMAD_PARQUET_PATH;
-  
+
   // If other_allele is missing and gnomAD is available, look it up
-  if (!hasOtherAllele && gnomadPath && (formatType === FORMAT_TYPES.STANDARD_SNP || formatType === FORMAT_TYPES.STANDARD_SNP_NO_RSID)) {
+  if (
+    !hasOtherAllele &&
+    gnomadPath &&
+    (formatType === FORMAT_TYPES.STANDARD_SNP ||
+      formatType === FORMAT_TYPES.STANDARD_SNP_NO_RSID)
+  ) {
     const chrNameCol = getColumnRef(columns, 'chr_name');
     const chrPosCol = getColumnRef(columns, 'chr_position');
     const effectAlleleCol = getColumnRef(columns, 'effect_allele');
     const effectWeightCol = getColumnRef(columns, 'effect_weight');
-    
+
     return `
         INSERT INTO pgs_staging 
         SELECT 

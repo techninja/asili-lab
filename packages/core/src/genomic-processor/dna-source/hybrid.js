@@ -17,7 +17,8 @@ export class HybridDNASource extends DNASource {
   }
 
   async initialize() {
-    this.hasImputed = this.imputedPath && await this.db.fileExists(this.imputedPath);
+    this.hasImputed =
+      this.imputedPath && (await this.db.fileExists(this.imputedPath));
   }
 
   async describe() {
@@ -30,7 +31,10 @@ export class HybridDNASource extends DNASource {
       const seenPositions = new Set();
 
       // Imputed batches first (higher coverage)
-      for await (const batch of imputedSource.matchVariants(traitUrl, options)) {
+      for await (const batch of imputedSource.matchVariants(
+        traitUrl,
+        options
+      )) {
         for (let i = 0; i < batch.length; i++) {
           const m = batch[i];
           const parts = m.variant_id.split(':');
@@ -41,7 +45,10 @@ export class HybridDNASource extends DNASource {
 
       // Genotyped-only matches for positions not covered by imputed
       const duckdb = options.duckdb || this.db;
-      for await (const batch of this.genotyped.matchVariants(traitUrl, { ...options, duckdb })) {
+      for await (const batch of this.genotyped.matchVariants(traitUrl, {
+        ...options,
+        duckdb
+      })) {
         const filtered = [];
         for (let i = 0; i < batch.length; i++) {
           const m = batch[i];

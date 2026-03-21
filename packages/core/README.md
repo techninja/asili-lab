@@ -26,7 +26,11 @@ The system consists of several key components:
 ### Browser Environment
 
 ```javascript
-import { createAsiliCore, createBrowserProcessor, createBrowserStorage } from '@asili/core';
+import {
+  createAsiliCore,
+  createBrowserProcessor,
+  createBrowserStorage
+} from '@asili/core';
 
 // Initialize
 const { processor, progressTracker } = await createBrowserProcessor();
@@ -129,10 +133,14 @@ Manages background processing jobs with priorities.
 - Suitable for small numbers of traits or when user wants to wait
 
 ```javascript
-const results = await core.processAllTraitsImmediate(individualId, traitManifest, {
-  batchSize: 1,        // Process one trait at a time
-  yieldInterval: 5     // Yield control every 5 traits
-});
+const results = await core.processAllTraitsImmediate(
+  individualId,
+  traitManifest,
+  {
+    batchSize: 1, // Process one trait at a time
+    yieldInterval: 5 // Yield control every 5 traits
+  }
+);
 ```
 
 ### Background Processing (Queue)
@@ -187,11 +195,11 @@ const processor = document.querySelector('enhanced-trait-processor');
 processor.setCurrentIndividual('user123');
 
 // Listen for events
-processor.addEventListener('traitCompleted', (event) => {
+processor.addEventListener('traitCompleted', event => {
   console.log('Trait completed:', event.detail);
 });
 
-processor.addEventListener('jobCompleted', (event) => {
+processor.addEventListener('jobCompleted', event => {
   console.log('All traits processed:', event.detail);
 });
 ```
@@ -255,6 +263,7 @@ npm test
 ```
 
 Example tests cover:
+
 - Trait processing with mock data
 - Job queue management
 - Error handling scenarios

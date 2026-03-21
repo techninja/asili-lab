@@ -36,7 +36,7 @@ export class VirtualTraitGrid extends HTMLElement {
 
     container.addEventListener('scroll', () => {
       this.scrollTop = container.scrollTop;
-      
+
       if (this.renderDebounce) clearTimeout(this.renderDebounce);
       this.renderDebounce = setTimeout(() => this.updateVirtualScroll(), 50);
     });
@@ -48,8 +48,11 @@ export class VirtualTraitGrid extends HTMLElement {
     if (!container || !viewport) return;
 
     const startIndex = Math.floor(this.scrollTop / this.itemHeight);
-    const endIndex = Math.min(startIndex + this.visibleCount, this.traits.length);
-    
+    const endIndex = Math.min(
+      startIndex + this.visibleCount,
+      this.traits.length
+    );
+
     const totalHeight = this.traits.length * this.itemHeight;
     viewport.style.height = `${totalHeight}px`;
 

@@ -31,18 +31,33 @@ function elapsed(startMs) {
 
 function fmt(component, msg) {
   const now = new Date();
-  const ts = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const ts = now.toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
   return `${ts} [${component}] ${msg}`;
 }
 
 export function createLogger(component) {
   return {
-    error: (msg, ...args) => console.error(fmt(component, `❌ ${msg}`), ...args),
-    warn:  (msg, ...args) => { if (getLevel() >= LEVELS.warn)  console.warn(fmt(component, `⚠️ ${msg}`), ...args); },
-    info:  (msg, ...args) => { if (getLevel() >= LEVELS.info)  console.log(fmt(component, msg), ...args); },
-    debug: (msg, ...args) => { if (getLevel() >= LEVELS.debug) console.log(fmt(component, msg), ...args); },
-    trace: (msg, ...args) => { if (getLevel() >= LEVELS.trace) console.log(fmt(component, msg), ...args); },
+    error: (msg, ...args) =>
+      console.error(fmt(component, `❌ ${msg}`), ...args),
+    warn: (msg, ...args) => {
+      if (getLevel() >= LEVELS.warn)
+        console.warn(fmt(component, `⚠️ ${msg}`), ...args);
+    },
+    info: (msg, ...args) => {
+      if (getLevel() >= LEVELS.info) console.log(fmt(component, msg), ...args);
+    },
+    debug: (msg, ...args) => {
+      if (getLevel() >= LEVELS.debug) console.log(fmt(component, msg), ...args);
+    },
+    trace: (msg, ...args) => {
+      if (getLevel() >= LEVELS.trace) console.log(fmt(component, msg), ...args);
+    },
     /** Helper: log elapsed time since startMs */
-    elapsed,
+    elapsed
   };
 }

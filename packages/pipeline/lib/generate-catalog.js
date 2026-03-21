@@ -9,7 +9,7 @@ const JSON_PATH = path.join(__dirname, '../../data_out/trait_manifest.json');
 
 export async function generateSimplifiedCatalog() {
   const traits = await getAllTraits();
-  
+
   const catalog = { traits: {} };
   for (const t of traits) {
     catalog.traits[t.trait_id] = {
@@ -21,6 +21,6 @@ export async function generateSimplifiedCatalog() {
       unit: t.unit || null
     };
   }
-  
+
   await fs.writeFile(JSON_PATH, JSON.stringify(catalog, null, 2));
 }

@@ -7,11 +7,13 @@ Optimized the Asili ETL pipeline for native execution on systems with 32GB RAM a
 ## Key Optimizations
 
 ### 1. **Increased Memory Limits**
+
 - **DuckDB Memory**: 2GB → 16GB (configurable via `DUCKDB_MEMORY_LIMIT`)
 - **DuckDB Threads**: auto → 8 threads (configurable via `DUCKDB_THREADS`)
 - Allows DuckDB to use more RAM for sorting, joining, and aggregation operations
 
 ### 2. **Larger Batch Sizes**
+
 - Small datasets (< 40 PGS): 20k → 150k variants per batch
 - Medium datasets (40-60 PGS): 15k → 100k variants per batch
 - Large datasets (60-80 PGS): 12k → 75k variants per batch
@@ -19,23 +21,27 @@ Optimized the Asili ETL pipeline for native execution on systems with 32GB RAM a
 - Reduces number of intermediate files and merge operations
 
 ### 3. **Parallel Batch Processing**
+
 - Sequential → Parallel execution (default: 4 concurrent batches)
 - Configurable via `MAX_PARALLEL_BATCHES` environment variable
 - Automatically scales based on CPU count if not specified
 - Proper Promise tracking to avoid race conditions
 
 ### 4. **Parallel File Downloads**
+
 - Sequential → Parallel downloads in batches of 10
 - Speeds up the initial file analysis phase
 - Respects API rate limits by batching requests
 
 ### 5. **Parallel Parquet Merge**
+
 - New `merge_parquet_parallel.py` script
 - Uses ThreadPoolExecutor for concurrent I/O operations
 - Reads multiple parquet files simultaneously
 - Scales workers based on CPU count (up to file count)
 
 ### 6. **Environment Configuration**
+
 - Added performance settings to `.env` file
 - ETL runner now loads and displays these settings
 - Easy to adjust for different hardware configurations
@@ -54,6 +60,7 @@ MAX_PARALLEL_BATCHES=4        # Number of concurrent batch processes
 ### Recommended Settings by System
 
 **16GB RAM System:**
+
 ```bash
 DUCKDB_MEMORY_LIMIT=8GB
 DUCKDB_THREADS=4
@@ -61,6 +68,7 @@ MAX_PARALLEL_BATCHES=2
 ```
 
 **32GB RAM System (your setup):**
+
 ```bash
 DUCKDB_MEMORY_LIMIT=16GB
 DUCKDB_THREADS=8
@@ -68,6 +76,7 @@ MAX_PARALLEL_BATCHES=4
 ```
 
 **64GB+ RAM System:**
+
 ```bash
 DUCKDB_MEMORY_LIMIT=32GB
 DUCKDB_THREADS=16
@@ -84,11 +93,13 @@ MAX_PARALLEL_BATCHES=6
 ## Usage
 
 Run as before:
+
 ```bash
 pnpm etl local
 ```
 
 The runner will automatically:
+
 - Load performance settings from `.env`
 - Display configuration on startup
 - Use optimized batch sizes and parallelism
@@ -96,6 +107,7 @@ The runner will automatically:
 ## Monitoring
 
 Watch for:
+
 - **Memory usage**: Should now utilize more RAM (monitor with `htop`)
 - **CPU usage**: Should see multiple cores active during batch processing
 - **Disk I/O**: Parallel merge will increase I/O throughput
@@ -103,6 +115,7 @@ Watch for:
 ## Rollback
 
 If you encounter issues, reduce settings in `.env`:
+
 ```bash
 DUCKDB_MEMORY_LIMIT=4GB
 DUCKDB_THREADS=2

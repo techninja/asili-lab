@@ -3,6 +3,7 @@
 ## What Was Implemented
 
 Hybrid variant lookup system that combines:
+
 - **Genotyped variants** (~600K): Loaded in memory for instant access
 - **Imputed variants** (~13M): Queried on-demand from Parquet files via DuckDB
 
@@ -37,12 +38,12 @@ HybridVariantLookup.get(variantId)
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
+| File                                                           | Purpose             |
+| -------------------------------------------------------------- | ------------------- |
 | `packages/core/src/genomic-processor/hybrid-variant-lookup.js` | Core implementation |
-| `packages/core/src/storage-manager/server.js` | DuckDB query method |
-| `apps/calc/server.js` | Server integration |
-| `test-hybrid-lookup.js` | Test script |
+| `packages/core/src/storage-manager/server.js`                  | DuckDB query method |
+| `apps/calc/server.js`                                          | Server integration  |
+| `test-hybrid-lookup.js`                                        | Test script         |
 
 ## Usage
 
@@ -62,14 +63,14 @@ console.log(`Hit rate: ${(stats.hitRate * 100).toFixed(1)}%`);
 
 ## Performance
 
-| Metric | Value |
-|--------|-------|
-| Memory per individual | ~55MB |
-| Genotyped lookup | <1ms (instant) |
-| Imputed lookup (uncached) | 1-5ms |
-| Imputed lookup (cached) | <1ms |
-| Typical cache hit rate | 20-30% |
-| 100K variant PGS | ~500ms |
+| Metric                    | Value          |
+| ------------------------- | -------------- |
+| Memory per individual     | ~55MB          |
+| Genotyped lookup          | <1ms (instant) |
+| Imputed lookup (uncached) | 1-5ms          |
+| Imputed lookup (cached)   | <1ms           |
+| Typical cache hit rate    | 20-30%         |
+| 100K variant PGS          | ~500ms         |
 
 ## Testing
 
@@ -90,15 +91,18 @@ docker compose logs calc | grep "Variant lookup stats"
 ## Troubleshooting
 
 ### Slow calculations (>5s)
+
 - Check cache hit rate in logs
 - Increase cache size: `maxCacheSize = 100000`
 - Consider batch queries (future optimization)
 
 ### High memory usage (>2GB)
+
 - Decrease cache size: `maxCacheSize = 25000`
 - Clear cache between calculations
 
 ### Missing imputed data
+
 - Check for files: `ls server-data/imputed/`
 - Run Beagle imputation pipeline
 - Verify file naming: `{individualId}_imputed.parquet`

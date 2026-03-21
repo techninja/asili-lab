@@ -27,9 +27,33 @@ class MockDNASource {
 describe('PGSScorer', () => {
   it('accumulates scores from matched variants', async () => {
     const matches = [
-      { pgsId: 'PGS001', variantId: '1:100:A:G', effectAllele: 'A', effectWeight: 0.5, dosage: 2, imputed: false, chromosome: '1' },
-      { pgsId: 'PGS001', variantId: '1:200:T:C', effectAllele: 'T', effectWeight: -0.3, dosage: 1, imputed: false, chromosome: '1' },
-      { pgsId: 'PGS001', variantId: '2:300:G:A', effectAllele: 'G', effectWeight: 0.8, dosage: 1, imputed: true, chromosome: '2' },
+      {
+        pgsId: 'PGS001',
+        variantId: '1:100:A:G',
+        effectAllele: 'A',
+        effectWeight: 0.5,
+        dosage: 2,
+        imputed: false,
+        chromosome: '1'
+      },
+      {
+        pgsId: 'PGS001',
+        variantId: '1:200:T:C',
+        effectAllele: 'T',
+        effectWeight: -0.3,
+        dosage: 1,
+        imputed: false,
+        chromosome: '1'
+      },
+      {
+        pgsId: 'PGS001',
+        variantId: '2:300:G:A',
+        effectAllele: 'G',
+        effectWeight: 0.8,
+        dosage: 1,
+        imputed: true,
+        chromosome: '2'
+      }
     ];
 
     const scorer = new PGSScorer();
@@ -48,8 +72,8 @@ describe('PGSScorer', () => {
     expect(details.imputedVariants).toBe(1);
 
     const breakdown = calc.pgsBreakdown.get('PGS001');
-    expect(breakdown.positive).toBe(2);  // 1.0 and 0.8
-    expect(breakdown.negative).toBe(1);  // -0.3
+    expect(breakdown.positive).toBe(2); // 1.0 and 0.8
+    expect(breakdown.negative).toBe(1); // -0.3
     expect(breakdown.total).toBe(3);
     expect(breakdown.chromosomeCoverage['1']).toBe(2);
     expect(breakdown.chromosomeCoverage['2']).toBe(1);
@@ -57,13 +81,40 @@ describe('PGSScorer', () => {
 
   it('handles multiple PGS in same trait', async () => {
     const matches = [
-      { pgsId: 'PGS_A', variantId: '1:100:A:G', effectAllele: 'A', effectWeight: 0.5, dosage: 1, imputed: false, chromosome: '1' },
-      { pgsId: 'PGS_B', variantId: '1:100:A:G', effectAllele: 'A', effectWeight: 0.3, dosage: 1, imputed: false, chromosome: '1' },
-      { pgsId: 'PGS_A', variantId: '2:200:T:C', effectAllele: 'T', effectWeight: 0.2, dosage: 2, imputed: true, chromosome: '2' },
+      {
+        pgsId: 'PGS_A',
+        variantId: '1:100:A:G',
+        effectAllele: 'A',
+        effectWeight: 0.5,
+        dosage: 1,
+        imputed: false,
+        chromosome: '1'
+      },
+      {
+        pgsId: 'PGS_B',
+        variantId: '1:100:A:G',
+        effectAllele: 'A',
+        effectWeight: 0.3,
+        dosage: 1,
+        imputed: false,
+        chromosome: '1'
+      },
+      {
+        pgsId: 'PGS_A',
+        variantId: '2:200:T:C',
+        effectAllele: 'T',
+        effectWeight: 0.2,
+        dosage: 2,
+        imputed: true,
+        chromosome: '2'
+      }
     ];
 
     const scorer = new PGSScorer();
-    const pgsVariantCounts = new Map([['PGS_A', 50], ['PGS_B', 30]]);
+    const pgsVariantCounts = new Map([
+      ['PGS_A', 50],
+      ['PGS_B', 30]
+    ]);
     const source = new MockDNASource(matches);
 
     const calc = await scorer.score(source, 'dummy.parquet', pgsVariantCounts);
@@ -101,7 +152,11 @@ describe('PGSScorer', () => {
 
     const scorer = new PGSScorer();
     const source = new MockDNASource(matches);
-    const calc = await scorer.score(source, 'dummy.parquet', new Map([['PGS001', 100]]));
+    const calc = await scorer.score(
+      source,
+      'dummy.parquet',
+      new Map([['PGS001', 100]])
+    );
 
     const top = calc.pgsDetails.get('PGS001').topVariants;
     expect(top.length).toBe(20);
@@ -116,8 +171,13 @@ describe('PGSScorer', () => {
     const matches = [];
     for (let i = 0; i < 10; i++) {
       matches.push({
-        pgsId: 'PGS001', variantId: `1:${100 + i}:A:G`, effectAllele: 'A',
-        effectWeight: 0.1, dosage: 1, imputed: false, chromosome: '1'
+        pgsId: 'PGS001',
+        variantId: `1:${100 + i}:A:G`,
+        effectAllele: 'A',
+        effectWeight: 0.1,
+        dosage: 1,
+        imputed: false,
+        chromosome: '1'
       });
     }
 
@@ -138,24 +198,26 @@ describe('PGSScorer', () => {
       const pgsVariantCounts = new Map([['PGS001', 500]]);
 
       const dbResults = {
-        pgsAggregates: [{
-          pgs_id: 'PGS001',
-          raw_score: 1.5,
-          matched_variants: 200,
-          imputed_variants: 50,
-          genotyped_variants: 150,
-          positive_count: 120,
-          positive_sum: 2.5,
-          negative_count: 80,
-          negative_sum: -1.0,
-          weight_sum_squared: 0.05,
-          weight_min: -0.01,
-          weight_max: 0.03
-        }],
+        pgsAggregates: [
+          {
+            pgs_id: 'PGS001',
+            raw_score: 1.5,
+            matched_variants: 200,
+            imputed_variants: 50,
+            genotyped_variants: 150,
+            positive_count: 120,
+            positive_sum: 2.5,
+            negative_count: 80,
+            negative_sum: -1.0,
+            weight_sum_squared: 0.05,
+            weight_min: -0.01,
+            weight_max: 0.03
+          }
+        ],
         chrCoverage: [
           { pgs_id: 'PGS001', chr: 1, cnt: 100 },
           { pgs_id: 'PGS001', chr: 2, cnt: 100 }
-        ],
+        ]
       };
 
       const calc = scorer.loadFromDB(dbResults, pgsVariantCounts);
@@ -178,8 +240,26 @@ describe('PGSScorer', () => {
       // Top variants loaded separately
       expect(details.topVariants.length).toBe(0);
       scorer.loadTopVariants([
-        { pgs_id: 'PGS001', variant_id: '1:100:A:G', effect_allele: 'A', effect_weight: 0.03, dosage: 2, imputed: false, contribution: 0.06, user_variant_id: '1:100:A:G' },
-        { pgs_id: 'PGS001', variant_id: '2:200:T:C', effect_allele: 'T', effect_weight: -0.01, dosage: 1, imputed: true, contribution: -0.01, user_variant_id: '2:200:T:C' }
+        {
+          pgs_id: 'PGS001',
+          variant_id: '1:100:A:G',
+          effect_allele: 'A',
+          effect_weight: 0.03,
+          dosage: 2,
+          imputed: false,
+          contribution: 0.06,
+          user_variant_id: '1:100:A:G'
+        },
+        {
+          pgs_id: 'PGS001',
+          variant_id: '2:200:T:C',
+          effect_allele: 'T',
+          effect_weight: -0.01,
+          dosage: 1,
+          imputed: true,
+          contribution: -0.01,
+          user_variant_id: '2:200:T:C'
+        }
       ]);
       expect(details.topVariants.length).toBe(2);
       expect(details.topVariants[0].rsid).toBe('1:100:A:G');
@@ -189,14 +269,43 @@ describe('PGSScorer', () => {
 
     it('handles multiple PGS from DB results', () => {
       const scorer = new PGSScorer();
-      const pgsVariantCounts = new Map([['PGS_A', 100], ['PGS_B', 200]]);
+      const pgsVariantCounts = new Map([
+        ['PGS_A', 100],
+        ['PGS_B', 200]
+      ]);
 
       const dbResults = {
         pgsAggregates: [
-          { pgs_id: 'PGS_A', raw_score: 0.5, matched_variants: 80, imputed_variants: 0, genotyped_variants: 80, positive_count: 50, positive_sum: 1.0, negative_count: 30, negative_sum: -0.5, weight_sum_squared: 0.01, weight_min: -0.005, weight_max: 0.02 },
-          { pgs_id: 'PGS_B', raw_score: -0.3, matched_variants: 150, imputed_variants: 100, genotyped_variants: 50, positive_count: 60, positive_sum: 0.8, negative_count: 90, negative_sum: -1.1, weight_sum_squared: 0.02, weight_min: -0.01, weight_max: 0.01 }
+          {
+            pgs_id: 'PGS_A',
+            raw_score: 0.5,
+            matched_variants: 80,
+            imputed_variants: 0,
+            genotyped_variants: 80,
+            positive_count: 50,
+            positive_sum: 1.0,
+            negative_count: 30,
+            negative_sum: -0.5,
+            weight_sum_squared: 0.01,
+            weight_min: -0.005,
+            weight_max: 0.02
+          },
+          {
+            pgs_id: 'PGS_B',
+            raw_score: -0.3,
+            matched_variants: 150,
+            imputed_variants: 100,
+            genotyped_variants: 50,
+            positive_count: 60,
+            positive_sum: 0.8,
+            negative_count: 90,
+            negative_sum: -1.1,
+            weight_sum_squared: 0.02,
+            weight_min: -0.01,
+            weight_max: 0.01
+          }
         ],
-        chrCoverage: [],
+        chrCoverage: []
       };
 
       const calc = scorer.loadFromDB(dbResults, pgsVariantCounts);

@@ -7,21 +7,25 @@ This document describes the complete workflow for managing phenotype reference s
 ## Quick Start
 
 ### List traits needing references
+
 ```bash
 pnpm phenotype-refs list
 ```
 
 ### Add references interactively
+
 ```bash
 pnpm phenotype-refs add
 ```
 
 ### Batch add common references
+
 ```bash
 pnpm phenotype-refs batch
 ```
 
 ### Export to CSV for bulk editing
+
 ```bash
 pnpm phenotype-refs export
 ```
@@ -47,17 +51,21 @@ When adding a new trait via `pnpm traits add`:
 ### 2. Finding Phenotype References
 
 #### Option A: Use the Interactive Tool
+
 ```bash
 pnpm phenotype-refs add
 ```
+
 - Select trait from list
 - Tool suggests values if available
 - Enter manually if needed
 
 #### Option B: Batch Add Common Traits
+
 ```bash
 pnpm phenotype-refs batch
 ```
+
 - Automatically adds references for common traits (lipids, BP, glucose, etc.)
 - Based on built-in reference database
 
@@ -81,6 +89,7 @@ pnpm phenotype-refs batch
    - Extract mean/SD before standardization
 
 **Example Search:**
+
 ```
 "UK Biobank" "triglycerides" "baseline" "mean" "SD"
 ```
@@ -111,6 +120,7 @@ pnpm traits --fresh
 ```
 
 This will:
+
 1. Read updated trait_overrides.json
 2. Update trait_manifest.db
 3. Populate phenotype_mean, phenotype_sd, reference_population fields
@@ -119,8 +129,8 @@ This will:
 
 ```bash
 duckdb data_out/trait_manifest.db -c "
-  SELECT trait_id, name, phenotype_mean, phenotype_sd, reference_population 
-  FROM traits 
+  SELECT trait_id, name, phenotype_mean, phenotype_sd, reference_population
+  FROM traits
   WHERE trait_id = 'EFO_0004530'
 "
 ```
@@ -139,30 +149,36 @@ node -e "import('./lib/export-manifest.js').then(m => m.exportTraitManifestJSON(
 The `populate-phenotype-refs.js` script includes common references:
 
 ### Lipids (NHANES, mg/dL)
+
 - Triglycerides: 150 ± 90
 - Total cholesterol: 200 ± 40
 - LDL cholesterol: 115 ± 35
 - HDL cholesterol: 55 ± 15
 
 ### Blood Pressure (UK Biobank, mmHg)
+
 - Systolic: 138 ± 19
 - Diastolic: 82 ± 10
 
 ### Glucose Metabolism
+
 - HbA1c: 5.4 ± 0.5 %
 - Fasting glucose: 95 ± 12 mg/dL
 
 ### Blood Counts (UK Biobank)
+
 - WBC: 7.0 ± 2.0 thousand/μL
 - RBC: 4.7 ± 0.5 million/μL
 - Platelets: 250 ± 60 thousand/μL
 - Lymphocytes: 2.0 ± 0.7 thousand/μL
 
 ### Reproductive (European ancestry)
+
 - Age at menarche: 12.5 ± 1.3 years
 - Age at menopause: 50.5 ± 3.8 years
 
 ### Cardiac (UK Biobank)
+
 - Heart rate: 70 ± 12 bpm
 - PR interval: 160 ± 25 ms
 - QT interval: 410 ± 30 ms
@@ -173,25 +189,30 @@ The `populate-phenotype-refs.js` script includes common references:
 For adding many traits at once:
 
 ### 1. Export Missing Traits
+
 ```bash
 pnpm phenotype-refs export
 ```
 
 Creates `missing_phenotype_refs.csv`:
+
 ```csv
 trait_id,name,unit,suggested_mean,suggested_sd,suggested_population,notes
 EFO_0004530,"triglyceride level",mg/dL,150,90,"NHANES US adults, fasting",
 ```
 
 ### 2. Edit CSV
+
 - Fill in mean, sd, population columns
 - Add notes for documentation
 - Use Excel, Google Sheets, or text editor
 
 ### 3. Convert to JSON
+
 Create a script or manually update trait_overrides.json with the values
 
 ### 4. Refresh Database
+
 ```bash
 pnpm traits --fresh
 ```
@@ -201,22 +222,26 @@ pnpm traits --fresh
 Before adding a reference:
 
 ✅ **Unit Match**: Verify unit matches trait unit
+
 - mg/dL vs mmol/L
 - cm vs inches
 - Celsius vs Fahrenheit
 
 ✅ **SD Reasonableness**: SD typically 10-30% of mean
+
 - BMI: mean 27, SD 5 ✓ (18%)
 - Height: mean 170, SD 10 ✓ (6%)
 - Triglycerides: mean 150, SD 90 ✓ (60% - high variance is normal)
 
 ✅ **Population Match**: Document the population
+
 - European ancestry
 - US adults
 - Age range (if relevant)
 - Fasting vs non-fasting (for metabolic traits)
 
 ✅ **Source Documentation**: Keep track of sources
+
 - Add to notes in CSV
 - Reference in commit messages
 - Update ADDING_PHENOTYPE_REFERENCES.md
@@ -248,9 +273,10 @@ The frontend receives phenotype references in trait_manifest.json:
 ```
 
 Frontend calculates estimated value:
+
 ```javascript
 if (trait.phenotype_mean && trait.phenotype_sd) {
-  const estimated_value = trait.phenotype_mean + (z_score * trait.phenotype_sd);
+  const estimated_value = trait.phenotype_mean + z_score * trait.phenotype_sd;
   // Display both z-score and estimated value
 }
 ```
@@ -258,16 +284,19 @@ if (trait.phenotype_mean && trait.phenotype_sd) {
 ## Maintenance
 
 ### Regular Updates
+
 - Review new quantitative traits monthly
 - Check for updated reference values in literature
 - Add ancestry-specific references as available
 
 ### Documentation
+
 - Keep ADDING_PHENOTYPE_REFERENCES.md updated
 - Document sources in commit messages
 - Track coverage: `pnpm phenotype-refs list`
 
 ### Coverage Goals
+
 - **Phase 1** (Current): Common clinical traits (lipids, BP, glucose)
 - **Phase 2**: Blood counts, cardiac measurements
 - **Phase 3**: Specialized traits (brain volumes, hormones)
@@ -276,19 +305,23 @@ if (trait.phenotype_mean && trait.phenotype_sd) {
 ## Troubleshooting
 
 ### "No suggestions available"
+
 - Trait name doesn't match built-in patterns
 - Add manually or research the reference
 
 ### "Unit mismatch"
+
 - Check if unit conversion needed (mg/dL ↔ mmol/L)
 - Verify trait_overrides.json has correct unit
 
 ### "Values seem wrong"
+
 - Double-check source population
 - Verify fasting vs non-fasting
 - Check age/sex stratification
 
 ### "Database not updated"
+
 - Run `pnpm traits --fresh` after editing trait_overrides.json
 - Check for errors in JSON syntax
 - Verify database file permissions
@@ -315,7 +348,7 @@ pnpm traits --fresh
 duckdb data_out/trait_manifest.db -c "
   SELECT COUNT(*) as total,
          SUM(CASE WHEN phenotype_mean IS NOT NULL THEN 1 ELSE 0 END) as with_refs
-  FROM traits 
+  FROM traits
   WHERE trait_type = 'quantitative'
 "
 ```

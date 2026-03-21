@@ -153,7 +153,12 @@ export class QueueManager {
         (message, percent, extraData) => {
           nextItem.progress = percent;
           nextItem.statusMessage = message;
-          this.emit('progress', { item: nextItem, message, percent, ...extraData });
+          this.emit('progress', {
+            item: nextItem,
+            message,
+            percent,
+            ...extraData
+          });
         }
       );
 

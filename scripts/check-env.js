@@ -16,7 +16,9 @@ let allGood = true;
 const gnomadPath = process.env.GNOMAD_DB_PATH;
 if (!gnomadPath) {
   console.log('❌ GNOMAD_DB_PATH not set');
-  console.log('   Fix: export GNOMAD_DB_PATH=/path/to/gnomad.genomes.v4.1.sites.db');
+  console.log(
+    '   Fix: export GNOMAD_DB_PATH=/path/to/gnomad.genomes.v4.1.sites.db'
+  );
   allGood = false;
 } else if (!existsSync(gnomadPath)) {
   console.log(`❌ GNOMAD_DB_PATH file not found: ${gnomadPath}`);

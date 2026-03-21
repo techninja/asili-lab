@@ -4,13 +4,19 @@ import { SharedRiskCalculator } from '../src/genomic-processor/calculator.js';
 describe('calculator', () => {
   describe('static methods', () => {
     it('calculates z-score correctly', () => {
-      expect(SharedRiskCalculator.calculateZScore(1.5, { mean: 1.0, sd: 0.5 })).toBe(1.0);
-      expect(SharedRiskCalculator.calculateZScore(0, { mean: 0, sd: 1 })).toBe(0);
+      expect(
+        SharedRiskCalculator.calculateZScore(1.5, { mean: 1.0, sd: 0.5 })
+      ).toBe(1.0);
+      expect(SharedRiskCalculator.calculateZScore(0, { mean: 0, sd: 1 })).toBe(
+        0
+      );
     });
 
     it('returns null z-score for missing stats', () => {
       expect(SharedRiskCalculator.calculateZScore(1.0, null)).toBeNull();
-      expect(SharedRiskCalculator.calculateZScore(1.0, { mean: 0, sd: 0 })).toBeNull();
+      expect(
+        SharedRiskCalculator.calculateZScore(1.0, { mean: 0, sd: 0 })
+      ).toBeNull();
     });
 
     it('calculates percentile from z-score', () => {
@@ -49,7 +55,9 @@ describe('calculator', () => {
 
   describe('quality score', () => {
     it('returns 0 for no matched variants', () => {
-      expect(SharedRiskCalculator.calculatePGSQualityScore(0, 100, 0.1)).toBe(0);
+      expect(SharedRiskCalculator.calculatePGSQualityScore(0, 100, 0.1)).toBe(
+        0
+      );
     });
 
     it('returns 0 for no total variants', () => {
@@ -57,33 +65,99 @@ describe('calculator', () => {
     });
 
     it('higher R² produces higher score', () => {
-      const low = SharedRiskCalculator.calculatePGSQualityScore(100, 100, 0.01, true, 1.0, 100);
-      const high = SharedRiskCalculator.calculatePGSQualityScore(100, 100, 0.5, true, 1.0, 100);
+      const low = SharedRiskCalculator.calculatePGSQualityScore(
+        100,
+        100,
+        0.01,
+        true,
+        1.0,
+        100
+      );
+      const high = SharedRiskCalculator.calculatePGSQualityScore(
+        100,
+        100,
+        0.5,
+        true,
+        1.0,
+        100
+      );
       expect(high).toBeGreaterThan(low);
     });
 
     it('higher genotyped ratio produces higher score', () => {
-      const allImputed = SharedRiskCalculator.calculatePGSQualityScore(100, 100, 0.1, true, 1.0, 0);
-      const allGenotyped = SharedRiskCalculator.calculatePGSQualityScore(100, 100, 0.1, true, 1.0, 100);
+      const allImputed = SharedRiskCalculator.calculatePGSQualityScore(
+        100,
+        100,
+        0.1,
+        true,
+        1.0,
+        0
+      );
+      const allGenotyped = SharedRiskCalculator.calculatePGSQualityScore(
+        100,
+        100,
+        0.1,
+        true,
+        1.0,
+        100
+      );
       expect(allGenotyped).toBeGreaterThan(allImputed);
     });
 
     it('applies coverage penalty below 5%', () => {
-      const low = SharedRiskCalculator.calculatePGSQualityScore(2, 100, 0.5, true, 1.0, 2);
-      const high = SharedRiskCalculator.calculatePGSQualityScore(50, 100, 0.5, true, 1.0, 50);
+      const low = SharedRiskCalculator.calculatePGSQualityScore(
+        2,
+        100,
+        0.5,
+        true,
+        1.0,
+        2
+      );
+      const high = SharedRiskCalculator.calculatePGSQualityScore(
+        50,
+        100,
+        0.5,
+        true,
+        1.0,
+        50
+      );
       expect(high).toBeGreaterThan(low);
     });
 
     it('zeroes signal strength for extreme z-scores (>5σ)', () => {
-      const normal = SharedRiskCalculator.calculatePGSQualityScore(100, 100, 0.1, true, 2.0, 100);
-      const extreme = SharedRiskCalculator.calculatePGSQualityScore(100, 100, 0.1, true, 21.0, 100);
+      const normal = SharedRiskCalculator.calculatePGSQualityScore(
+        100,
+        100,
+        0.1,
+        true,
+        2.0,
+        100
+      );
+      const extreme = SharedRiskCalculator.calculatePGSQualityScore(
+        100,
+        100,
+        0.1,
+        true,
+        21.0,
+        100
+      );
       // Extreme z should get 0 signal points, so lower total
       expect(extreme).toBeLessThan(normal);
     });
 
     it('quality score breakdown sums to total', () => {
-      const breakdown = SharedRiskCalculator.getQualityScoreBreakdown(100, 200, 0.1, true, 1.5, 80);
-      const componentSum = breakdown.components.reduce((sum, c) => sum + c.score, 0);
+      const breakdown = SharedRiskCalculator.getQualityScoreBreakdown(
+        100,
+        200,
+        0.1,
+        true,
+        1.5,
+        80
+      );
+      const componentSum = breakdown.components.reduce(
+        (sum, c) => sum + c.score,
+        0
+      );
       expect(componentSum).toBeCloseTo(breakdown.total, 1);
     });
   });
@@ -91,11 +165,20 @@ describe('calculator', () => {
   describe('normalization fix', () => {
     it('does NOT scale mean/SD by coverage (the critical fix)', async () => {
       const calc = new SharedRiskCalculator({
-        PGS001: { norm_mean: 0.5, norm_sd: 0.2, performance_weight: 0.1, variants_number: 1000 }
+        PGS001: {
+          norm_mean: 0.5,
+          norm_sd: 0.2,
+          performance_weight: 0.1,
+          variants_number: 1000
+        }
       });
 
       // Simulate a PGS with 15% coverage (150/1000 variants matched)
-      calc.initializePGS('PGS001', { norm_mean: 0.5, norm_sd: 0.2, variants_number: 1000 });
+      calc.initializePGS('PGS001', {
+        norm_mean: 0.5,
+        norm_sd: 0.2,
+        variants_number: 1000
+      });
       const details = calc.pgsDetails.get('PGS001');
       const breakdown = calc.pgsBreakdown.get('PGS001');
 
@@ -114,8 +197,8 @@ describe('calculator', () => {
       // The z-score should use UNSCALED mean=0.5, sd=0.2
       // z = (0.08 - 0.5) / 0.2 = -2.1
       const pgs = result.pgsDetails.PGS001;
-      expect(pgs.normMean).toBe(0.5);  // NOT 0.5 * 0.15 = 0.075
-      expect(pgs.normSd).toBe(0.2);    // NOT 0.2 * 0.15 = 0.03
+      expect(pgs.normMean).toBe(0.5); // NOT 0.5 * 0.15 = 0.075
+      expect(pgs.normSd).toBe(0.2); // NOT 0.2 * 0.15 = 0.03
       expect(pgs.normalizationScaled).toBe(false);
       expect(pgs.zScore).toBeCloseTo(-2.1, 1);
     });
@@ -144,12 +227,21 @@ describe('calculator', () => {
 
     it('uses theoretical normalization when coverage < 5%', async () => {
       const calc = new SharedRiskCalculator({
-        PGS_LOW: { norm_mean: 1.0, norm_sd: 0.5, performance_weight: 0.1, variants_number: 10000 }
+        PGS_LOW: {
+          norm_mean: 1.0,
+          norm_sd: 0.5,
+          performance_weight: 0.1,
+          variants_number: 10000
+        }
       });
 
       // variants_number in metadata represents parquet count
       // breakdown.total tracks matched variants (what we actually scored)
-      calc.initializePGS('PGS_LOW', { norm_mean: 1.0, norm_sd: 0.5, variants_number: 10000 });
+      calc.initializePGS('PGS_LOW', {
+        norm_mean: 1.0,
+        norm_sd: 0.5,
+        variants_number: 10000
+      });
       const details = calc.pgsDetails.get('PGS_LOW');
       const breakdown = calc.pgsBreakdown.get('PGS_LOW');
 
@@ -174,10 +266,19 @@ describe('calculator', () => {
       // Simulates PGS000017: gnomAD mean=193.5 over 6.9M variants,
       // but raw score=0.79 from 11% coverage — clearly different distribution
       const calc = new SharedRiskCalculator({
-        PGS_BAD: { norm_mean: 193.5, norm_sd: 0.08, performance_weight: 0.1, variants_number: 6900000 }
+        PGS_BAD: {
+          norm_mean: 193.5,
+          norm_sd: 0.08,
+          performance_weight: 0.1,
+          variants_number: 6900000
+        }
       });
 
-      calc.initializePGS('PGS_BAD', { norm_mean: 193.5, norm_sd: 0.08, variants_number: 6900000 });
+      calc.initializePGS('PGS_BAD', {
+        norm_mean: 193.5,
+        norm_sd: 0.08,
+        variants_number: 6900000
+      });
       const details = calc.pgsDetails.get('PGS_BAD');
       const breakdown = calc.pgsBreakdown.get('PGS_BAD');
 
@@ -203,7 +304,7 @@ describe('calculator', () => {
     it('selects best PGS by quality score', async () => {
       const calc = new SharedRiskCalculator({
         PGS_A: { norm_mean: 0, norm_sd: 1, performance_weight: 0.01 },
-        PGS_B: { norm_mean: 0, norm_sd: 1, performance_weight: 0.5 },
+        PGS_B: { norm_mean: 0, norm_sd: 1, performance_weight: 0.5 }
       });
 
       for (const pgsId of ['PGS_A', 'PGS_B']) {
@@ -227,10 +328,19 @@ describe('calculator', () => {
     it('selects best PGS even when all are insufficient data', async () => {
       // Simulates the 7 traits where all PGS have < 8 matched variants
       const calc = new SharedRiskCalculator({
-        PGS_TINY: { norm_mean: 0, norm_sd: 1, performance_weight: 0.05, variants_number: 14 }
+        PGS_TINY: {
+          norm_mean: 0,
+          norm_sd: 1,
+          performance_weight: 0.05,
+          variants_number: 14
+        }
       });
 
-      calc.initializePGS('PGS_TINY', { norm_mean: 0, norm_sd: 1, variants_number: 14 });
+      calc.initializePGS('PGS_TINY', {
+        norm_mean: 0,
+        norm_sd: 1,
+        variants_number: 14
+      });
       const d = calc.pgsDetails.get('PGS_TINY');
       const b = calc.pgsBreakdown.get('PGS_TINY');
 
@@ -266,7 +376,9 @@ describe('calculator', () => {
       b.genotypedVariants = 500;
       calc.totalMatches = 500;
 
-      const result = await calc.finalize('quantitative', 'kg/m²', 25.0, 4.0, { PGS_Q: { r2: 0.25 } });
+      const result = await calc.finalize('quantitative', 'kg/m²', 25.0, 4.0, {
+        PGS_Q: { r2: 0.25 }
+      });
 
       // phenotype z = genetic z * sqrt(R²) = 1.0 * 0.5 = 0.5
       // value = 25.0 + 0.5 * 4.0 = 27.0
@@ -296,7 +408,9 @@ describe('calculator', () => {
       expect(top.length).toBe(20);
 
       // The smallest contribution in top 20 should be >= 0.5 (variants 5-24)
-      const minContribution = Math.min(...top.map(v => Math.abs(v.contribution)));
+      const minContribution = Math.min(
+        ...top.map(v => Math.abs(v.contribution))
+      );
       expect(minContribution).toBeGreaterThanOrEqual(0.5);
     });
   });

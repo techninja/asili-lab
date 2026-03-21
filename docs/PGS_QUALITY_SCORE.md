@@ -26,6 +26,7 @@ R² from PGS Catalog validation studies, measuring variance explained. Sourced f
 Values >1 are treated as percentages and normalized to 0-1. Default 0.05 when no validation data exists.
 
 **Coverage Penalty** (applied to R² only):
+
 - **<5% coverage**: Severe — `(coverage/0.05)²`
 - **5-20% coverage**: Moderate — `√(coverage/0.20)`
 - **>20% coverage**: None
@@ -75,13 +76,13 @@ Formula: `min(|z| / 3, 1) × 20`
 
 **With >5σ penalty**: If `|z| > 5`, signal score is **0 points**. A z-score beyond 5σ almost certainly indicates incompatible normalization statistics (e.g., gnomAD stats computed on a different variant set than the parquet), not genuine extreme genetic risk. Zeroing the signal prevents bad-stats PGS from being boosted by their own broken z-scores.
 
-| z-score | Signal pts | Interpretation |
-|---------|-----------|----------------|
-| 0σ | 0 | Average — no signal |
-| 1σ | 6.7 | Moderate |
-| 2σ | 13.3 | Strong |
-| 3σ+ | 20 | Capped at maximum |
-| >5σ | **0** | Bad stats penalty |
+| z-score | Signal pts | Interpretation      |
+| ------- | ---------- | ------------------- |
+| 0σ      | 0          | Average — no signal |
+| 1σ      | 6.7        | Moderate            |
+| 2σ      | 13.3       | Strong              |
+| 3σ+     | 20         | Capped at maximum   |
+| >5σ     | **0**      | Bad stats penalty   |
 
 ## Weight Summary
 
@@ -124,7 +125,7 @@ The new `calculator.js` never scales mean/SD by coverage:
 ```js
 // NEW CODE (CORRECT)
 if (hasEmpiricalData && coverage >= 0.05) {
-  z = (rawScore - mean) / sd;  // Unscaled
+  z = (rawScore - mean) / sd; // Unscaled
 } else {
   z = rawScore / theoreticalSD; // Fallback
 }
@@ -154,12 +155,12 @@ Has empirical mean/SD?
 
 From Ethan's data (unified parquet, 13.6M variants):
 
-| PGS | R² | Coverage | Matched | Geno/Imp | z-score | Quality | Notes |
-|-----|-----|----------|---------|----------|---------|---------|-------|
-| PGS003485 | 5.0% | 101.1% | 793,573 | 3,601g + 789,972i | -3.79 | **51.8** | Best — huge variant set, near-full coverage |
-| PGS005095 | 5.0% | 36.4% | 175 | 156g + 19i | -1.06 | **40.1** | Small PGS, decent genotyped ratio |
-| PGS000299 | 1.95% | 31.8% | 147 | 131g + 16i | -21.68 | **31.6** | Bad gnomAD stats → >5σ penalty zeroes signal |
-| PGS000843 | 5.0% | 0% | 0 | — | null | **0** | No matches at all |
+| PGS       | R²    | Coverage | Matched | Geno/Imp          | z-score | Quality  | Notes                                        |
+| --------- | ----- | -------- | ------- | ----------------- | ------- | -------- | -------------------------------------------- |
+| PGS003485 | 5.0%  | 101.1%   | 793,573 | 3,601g + 789,972i | -3.79   | **51.8** | Best — huge variant set, near-full coverage  |
+| PGS005095 | 5.0%  | 36.4%    | 175     | 156g + 19i        | -1.06   | **40.1** | Small PGS, decent genotyped ratio            |
+| PGS000299 | 1.95% | 31.8%    | 147     | 131g + 16i        | -21.68  | **31.6** | Bad gnomAD stats → >5σ penalty zeroes signal |
+| PGS000843 | 5.0%  | 0%       | 0       | —                 | null    | **0**    | No matches at all                            |
 
 **Old code** gave PGS000299 a z-score of 0.039 (looked normal) and quality of 31.57. The coverage scaling accidentally masked the incompatible stats. The new code exposes the truth (z=-21.68) and the >5σ penalty prevents it from ranking higher than it should.
 
@@ -175,12 +176,12 @@ From Ethan's data (unified parquet, 13.6M variants):
 
 ## Interpretation
 
-| Score | Rating | Characteristics |
-|-------|--------|-----------------|
-| 65+ | Excellent | High R², good coverage, strong signal, mostly genotyped |
-| 55-65 | Good | Decent R² and coverage, moderate signal |
-| 40-55 | Moderate | Low coverage OR mostly imputed OR weak signal |
-| 0-40 | Limited | Very low coverage, missing data, or no validation |
+| Score | Rating    | Characteristics                                         |
+| ----- | --------- | ------------------------------------------------------- |
+| 65+   | Excellent | High R², good coverage, strong signal, mostly genotyped |
+| 55-65 | Good      | Decent R² and coverage, moderate signal                 |
+| 40-55 | Moderate  | Low coverage OR mostly imputed OR weak signal           |
+| 0-40  | Limited   | Very low coverage, missing data, or no validation       |
 
 ## Testing
 
@@ -191,9 +192,10 @@ pnpm test core
 ```
 
 Key test cases:
+
 - Higher R² produces higher score
 - Higher genotyped ratio produces higher score
 - Coverage penalty below 5%
-- >5σ z-scores get 0 signal points
+- > 5σ z-scores get 0 signal points
 - Breakdown component scores sum to total
 - No matched variants → score 0

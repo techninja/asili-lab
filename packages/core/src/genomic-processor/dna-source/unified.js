@@ -32,7 +32,9 @@ export class UnifiedDNASource extends DNASource {
    */
   async loadDNA() {
     if (this._dnaLoaded) return;
-    await this.db.query(`CREATE OR REPLACE TABLE _dna AS SELECT chr, pos, variant_id AS user_variant_id, genotype_dosage, imputed FROM '${this.path}'`);
+    await this.db.query(
+      `CREATE OR REPLACE TABLE _dna AS SELECT chr, pos, variant_id AS user_variant_id, genotype_dosage, imputed FROM '${this.path}'`
+    );
     this._dnaLoaded = true;
   }
 
@@ -51,8 +53,15 @@ export class UnifiedDNASource extends DNASource {
     try {
       return await this._runScoreQueries(traitUrl);
     } catch (err) {
-      if (err.message?.includes('Could not remove file') || err.message?.includes('temp_storage') || err.message?.includes('Serialization') || err.message?.includes('deserialize')) {
-        log.warn('DuckDB temp/serialization error, clearing temp and retrying...');
+      if (
+        err.message?.includes('Could not remove file') ||
+        err.message?.includes('temp_storage') ||
+        err.message?.includes('Serialization') ||
+        err.message?.includes('deserialize')
+      ) {
+        log.warn(
+          'DuckDB temp/serialization error, clearing temp and retrying...'
+        );
         await this.db.clearTempDir();
         return await this._runScoreQueries(traitUrl);
       }
@@ -94,7 +103,9 @@ export class UnifiedDNASource extends DNASource {
       FROM _matched
       GROUP BY pgs_id
     `);
-    log.debug(`Query 1/3 done: ${pgsAggregates.length} PGS in ${log.elapsed(q1Start)}`);
+    log.debug(
+      `Query 1/3 done: ${pgsAggregates.length} PGS in ${log.elapsed(q1Start)}`
+    );
 
     log.debug('Query 2/3: Chromosome coverage...');
     const q2Start = Date.now();
@@ -102,7 +113,9 @@ export class UnifiedDNASource extends DNASource {
       SELECT pgs_id, chr, COUNT(*) AS cnt
       FROM _matched GROUP BY pgs_id, chr
     `);
-    log.debug(`Query 2/3 done: ${chrCoverage.length} rows in ${log.elapsed(q2Start)}`);
+    log.debug(
+      `Query 2/3 done: ${chrCoverage.length} rows in ${log.elapsed(q2Start)}`
+    );
 
     log.debug('Query 3/3: Weight histograms...');
     const q3Start = Date.now();
@@ -119,7 +132,9 @@ export class UnifiedDNASource extends DNASource {
       GROUP BY m.pgs_id, bucket
       ORDER BY m.pgs_id, bucket
     `);
-    log.debug(`Query 3/3 done: ${weightHist.length} rows in ${log.elapsed(q3Start)}`);
+    log.debug(
+      `Query 3/3 done: ${weightHist.length} rows in ${log.elapsed(q3Start)}`
+    );
 
     // Drop _matched to free memory before top variants
     await this.db.query('DROP TABLE IF EXISTS _matched');
@@ -135,7 +150,8 @@ export class UnifiedDNASource extends DNASource {
    */
   async fetchTopVariants(pgsIds) {
     const traitUrl = this._lastTraitUrl;
-    if (!traitUrl) throw new Error('scoreInDB must be called before fetchTopVariants');
+    if (!traitUrl)
+      throw new Error('scoreInDB must be called before fetchTopVariants');
 
     log.debug(`Top variants: ${pgsIds.length} PGS...`);
     const start = Date.now();
@@ -154,7 +170,10 @@ export class UnifiedDNASource extends DNASource {
         `);
         all.push(...rows);
       } catch (err) {
-        if (err.message?.includes('Could not remove file') || err.message?.includes('temp_storage')) {
+        if (
+          err.message?.includes('Could not remove file') ||
+          err.message?.includes('temp_storage')
+        ) {
           log.warn(`Temp file error for ${pgsId}, clearing and retrying...`);
           await this.db.clearTempDir();
           const rows = await this.db.query(`

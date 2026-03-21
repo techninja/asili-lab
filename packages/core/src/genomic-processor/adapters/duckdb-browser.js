@@ -40,7 +40,9 @@ export class DuckDBBrowserAdapter {
   }
 
   async count(tableOrUrl) {
-    const result = await this.conn.query(`SELECT COUNT(*) as count FROM '${tableOrUrl}'`);
+    const result = await this.conn.query(
+      `SELECT COUNT(*) as count FROM '${tableOrUrl}'`
+    );
     return Number(result.toArray()[0].count);
   }
 
@@ -54,7 +56,13 @@ export class DuckDBBrowserAdapter {
   }
 
   async cleanup() {
-    if (this.conn) { await this.conn.close(); this.conn = null; }
-    if (this.db) { await this.db.terminate(); this.db = null; }
+    if (this.conn) {
+      await this.conn.close();
+      this.conn = null;
+    }
+    if (this.db) {
+      await this.db.terminate();
+      this.db = null;
+    }
   }
 }

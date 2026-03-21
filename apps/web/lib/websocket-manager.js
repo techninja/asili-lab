@@ -32,7 +32,7 @@ export class WebSocketManager {
         resolve();
       };
 
-      this.ws.onmessage = (event) => {
+      this.ws.onmessage = event => {
         try {
           const data = JSON.parse(event.data);
           Debug.log(3, 'WebSocketManager', 'Received message:', data);
@@ -42,14 +42,17 @@ export class WebSocketManager {
         }
       };
 
-      this.ws.onclose = (event) => {
+      this.ws.onclose = event => {
         Debug.log(2, 'WebSocketManager', 'Connection closed:', event.code);
-        if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
+        if (
+          event.code !== 1000 &&
+          this.reconnectAttempts < this.maxReconnectAttempts
+        ) {
           setTimeout(() => this.reconnect(), this.reconnectDelay);
         }
       };
 
-      this.ws.onerror = (error) => {
+      this.ws.onerror = error => {
         Debug.log(1, 'WebSocketManager', 'Connection error:', error);
         reject(error);
       };
@@ -58,10 +61,17 @@ export class WebSocketManager {
 
   reconnect() {
     this.reconnectAttempts++;
-    Debug.log(2, 'WebSocketManager', `Reconnecting... attempt ${this.reconnectAttempts}`);
+    Debug.log(
+      2,
+      'WebSocketManager',
+      `Reconnecting... attempt ${this.reconnectAttempts}`
+    );
     this.connect().catch(() => {
       if (this.reconnectAttempts < this.maxReconnectAttempts) {
-        setTimeout(() => this.reconnect(), this.reconnectDelay * this.reconnectAttempts);
+        setTimeout(
+          () => this.reconnect(),
+          this.reconnectDelay * this.reconnectAttempts
+        );
       }
     });
   }

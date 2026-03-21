@@ -18,12 +18,17 @@ class Logger {
     if (!fs.existsSync(this.scriptDir)) {
       fs.mkdirSync(this.scriptDir, { recursive: true });
     }
-    
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, '-')
+      .slice(0, -5);
     this.logFile = path.join(this.scriptDir, `${timestamp}.log`);
     this.fileStream = fs.createWriteStream(this.logFile, { flags: 'a' });
-    
-    this.log(`=== ${this.scriptName} started at ${new Date().toISOString()} ===`);
+
+    this.log(
+      `=== ${this.scriptName} started at ${new Date().toISOString()} ===`
+    );
   }
 
   log(...args) {
@@ -44,7 +49,9 @@ class Logger {
 
   close() {
     if (this.fileStream) {
-      this.log(`=== ${this.scriptName} finished at ${new Date().toISOString()} ===`);
+      this.log(
+        `=== ${this.scriptName} finished at ${new Date().toISOString()} ===`
+      );
       this.fileStream.end();
     }
   }

@@ -32,23 +32,23 @@ const CLUMPED_METHODS = [
  */
 export function isLDAware(methodName) {
   if (!methodName) return false;
-  
+
   const method = methodName.toLowerCase();
-  
+
   // Check for LD-aware methods
   for (const ldMethod of LD_AWARE_METHODS) {
     if (method.includes(ldMethod.toLowerCase())) {
       return true;
     }
   }
-  
+
   // Check for clumped methods
   for (const clumpedMethod of CLUMPED_METHODS) {
     if (method.includes(clumpedMethod.toLowerCase())) {
       return true;
     }
   }
-  
+
   return false;
 }
 
@@ -58,11 +58,11 @@ export function isLDAware(methodName) {
 export function needsClumping(methodName, variantCount) {
   // Already LD-aware
   if (isLDAware(methodName)) return false;
-  
+
   // Small PGS (<100 variants) unlikely to have LD issues
   // Only skip clumping if we KNOW it's small
   if (variantCount && variantCount > 0 && variantCount < 100) return false;
-  
+
   // Unknown method or missing variant count - default to clumping for safety
   return true;
 }
@@ -73,14 +73,14 @@ export function needsClumping(methodName, variantCount) {
 export function getLDStatus(scoreData) {
   const method = scoreData.method_name || '';
   const variantCount = scoreData.variants_number || 0;
-  
+
   const ld_aware = isLDAware(method);
   const needs_clumping = needsClumping(method, variantCount);
-  
+
   return {
     ld_aware,
     needs_clumping,
-    reason: ld_aware 
+    reason: ld_aware
       ? `Method "${method}" accounts for LD`
       : needs_clumping
         ? `Method "${method}" may have LD inflation`

@@ -17,14 +17,33 @@ const EXCLUDED_PGS_IDS = ['PGS002724']; // GIGASTROKE
 
 // Legitimate modern methods that may have "NR" weight type
 const LEGITIMATE_NR_METHODS = [
-  'sparssnp', 'snpnet', 'penalized regression', 'lasso', 'ridge regression',
-  'elastic net', 'ldpred', 'ldpred2', 'prsice', 'lassosum', 'bigstatsr', 'bigsnpr'
+  'sparssnp',
+  'snpnet',
+  'penalized regression',
+  'lasso',
+  'ridge regression',
+  'elastic net',
+  'ldpred',
+  'ldpred2',
+  'prsice',
+  'lassosum',
+  'bigstatsr',
+  'bigsnpr'
 ];
 
 // Integrative/meta method keywords to exclude
 const INTEGRATIVE_METHOD_KEYWORDS = [
-  'integrative', 'meta-analysis', 'meta analysis', 'component', 'composite',
-  'combined', 'ensemble', 'multi-trait', 'multitrait', 'cross-trait', 'crosstrait'
+  'integrative',
+  'meta-analysis',
+  'meta analysis',
+  'component',
+  'composite',
+  'combined',
+  'ensemble',
+  'multi-trait',
+  'multitrait',
+  'cross-trait',
+  'crosstrait'
 ];
 
 /**
@@ -87,32 +106,38 @@ function validatePGSScore(pgsId, scoreData) {
   if (EXCLUDED_PGS_IDS.includes(pgsId)) {
     return { exclude: true, reason: 'Known integrative PGS' };
   }
-  
+
   const methodName = (scoreData.method_name || '').toLowerCase();
   const weightType = scoreData.weight_type || '';
-  
+
   // 2. Check for integrative methods
   for (const keyword of INTEGRATIVE_METHOD_KEYWORDS) {
     if (methodName.includes(keyword)) {
       return { exclude: true, reason: `Integrative method: ${keyword}` };
     }
   }
-  
+
   // 3. Smart handling of "NR" weight type
   if (weightType === 'NR') {
     // Allow legitimate modern methods
     for (const legitMethod of LEGITIMATE_NR_METHODS) {
       if (methodName.includes(legitMethod)) {
-        return { exclude: false, reason: `Legitimate modern method: ${legitMethod}` };
+        return {
+          exclude: false,
+          reason: `Legitimate modern method: ${legitMethod}`
+        };
       }
     }
     // Only exclude if no method specified
     if (!methodName || methodName.trim() === '') {
-      return { exclude: true, reason: 'No method specified with NR weight type' };
+      return {
+        exclude: true,
+        reason: 'No method specified with NR weight type'
+      };
     }
     return { exclude: false, reason: 'NR weight type but method specified' };
   }
-  
+
   return { exclude: false, reason: 'Standard PGS score' };
 }
 
@@ -122,36 +147,50 @@ function validatePGSScore(pgsId, scoreData) {
  * @returns {Object} Validation result
  */
 function validateTraitData(traitData) {
-  const required = ['title', 'trait_id', 'pgs_ids', 'expected_variants', 'last_updated'];
+  const required = [
+    'title',
+    'trait_id',
+    'pgs_ids',
+    'expected_variants',
+    'last_updated'
+  ];
   const missing = required.filter(field => !(field in traitData));
-  
+
   if (missing.length > 0) {
-    return { valid: false, errors: [`Missing required fields: ${missing.join(', ')}`] };
+    return {
+      valid: false,
+      errors: [`Missing required fields: ${missing.join(', ')}`]
+    };
   }
-  
+
   const errors = [];
-  
+
   // Validate trait ID
   const idValidation = validateTraitId(traitData.trait_id);
   if (!idValidation.valid) {
     errors.push(`Invalid trait_id: ${idValidation.reason}`);
   }
-  
+
   // Validate PGS IDs
   if (!Array.isArray(traitData.pgs_ids)) {
     errors.push('pgs_ids must be an array');
   } else {
-    const invalidPgs = traitData.pgs_ids.filter(id => !/^PGS[0-9]{6}$/.test(id));
+    const invalidPgs = traitData.pgs_ids.filter(
+      id => !/^PGS[0-9]{6}$/.test(id)
+    );
     if (invalidPgs.length > 0) {
       errors.push(`Invalid PGS IDs: ${invalidPgs.join(', ')}`);
     }
   }
-  
+
   // Validate variant counts
-  if (typeof traitData.expected_variants !== 'number' || traitData.expected_variants < 0) {
+  if (
+    typeof traitData.expected_variants !== 'number' ||
+    traitData.expected_variants < 0
+  ) {
     errors.push('expected_variants must be a non-negative number');
   }
-  
+
   return { valid: errors.length === 0, errors };
 }
 
@@ -162,7 +201,7 @@ function validateTraitData(traitData) {
  */
 function generateCatalogStats(catalog) {
   const traits = Object.values(catalog.traits || {});
-  
+
   const stats = {
     total_traits: traits.length,
     total_pgs_scores: 0,
@@ -171,25 +210,27 @@ function generateCatalogStats(catalog) {
     ontology_breakdown: {},
     method_breakdown: {}
   };
-  
+
   traits.forEach(trait => {
     stats.total_pgs_scores += trait.pgs_ids.length;
     stats.total_variants += trait.expected_variants || 0;
-    
+
     if (trait.excluded_pgs) {
       stats.excluded_pgs_count += trait.excluded_pgs.length;
-      
+
       trait.excluded_pgs.forEach(excluded => {
         const method = excluded.method || 'Unknown';
-        stats.method_breakdown[method] = (stats.method_breakdown[method] || 0) + 1;
+        stats.method_breakdown[method] =
+          (stats.method_breakdown[method] || 0) + 1;
       });
     }
-    
+
     // Count ontology types
     const ontologyType = trait.trait_id.split(/[_:]/)[0];
-    stats.ontology_breakdown[ontologyType] = (stats.ontology_breakdown[ontologyType] || 0) + 1;
+    stats.ontology_breakdown[ontologyType] =
+      (stats.ontology_breakdown[ontologyType] || 0) + 1;
   });
-  
+
   return stats;
 }
 

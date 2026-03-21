@@ -39,7 +39,9 @@ export class DuckDBServerAdapter {
   }
 
   async count(tableOrUrl) {
-    const result = await this.query(`SELECT COUNT(*) as count FROM '${tableOrUrl}'`);
+    const result = await this.query(
+      `SELECT COUNT(*) as count FROM '${tableOrUrl}'`
+    );
     return Number(result[0]?.count || 0);
   }
 
@@ -60,11 +62,19 @@ export class DuckDBServerAdapter {
       await rm('/tmp/duckdb_swap', { recursive: true, force: true });
       await mkdir('/tmp/duckdb_swap', { recursive: true });
       await this.query("SET temp_directory='/tmp/duckdb_swap'");
-    } catch { /* best effort */ }
+    } catch {
+      /* best effort */
+    }
   }
 
   async cleanup() {
-    if (this.conn) { this.conn.close(); this.conn = null; }
-    if (this.db) { this.db.close(); this.db = null; }
+    if (this.conn) {
+      this.conn.close();
+      this.conn = null;
+    }
+    if (this.db) {
+      this.db.close();
+      this.db = null;
+    }
   }
 }

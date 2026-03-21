@@ -12,8 +12,13 @@ export class TraitDataService {
   subscribeToQueueEvents() {
     if (this.queueManager) {
       const unsubscribe = this.queueManager.subscribe(event => {
-        Debug.log(3, 'TraitDataService', `Queue event: ${event.event}`, event.data);
-        
+        Debug.log(
+          3,
+          'TraitDataService',
+          `Queue event: ${event.event}`,
+          event.data
+        );
+
         if (event.event === 'added' && event.data) {
           // Item added to queue
           this.updateTraitQueueStatus(event.data.traitId, event.data);
@@ -27,10 +32,13 @@ export class TraitDataService {
           // Other queue events
           this.updateTraitQueueStatus(event.data.traitId, event.data);
         }
-        
+
         // When job completes, reload cache for that trait
         if (event.event === 'itemCompleted' && event.data?.item) {
-          this.updateTraitCache(event.data.item.traitId, event.data.item.individualId);
+          this.updateTraitCache(
+            event.data.item.traitId,
+            event.data.item.individualId
+          );
         }
       });
       this.subscriptions.add(unsubscribe);
@@ -42,12 +50,16 @@ export class TraitDataService {
     // Check if cache was already set (e.g., from WebSocket result)
     const currentState = useTraitStore.getState().getTraitState(traitId);
     if (currentState.cached) {
-      Debug.log(3, 'TraitDataService', `Cache already loaded for ${traitId}, skipping fetch`);
+      Debug.log(
+        3,
+        'TraitDataService',
+        `Cache already loaded for ${traitId}, skipping fetch`
+      );
       // Clear queue status since we have the result
       useTraitStore.getState().setTraitQueue(traitId, null);
       return;
     }
-    
+
     const cached = await this.processor?.getCachedResult(individualId, traitId);
     if (cached) {
       Debug.log(3, 'TraitDataService', `Cache found for ${traitId}`);
@@ -59,7 +71,12 @@ export class TraitDataService {
 
   // Update trait queue status
   updateTraitQueueStatus(traitId, queueData) {
-    Debug.log(3, 'TraitDataService', `Updating queue status for ${traitId}:`, queueData);
+    Debug.log(
+      3,
+      'TraitDataService',
+      `Updating queue status for ${traitId}:`,
+      queueData
+    );
     useTraitStore.getState().setTraitQueue(traitId, queueData);
   }
 
@@ -79,7 +96,7 @@ export class TraitDataService {
   async loadTraitData(traitId, individualId) {
     // Load cached data
     await this.updateTraitCache(traitId, individualId);
-    
+
     // Check queue status
     if (this.queueManager) {
       const queue = this.queueManager.getQueue();

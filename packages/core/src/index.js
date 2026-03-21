@@ -16,7 +16,11 @@ export { BasicRiskCalculator } from './risk-calculator/basic.js';
 
 // V2 genomic processor (scorer + calculator + DNA sources)
 // Note: DuckDBServerAdapter is server-only (imports os, fs) — import directly from adapters/duckdb-server.js
-export { PGSScorer, SharedRiskCalculator, createDNASource } from './genomic-processor/index.js';
+export {
+  PGSScorer,
+  SharedRiskCalculator,
+  createDNASource
+} from './genomic-processor/index.js';
 
 // TODO: Browser processor still uses old BrowserGenomicProcessor path.
 // Migrate to v2 scorer + duckdb-browser adapter when browser-only mode is prioritized.

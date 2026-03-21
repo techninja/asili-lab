@@ -9,7 +9,8 @@ export async function getCompletedTraits() {
   try {
     const conn = await getConnection();
     const result = await new Promise((resolve, reject) => {
-      conn.all(`
+      conn.all(
+        `
         SELECT 
           t.trait_id,
           COUNT(DISTINCT tp.pgs_id) as pgs_count
@@ -17,9 +18,11 @@ export async function getCompletedTraits() {
         LEFT JOIN trait_pgs tp ON t.trait_id = tp.trait_id
         GROUP BY t.trait_id
         HAVING pgs_count > 0;
-      `, (err, rows) => err ? reject(err) : resolve(rows));
+      `,
+        (err, rows) => (err ? reject(err) : resolve(rows))
+      );
     });
-    
+
     const completed = {};
     for (const row of result) {
       completed[row.trait_id] = Number(row.pgs_count);
@@ -35,7 +38,8 @@ export async function getAllTraitMetadata() {
   try {
     const conn = await getConnection();
     const result = await new Promise((resolve, reject) => {
-      conn.all(`
+      conn.all(
+        `
         SELECT 
           tp.trait_id,
           tp.pgs_id,
@@ -46,9 +50,11 @@ export async function getAllTraitMetadata() {
           ps.variants_number
         FROM trait_pgs tp
         JOIN pgs_scores ps ON tp.pgs_id = ps.pgs_id;
-      `, (err, rows) => err ? reject(err) : resolve(rows));
+      `,
+        (err, rows) => (err ? reject(err) : resolve(rows))
+      );
     });
-    
+
     const metadata = {};
     for (const row of result) {
       if (!metadata[row.trait_id]) {
@@ -59,7 +65,9 @@ export async function getAllTraitMetadata() {
         method_name: row.method_name,
         norm_mean: row.norm_mean,
         norm_sd: row.norm_sd,
-        variants_number: row.variants_number ? Number(row.variants_number) : null
+        variants_number: row.variants_number
+          ? Number(row.variants_number)
+          : null
       };
     }
     return metadata;
@@ -73,7 +81,8 @@ export async function getTraitMetadata(traitId) {
   try {
     const conn = await getConnection();
     const result = await new Promise((resolve, reject) => {
-      conn.all(`
+      conn.all(
+        `
         SELECT 
           tp.pgs_id,
           ps.weight_type,
@@ -84,9 +93,12 @@ export async function getTraitMetadata(traitId) {
         FROM trait_pgs tp
         JOIN pgs_scores ps ON tp.pgs_id = ps.pgs_id
         WHERE tp.trait_id = ?;
-      `, [traitId], (err, rows) => err ? reject(err) : resolve(rows));
+      `,
+        [traitId],
+        (err, rows) => (err ? reject(err) : resolve(rows))
+      );
     });
-    
+
     const metadata = {};
     for (const row of result) {
       metadata[row.pgs_id] = {
@@ -94,12 +106,16 @@ export async function getTraitMetadata(traitId) {
         method_name: row.method_name,
         norm_mean: row.norm_mean,
         norm_sd: row.norm_sd,
-        variants_number: row.variants_number ? Number(row.variants_number) : null
+        variants_number: row.variants_number
+          ? Number(row.variants_number)
+          : null
       };
     }
     return metadata;
   } catch (err) {
-    console.log(`    Warning: Could not load metadata for ${traitId}: ${err.message}`);
+    console.log(
+      `    Warning: Could not load metadata for ${traitId}: ${err.message}`
+    );
     return {};
   }
 }

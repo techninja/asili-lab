@@ -28,18 +28,29 @@ export class TraitCacheManager {
         const db = event.target.result;
         if (!db.objectStoreNames.contains('traits')) {
           const store = db.createObjectStore('traits', { keyPath: 'id' });
-          store.createIndex('categories', 'categories', { unique: false, multiEntry: true });
+          store.createIndex('categories', 'categories', {
+            unique: false,
+            multiEntry: true
+          });
         }
         if (!db.objectStoreNames.contains('risk_results')) {
-          const riskStore = db.createObjectStore('risk_results', { keyPath: ['traitId', 'individualId'] });
-          riskStore.createIndex('individualId', 'individualId', { unique: false });
+          const riskStore = db.createObjectStore('risk_results', {
+            keyPath: ['traitId', 'individualId']
+          });
+          riskStore.createIndex('individualId', 'individualId', {
+            unique: false
+          });
         }
       };
     });
   }
 
   async cacheTraits(traits) {
-    Debug.log(1, 'TraitCacheManager', `Caching ${traits.length} traits to IndexedDB`);
+    Debug.log(
+      1,
+      'TraitCacheManager',
+      `Caching ${traits.length} traits to IndexedDB`
+    );
     const db = await this._getDB();
     const transaction = db.transaction(['traits'], 'readwrite');
     const store = transaction.objectStore('traits');
@@ -50,7 +61,11 @@ export class TraitCacheManager {
 
     return new Promise((resolve, reject) => {
       transaction.oncomplete = () => {
-        Debug.log(2, 'TraitCacheManager', `Successfully cached ${traits.length} traits`);
+        Debug.log(
+          2,
+          'TraitCacheManager',
+          `Successfully cached ${traits.length} traits`
+        );
         resolve();
       };
       transaction.onerror = () => {
@@ -95,7 +110,11 @@ export class TraitCacheManager {
       const request = store.getAll();
 
       request.onsuccess = () => {
-        Debug.log(2, 'TraitCacheManager', `Retrieved ${request.result.length} traits from cache`);
+        Debug.log(
+          2,
+          'TraitCacheManager',
+          `Retrieved ${request.result.length} traits from cache`
+        );
         resolve(request.result);
       };
       request.onerror = () => reject(request.error);
@@ -103,7 +122,11 @@ export class TraitCacheManager {
   }
 
   async cacheRiskResults(individualId, results) {
-    Debug.log(1, 'TraitCacheManager', `Caching ${results.length} risk results for ${individualId}`);
+    Debug.log(
+      1,
+      'TraitCacheManager',
+      `Caching ${results.length} risk results for ${individualId}`
+    );
     const db = await this._getDB();
     const transaction = db.transaction(['risk_results'], 'readwrite');
     const store = transaction.objectStore('risk_results');
@@ -114,7 +137,11 @@ export class TraitCacheManager {
 
     return new Promise((resolve, reject) => {
       transaction.oncomplete = () => {
-        Debug.log(2, 'TraitCacheManager', `Cached ${results.length} risk results`);
+        Debug.log(
+          2,
+          'TraitCacheManager',
+          `Cached ${results.length} risk results`
+        );
         resolve();
       };
       transaction.onerror = () => reject(transaction.error);
@@ -130,7 +157,11 @@ export class TraitCacheManager {
       const request = index.getAll(individualId);
 
       request.onsuccess = () => {
-        Debug.log(2, 'TraitCacheManager', `Retrieved ${request.result.length} risk results from cache`);
+        Debug.log(
+          2,
+          'TraitCacheManager',
+          `Retrieved ${request.result.length} risk results from cache`
+        );
         resolve(request.result);
       };
       request.onerror = () => reject(request.error);

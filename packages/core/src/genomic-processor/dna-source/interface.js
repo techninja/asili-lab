@@ -15,7 +15,9 @@
 
 export class DNASource {
   /** @returns {Promise<string>} Human-readable description for logging */
-  async describe() { return 'DNASource (base)'; }
+  async describe() {
+    return 'DNASource (base)';
+  }
 
   /**
    * Query DNA for matching variants against a trait's PGS variants.
@@ -29,7 +31,9 @@ export class DNASource {
   }
 
   /** @returns {Promise<number>} Total variant count in this DNA source */
-  async getVariantCount() { return 0; }
+  async getVariantCount() {
+    return 0;
+  }
 
   async cleanup() {}
 }

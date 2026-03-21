@@ -46,7 +46,6 @@ export class PGSScorer {
       }
     }
 
-
     // Populate calculator from aggregated rows
     for (const row of pgsAggregates) {
       const pgsId = row.pgs_id;
@@ -118,7 +117,12 @@ export class PGSScorer {
         rsid: row.variant_id,
         effect_allele: row.effect_allele,
         effect_weight: Number(row.effect_weight),
-        userGenotype: parts?.length >= 4 ? `${parts[2]}${parts[3]}` : (isImputed ? `~${dosage.toFixed(1)}` : `${dosage.toFixed(0)}`),
+        userGenotype:
+          parts?.length >= 4
+            ? `${parts[2]}${parts[3]}`
+            : isImputed
+              ? `~${dosage.toFixed(1)}`
+              : `${dosage.toFixed(0)}`,
         chromosome: row.variant_id?.split(':')[0] || 'unknown',
         contribution: Number(row.contribution),
         imputed: isImputed,
@@ -162,14 +166,22 @@ export class PGSScorer {
         const breakdown = calc.pgsBreakdown.get(pgsId);
         const details = calc.pgsDetails.get(pgsId);
 
-        if (contribution > 0) { breakdown.positive++; breakdown.positiveSum += contribution; }
-        else if (contribution < 0) { breakdown.negative++; breakdown.negativeSum += contribution; }
+        if (contribution > 0) {
+          breakdown.positive++;
+          breakdown.positiveSum += contribution;
+        } else if (contribution < 0) {
+          breakdown.negative++;
+          breakdown.negativeSum += contribution;
+        }
 
         breakdown.total++;
         breakdown.weightSumSquared += effectWeight * effectWeight;
-        if (effectWeight < breakdown.weightMin) breakdown.weightMin = effectWeight;
-        if (effectWeight > breakdown.weightMax) breakdown.weightMax = effectWeight;
-        breakdown.chromosomeCoverage[chr] = (breakdown.chromosomeCoverage[chr] || 0) + 1;
+        if (effectWeight < breakdown.weightMin)
+          breakdown.weightMin = effectWeight;
+        if (effectWeight > breakdown.weightMax)
+          breakdown.weightMax = effectWeight;
+        breakdown.chromosomeCoverage[chr] =
+          (breakdown.chromosomeCoverage[chr] || 0) + 1;
 
         details.score += contribution;
         details.matchedVariants++;
@@ -193,7 +205,9 @@ export class PGSScorer {
             rsid: m.variant_id,
             effect_allele: m.effect_allele,
             effect_weight: effectWeight,
-            userGenotype: isImputed ? `imputed(${dosage.toFixed(2)})` : `genotyped(${dosage.toFixed(0)})`,
+            userGenotype: isImputed
+              ? `imputed(${dosage.toFixed(2)})`
+              : `genotyped(${dosage.toFixed(0)})`,
             chromosome: chr,
             contribution,
             imputed: isImputed,
@@ -207,7 +221,10 @@ export class PGSScorer {
               details._topMinAbs = Infinity;
               for (let j = 0; j < 20; j++) {
                 const a = Math.abs(topVars[j].contribution);
-                if (a < details._topMinAbs) { details._topMinAbs = a; details._topMinIdx = j; }
+                if (a < details._topMinAbs) {
+                  details._topMinAbs = a;
+                  details._topMinIdx = j;
+                }
               }
             }
           } else {
@@ -216,7 +233,10 @@ export class PGSScorer {
             details._topMinAbs = Infinity;
             for (let j = 0; j < 20; j++) {
               const a = Math.abs(topVars[j].contribution);
-              if (a < details._topMinAbs) { details._topMinAbs = a; details._topMinIdx = j; }
+              if (a < details._topMinAbs) {
+                details._topMinAbs = a;
+                details._topMinIdx = j;
+              }
             }
           }
         }
@@ -225,12 +245,17 @@ export class PGSScorer {
       const elapsed = (Date.now() - startTime) / 1000;
       if (elapsed > 0) {
         const rate = Math.round(calc.totalMatches / elapsed);
-        onProgress?.(`${calc.totalMatches.toLocaleString()} matches (${rate.toLocaleString()}/sec)`, null);
+        onProgress?.(
+          `${calc.totalMatches.toLocaleString()} matches (${rate.toLocaleString()}/sec)`,
+          null
+        );
       }
     }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    log.info(`Scoring complete in ${elapsed}s | ${calc.totalMatches.toLocaleString()} matches | ${Math.round(calc.totalMatches / elapsed).toLocaleString()}/sec`);
+    log.info(
+      `Scoring complete in ${elapsed}s | ${calc.totalMatches.toLocaleString()} matches | ${Math.round(calc.totalMatches / elapsed).toLocaleString()}/sec`
+    );
 
     return calc;
   }
@@ -238,7 +263,19 @@ export class PGSScorer {
   /**
    * Finalize scores — delegates to calculator with normalization fix
    */
-  async finalize(traitType, unit, phenotypeMean, phenotypeSd, pgsPerformanceMetrics) {
-    return this.calculator.finalize(traitType, unit, phenotypeMean, phenotypeSd, pgsPerformanceMetrics);
+  async finalize(
+    traitType,
+    unit,
+    phenotypeMean,
+    phenotypeSd,
+    pgsPerformanceMetrics
+  ) {
+    return this.calculator.finalize(
+      traitType,
+      unit,
+      phenotypeMean,
+      phenotypeSd,
+      pgsPerformanceMetrics
+    );
   }
 }

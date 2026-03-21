@@ -6,7 +6,7 @@
 ✅ **8x more memory** - 2GB → 16GB for DuckDB  
 ✅ **4x parallel batches** - concurrent processing  
 ✅ **10x parallel downloads** - faster file analysis  
-✅ **Multi-threaded merge** - parallel I/O operations  
+✅ **Multi-threaded merge** - parallel I/O operations
 
 ## Your Current Settings (.env)
 
@@ -19,7 +19,7 @@ MAX_PARALLEL_BATCHES=4        # 4 concurrent DuckDB processes
 ## Expected Results
 
 **Before:** Sequential processing, 2GB RAM, small batches  
-**After:** Parallel processing, 16GB RAM, large batches  
+**After:** Parallel processing, 16GB RAM, large batches
 
 **Speed Improvement:** 3-6x faster overall
 
@@ -30,6 +30,7 @@ pnpm etl local
 ```
 
 You'll see:
+
 ```
 ⚙️  Performance Configuration:
    Memory Limit: 16GB
@@ -48,6 +49,7 @@ iotop -o
 ```
 
 You should now see:
+
 - Multiple CPU cores active (not just 1-2)
 - Higher memory usage (8-16GB instead of 2GB)
 - Multiple DuckDB processes during batch phase
@@ -55,6 +57,7 @@ You should now see:
 ## Troubleshooting
 
 **Out of Memory?**
+
 ```bash
 # Reduce in .env
 DUCKDB_MEMORY_LIMIT=8GB
@@ -62,6 +65,7 @@ MAX_PARALLEL_BATCHES=2
 ```
 
 **CPU not saturated?**
+
 ```bash
 # Increase in .env
 DUCKDB_THREADS=16
@@ -69,6 +73,7 @@ MAX_PARALLEL_BATCHES=6
 ```
 
 **Still slow?**
+
 - Check disk I/O (SSD vs HDD makes huge difference)
 - Ensure gnomAD is on fast storage
 - Monitor network if downloading many files

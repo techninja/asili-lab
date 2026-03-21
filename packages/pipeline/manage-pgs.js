@@ -22,14 +22,24 @@ async function calcRefStats(pgsIdArg) {
   console.log(chalk.cyan('\n=== Calculate PGS Reference Statistics ===\n'));
 
   if (pgsIdArg && pgsIdArg !== 'batch') {
-    console.log(chalk.blue(`\nCalculating reference statistics for ${pgsIdArg}...\n`));
-    execSync(`node ${nodeFlags} scripts/calc-pgs-refstats.js ${pgsIdArg}`, { cwd: rootDir, stdio: 'inherit' });
+    console.log(
+      chalk.blue(`\nCalculating reference statistics for ${pgsIdArg}...\n`)
+    );
+    execSync(`node ${nodeFlags} scripts/calc-pgs-refstats.js ${pgsIdArg}`, {
+      cwd: rootDir,
+      stdio: 'inherit'
+    });
     return;
   }
 
   if (pgsIdArg === 'batch') {
-    console.log(chalk.blue('\nCalculating reference statistics for batch...\n'));
-    execSync(`node scripts/calc-pgs-refstats.js batch`, { cwd: rootDir, stdio: 'inherit' });
+    console.log(
+      chalk.blue('\nCalculating reference statistics for batch...\n')
+    );
+    execSync(`node scripts/calc-pgs-refstats.js batch`, {
+      cwd: rootDir,
+      stdio: 'inherit'
+    });
     return;
   }
 
@@ -56,8 +66,13 @@ async function calcRefStats(pgsIdArg) {
 
     if (!pgsId) return;
 
-    console.log(chalk.blue(`\nCalculating reference statistics for ${pgsId}...\n`));
-    execSync(`node ${nodeFlags} scripts/calc-pgs-refstats.js ${pgsId}`, { cwd: rootDir, stdio: 'inherit' });
+    console.log(
+      chalk.blue(`\nCalculating reference statistics for ${pgsId}...\n`)
+    );
+    execSync(`node ${nodeFlags} scripts/calc-pgs-refstats.js ${pgsId}`, {
+      cwd: rootDir,
+      stdio: 'inherit'
+    });
   } else if (mode === 'reset') {
     const { confirm } = await prompts({
       type: 'confirm',
@@ -69,10 +84,18 @@ async function calcRefStats(pgsIdArg) {
     if (!confirm) return;
 
     console.log(chalk.blue('\nResetting all PGS statistics...\n'));
-    execSync(`node ${nodeFlags} scripts/calc-pgs-refstats.js reset`, { cwd: rootDir, stdio: 'inherit' });
+    execSync(`node ${nodeFlags} scripts/calc-pgs-refstats.js reset`, {
+      cwd: rootDir,
+      stdio: 'inherit'
+    });
   } else {
-    console.log(chalk.blue('\nCalculating reference statistics for all missing PGS...\n'));
-    execSync(`node scripts/calc-pgs-refstats.js batch`, { cwd: rootDir, stdio: 'inherit' });
+    console.log(
+      chalk.blue('\nCalculating reference statistics for all missing PGS...\n')
+    );
+    execSync(`node scripts/calc-pgs-refstats.js batch`, {
+      cwd: rootDir,
+      stdio: 'inherit'
+    });
   }
 }
 
@@ -89,13 +112,19 @@ async function checkPGS() {
   if (!pgsId) return;
 
   console.log(chalk.blue(`\nChecking ${pgsId}...\n`));
-  execSync(`node scripts/check-pgs.js ${pgsId}`, { cwd: rootDir, stdio: 'inherit' });
+  execSync(`node scripts/check-pgs.js ${pgsId}`, {
+    cwd: rootDir,
+    stdio: 'inherit'
+  });
 }
 
 async function analyzeProblematic() {
   console.log(chalk.cyan('\n=== Analyze Problematic PGS ===\n'));
   console.log(chalk.blue('Analyzing PGS scores with issues...\n'));
-  execSync('node scripts/analyze-problematic-pgs.js', { cwd: rootDir, stdio: 'inherit' });
+  execSync('node scripts/analyze-problematic-pgs.js', {
+    cwd: rootDir,
+    stdio: 'inherit'
+  });
 }
 
 async function viewScores() {

@@ -4,7 +4,8 @@ import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CACHE_DIR = process.env.CACHE_DIR || path.resolve(__dirname, '../../cache');
+const CACHE_DIR =
+  process.env.CACHE_DIR || path.resolve(__dirname, '../../cache');
 const PGS_FILES_DIR = path.join(CACHE_DIR, 'pgs_files');
 const RATE_LIMIT = 30; // requests per minute
 const RATE_WINDOW = 60 * 1000; // 1 minute in ms
@@ -74,7 +75,9 @@ class PGSApiClient {
         // console.log(`        ✓ Cache HIT: ${url.split('/').pop()} (${ageInDays} days old)`);
         return cached.data;
       } else {
-        console.log(`        ⚠ Cache EXPIRED: ${url.split('/').pop()} (${ageInDays} days old) - ${filePath}`);
+        console.log(
+          `        ⚠ Cache EXPIRED: ${url.split('/').pop()} (${ageInDays} days old) - ${filePath}`
+        );
       }
     } catch (_err) {
       // console.log(`        ✗ Cache MISS: ${url.split('/').pop()} (${err.code || err.message}) - ${filePath}`);
@@ -123,7 +126,9 @@ class PGSApiClient {
       const lastRequest = Math.max(...this.requestTimes);
       const timeSinceLastRequest = now - lastRequest;
       if (timeSinceLastRequest < MIN_DELAY) {
-        await new Promise(resolve => setTimeout(resolve, MIN_DELAY - timeSinceLastRequest));
+        await new Promise(resolve =>
+          setTimeout(resolve, MIN_DELAY - timeSinceLastRequest)
+        );
       }
     }
 
@@ -152,7 +157,9 @@ class PGSApiClient {
           let responseText = '';
           try {
             responseText = await response.text();
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
 
           console.log(
             `❌ HTTP ${response.status} ${response.statusText} - ${url}`
@@ -251,7 +258,9 @@ class PGSApiClient {
             throw new Error(`${label}: ${cause} (after ${retries} attempts)`);
           }
           const backoff = 2000 * attempt;
-          console.log(`        ⚠ ${label}: ${cause}, retry ${attempt}/${retries} in ${backoff / 1000}s...`);
+          console.log(
+            `        ⚠ ${label}: ${cause}, retry ${attempt}/${retries} in ${backoff / 1000}s...`
+          );
           await new Promise(r => setTimeout(r, backoff));
         }
       }
@@ -261,23 +270,32 @@ class PGSApiClient {
   }
 
   async downloadPGSFile(pgsId, downloadUrl) {
-    const harmonizedPath = path.join(PGS_FILES_DIR, `${pgsId}_hmPOS_GRCh38.txt.gz`);
+    const harmonizedPath = path.join(
+      PGS_FILES_DIR,
+      `${pgsId}_hmPOS_GRCh38.txt.gz`
+    );
     const rawPath = path.join(PGS_FILES_DIR, `${pgsId}.txt.gz`);
     await fs.mkdir(PGS_FILES_DIR, { recursive: true });
 
     // 1. Check harmonized cache
     try {
       await fs.access(harmonizedPath);
-      console.log(`        Using cached harmonized file: ${pgsId}_hmPOS_GRCh38.txt.gz`);
+      console.log(
+        `        Using cached harmonized file: ${pgsId}_hmPOS_GRCh38.txt.gz`
+      );
       return harmonizedPath;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     // 2. Try downloading harmonized if API provides one
     let harmonizedUrl = null;
     try {
       const scoreData = await this.getScore(pgsId);
       harmonizedUrl = this.getHarmonizedUrl(scoreData);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     if (harmonizedUrl) {
       try {
@@ -294,7 +312,9 @@ class PGSApiClient {
       await fs.access(rawPath);
       console.log(`        Using cached PGS file: ${pgsId}.txt.gz`);
       return rawPath;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     // 4. Download raw
     console.log(`        Downloading PGS file: ${pgsId}.txt.gz`);
@@ -304,17 +324,24 @@ class PGSApiClient {
 
   async getPGSFile(pgsId) {
     // Check for harmonized file first
-    const harmonizedPath = path.join(PGS_FILES_DIR, `${pgsId}_hmPOS_GRCh38.txt.gz`);
+    const harmonizedPath = path.join(
+      PGS_FILES_DIR,
+      `${pgsId}_hmPOS_GRCh38.txt.gz`
+    );
     try {
       await fs.access(harmonizedPath);
       return harmonizedPath;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     const rawPath = path.join(PGS_FILES_DIR, `${pgsId}.txt.gz`);
     try {
       await fs.access(rawPath);
       return rawPath;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     // Download - downloadPGSFile will prefer harmonized
     const scoreData = await this.getScore(pgsId);

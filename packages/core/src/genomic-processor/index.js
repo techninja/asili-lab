@@ -22,9 +22,15 @@ export * from './matcher.js';
  * @param {Array} [options.genotypedVariants] - Array of genotyped variants
  * @returns {Promise<import('./dna-source/interface.js').DNASource>}
  */
-export async function createDNASource({ individualId, duckdb, unifiedPath, imputedPath, genotypedVariants }) {
+export async function createDNASource({
+  individualId,
+  duckdb,
+  unifiedPath,
+  imputedPath,
+  genotypedVariants
+}) {
   // 1. Unified Parquet (fastest — single DuckDB JOIN)
-  if (unifiedPath && await duckdb.fileExists(unifiedPath)) {
+  if (unifiedPath && (await duckdb.fileExists(unifiedPath))) {
     const { UnifiedDNASource } = await import('./dna-source/unified.js');
     return new UnifiedDNASource(unifiedPath, duckdb);
   }
@@ -39,7 +45,8 @@ export async function createDNASource({ individualId, duckdb, unifiedPath, imput
 
   // 3. Genotyped only (Map lookup)
   if (genotypedVariants?.length) {
-    const { GenotypedDNASource } = await import('./dna-source/genotyped-only.js');
+    const { GenotypedDNASource } =
+      await import('./dna-source/genotyped-only.js');
     return new GenotypedDNASource(genotypedVariants);
   }
 

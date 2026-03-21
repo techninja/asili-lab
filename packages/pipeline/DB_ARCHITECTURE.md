@@ -55,6 +55,7 @@ The trait catalog has been refactored from a monolithic JSON file to a normalize
 ## Database Schema
 
 ### traits
+
 Core trait information from PGS Catalog.
 
 ```sql
@@ -70,6 +71,7 @@ CREATE TABLE traits (
 ```
 
 ### pgs_scores
+
 Centralized PGS metadata. Each PGS appears once, shared across multiple traits.
 
 ```sql
@@ -85,6 +87,7 @@ CREATE TABLE pgs_scores (
 ```
 
 ### pgs_performance
+
 Performance metrics from validation studies. Multiple rows per PGS (one per metric).
 
 ```sql
@@ -101,6 +104,7 @@ CREATE TABLE pgs_performance (
 ```
 
 ### trait_pgs
+
 Many-to-many association between traits and PGS scores.
 
 ```sql
@@ -113,6 +117,7 @@ CREATE TABLE trait_pgs (
 ```
 
 ### trait_excluded_pgs
+
 PGS scores excluded from a trait with reasons.
 
 ```sql
@@ -173,26 +178,31 @@ GET /api/risk-score/:individualId/:traitId
 ## Benefits
 
 ### 1. Deduplication
+
 - PGS metadata stored once, referenced by multiple traits
 - Before: PGS000146 duplicated across 5 traits = 5× storage
 - After: PGS000146 stored once, referenced 5 times
 
 ### 2. Efficient Queries
+
 - Get all PGS for a trait: `SELECT * FROM trait_pgs WHERE trait_id = ?`
 - Get PGS by performance: `SELECT * FROM trait_pgs WHERE performance_weight > 0.7`
 - Get best metric: `SELECT * FROM pgs_performance WHERE pgs_id = ? ORDER BY metric_value DESC`
 
 ### 3. Git-Friendly
+
 - trait_catalog.json is minimal (trait IDs + descriptions only)
 - No large JSON diffs when PGS metadata changes
 - Database is gitignored, regenerated from API
 
 ### 4. Normalized Data
+
 - No JSON columns with nested arrays
 - Proper relational structure
 - Easy to query and join
 
 ### 5. Performance Metrics Integration
+
 - All validation metrics stored in structured format
 - Easy to query best metric per PGS
 - Supports quality-based weighting
@@ -200,36 +210,43 @@ GET /api/risk-score/:individualId/:traitId
 ## Files
 
 ### Core Database Modules
+
 - `lib/pgs-db.js` - PGS metadata and performance metrics
 - `lib/trait-db.js` - Trait metadata and associations
 - `lib/generate-catalog.js` - Generate simplified JSON from DB
 
 ### Management Scripts
+
 - `manage-traits.js` - Add/refresh traits (writes to DB)
 - `migrate-catalog-to-db.js` - One-time migration from old JSON format
 
 ### API Integration
+
 - `apps/web/lib/metadata-api.js` - Serves metadata from DB
 - `apps/web/simple-server.js` - Mounts API endpoint
 
 ### Schema
+
 - `migrations/000_create_traits.sql` - Database schema definition
 - `trait-catalog-schema-v2.json` - JSON schema for simplified catalog
 
 ## Usage
 
 ### Initialize Database
+
 ```bash
 cd packages/pipeline
 node manage-traits.js refresh
 ```
 
 ### Add Trait
+
 ```bash
 node manage-traits.js add MONDO:0005575
 ```
 
 ### Query Database
+
 ```bash
 duckdb data_out/trait_manifest.db
 ```
@@ -259,6 +276,7 @@ GROUP BY trait_id;
 ## Migration
 
 Old format (trait_catalog.json):
+
 ```json
 {
   "traits": {
@@ -279,6 +297,7 @@ Old format (trait_catalog.json):
 ```
 
 New format (trait_catalog.json):
+
 ```json
 {
   "traits": {

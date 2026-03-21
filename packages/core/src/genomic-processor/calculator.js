@@ -26,14 +26,18 @@ export class SharedRiskCalculator {
   initializePGS(pgsId, metadata = {}) {
     if (!this.pgsBreakdown.has(pgsId)) {
       this.pgsBreakdown.set(pgsId, {
-        positive: 0, negative: 0,
-        positiveSum: 0, negativeSum: 0,
+        positive: 0,
+        negative: 0,
+        positiveSum: 0,
+        negativeSum: 0,
         total: 0,
         weightSumSquared: 0,
-        weightMin: Infinity, weightMax: -Infinity,
+        weightMin: Infinity,
+        weightMax: -Infinity,
         weightHistogram: new Float64Array(10),
         chromosomeCoverage: {},
-        genotypedVariants: 0, imputedVariants: 0
+        genotypedVariants: 0,
+        imputedVariants: 0
       });
 
       this.pgsDetails.set(pgsId, {
@@ -65,10 +69,15 @@ export class SharedRiskCalculator {
     } else {
       const minIndex = details.topVariants.reduce(
         (minIdx, curr, idx, arr) =>
-          Math.abs(curr.contribution) < Math.abs(arr[minIdx].contribution) ? idx : minIdx,
+          Math.abs(curr.contribution) < Math.abs(arr[minIdx].contribution)
+            ? idx
+            : minIdx,
         0
       );
-      if (Math.abs(variantData.contribution) > Math.abs(details.topVariants[minIndex].contribution)) {
+      if (
+        Math.abs(variantData.contribution) >
+        Math.abs(details.topVariants[minIndex].contribution)
+      ) {
         details.topVariants[minIndex] = variantData;
       }
     }
@@ -77,21 +86,32 @@ export class SharedRiskCalculator {
   /**
    * Quality score formula (unchanged from original)
    */
-  static calculatePGSQualityScore(matchedVariants, totalVariants, performanceMetric, hasNormalization = true, zScore = null, genotypedVariants = 0) {
+  static calculatePGSQualityScore(
+    matchedVariants,
+    totalVariants,
+    performanceMetric,
+    hasNormalization = true,
+    zScore = null,
+    genotypedVariants = 0
+  ) {
     if (matchedVariants === 0 || !totalVariants) return 0;
 
     const coverage = Math.min(matchedVariants / totalVariants, 1);
-    const genotypedRatio = matchedVariants > 0 ? genotypedVariants / matchedVariants : 0;
+    const genotypedRatio =
+      matchedVariants > 0 ? genotypedVariants / matchedVariants : 0;
     const r2 = performanceMetric || 0.05;
 
     let coveragePenalty = 1.0;
     if (coverage < 0.05) coveragePenalty = Math.pow(coverage / 0.05, 2);
-    else if (coverage < 0.20) coveragePenalty = Math.sqrt(coverage / 0.20);
+    else if (coverage < 0.2) coveragePenalty = Math.sqrt(coverage / 0.2);
 
     const performanceScore = r2 * 35 * coveragePenalty;
     const dataReliabilityScore = genotypedRatio * 15;
     const coverageScore = coverage * 10;
-    const sampleSizeRatio = Math.max(matchedVariants / MIN_VARIANT_THRESHOLD, 1);
+    const sampleSizeRatio = Math.max(
+      matchedVariants / MIN_VARIANT_THRESHOLD,
+      1
+    );
     const sampleScore = Math.min(Math.log10(sampleSizeRatio) / 3.1, 1) * 10;
     const normalizationScore = hasNormalization ? 10 : 5;
 
@@ -106,17 +126,35 @@ export class SharedRiskCalculator {
       }
     }
 
-    return Math.round((performanceScore + dataReliabilityScore + coverageScore + sampleScore + normalizationScore + signalScore) * 10000) / 10000;
+    return (
+      Math.round(
+        (performanceScore +
+          dataReliabilityScore +
+          coverageScore +
+          sampleScore +
+          normalizationScore +
+          signalScore) *
+          10000
+      ) / 10000
+    );
   }
 
-  static getQualityScoreBreakdown(matchedVariants, totalVariants, performanceMetric, hasNormalization = true, zScore = null, genotypedVariants = 0) {
+  static getQualityScoreBreakdown(
+    matchedVariants,
+    totalVariants,
+    performanceMetric,
+    hasNormalization = true,
+    zScore = null,
+    genotypedVariants = 0
+  ) {
     if (matchedVariants === 0 || !totalVariants) {
       return { total: 0, components: [], explanation: 'No variants matched' };
     }
 
     const coverage = Math.min(matchedVariants / totalVariants, 1);
     const r2 = performanceMetric || 0.05;
-    const genotypedRatio = matchedVariants > 0 ? genotypedVariants / matchedVariants : 0;
+    const genotypedRatio =
+      matchedVariants > 0 ? genotypedVariants / matchedVariants : 0;
     const imputedVariants = matchedVariants - genotypedVariants;
 
     let coveragePenalty = 1.0;
@@ -124,15 +162,19 @@ export class SharedRiskCalculator {
     if (coverage < 0.05) {
       coveragePenalty = Math.pow(coverage / 0.05, 2);
       penaltyDescription = `Severe penalty: ${(coveragePenalty * 100).toFixed(1)}% of R² (coverage < 5%)`;
-    } else if (coverage < 0.20) {
-      coveragePenalty = Math.sqrt(coverage / 0.20);
+    } else if (coverage < 0.2) {
+      coveragePenalty = Math.sqrt(coverage / 0.2);
       penaltyDescription = `Moderate penalty: ${(coveragePenalty * 100).toFixed(1)}% of R² (coverage < 20%)`;
     }
 
     const performanceScore = r2 * 35 * coveragePenalty;
     const dataReliabilityScore = genotypedRatio * 15;
     const coverageScore = coverage * 10;
-    const sampleScore = Math.min(Math.log10(Math.max(matchedVariants / MIN_VARIANT_THRESHOLD, 1)) / 3.1, 1) * 10;
+    const sampleScore =
+      Math.min(
+        Math.log10(Math.max(matchedVariants / MIN_VARIANT_THRESHOLD, 1)) / 3.1,
+        1
+      ) * 10;
     const normalizationScore = hasNormalization ? 10 : 5;
 
     let signalScore = 0;
@@ -144,30 +186,88 @@ export class SharedRiskCalculator {
         signalDescription = `Extreme z-score (${absZ.toFixed(1)}σ) — likely bad normalization stats, signal zeroed`;
       } else {
         signalScore = Math.min(absZ / 3, 1) * 20;
-        signalDescription = absZ >= 3 ? `Extreme signal: ${absZ.toFixed(1)}σ from mean (capped at 3σ)` :
-                            absZ >= 2 ? `Strong signal: ${absZ.toFixed(1)}σ from mean` :
-                            absZ >= 1 ? `Moderate signal: ${absZ.toFixed(1)}σ from mean` :
-                            `Weak signal: ${absZ.toFixed(1)}σ from mean (near average)`;
+        signalDescription =
+          absZ >= 3
+            ? `Extreme signal: ${absZ.toFixed(1)}σ from mean (capped at 3σ)`
+            : absZ >= 2
+              ? `Strong signal: ${absZ.toFixed(1)}σ from mean`
+              : absZ >= 1
+                ? `Moderate signal: ${absZ.toFixed(1)}σ from mean`
+                : `Weak signal: ${absZ.toFixed(1)}σ from mean (near average)`;
       }
     }
 
-    const total = performanceScore + dataReliabilityScore + coverageScore + sampleScore + normalizationScore + signalScore;
+    const total =
+      performanceScore +
+      dataReliabilityScore +
+      coverageScore +
+      sampleScore +
+      normalizationScore +
+      signalScore;
 
     return {
       total: Math.round(total * 100) / 100,
       coveragePenalty: Math.round(coveragePenalty * 1000) / 1000,
       components: [
-        { name: 'Predictive Accuracy (R²)', value: r2, score: Math.round(performanceScore * 10) / 10, maxScore: 35, weight: '35%', description: `R²=${(r2 * 100).toFixed(1)}% × ${penaltyDescription}` },
-        { name: 'Data Reliability', value: genotypedRatio, score: Math.round(dataReliabilityScore * 10) / 10, maxScore: 15, weight: '15%', description: `${genotypedVariants.toLocaleString()} genotyped / ${imputedVariants.toLocaleString()} imputed (${(genotypedRatio * 100).toFixed(1)}% real DNA)` },
-        { name: 'Coverage', value: coverage, score: Math.round(coverageScore * 10) / 10, maxScore: 10, weight: '10%', description: `${(coverage * 100).toFixed(1)}% of PGS variants found` },
-        { name: 'Sample Size', value: matchedVariants, score: Math.round(sampleScore * 10) / 10, maxScore: 10, weight: '10%', description: `${matchedVariants.toLocaleString()} variants matched (log scale)` },
-        { name: 'Normalization', value: hasNormalization ? 1 : 0.5, score: normalizationScore, maxScore: 10, weight: '10%', description: hasNormalization ? 'Percentile available' : 'No percentile data' },
-        { name: 'Signal Strength', value: zScore !== null ? Math.abs(zScore) : 0, score: Math.round(signalScore * 10) / 10, maxScore: 20, weight: '20%', description: signalDescription }
+        {
+          name: 'Predictive Accuracy (R²)',
+          value: r2,
+          score: Math.round(performanceScore * 10) / 10,
+          maxScore: 35,
+          weight: '35%',
+          description: `R²=${(r2 * 100).toFixed(1)}% × ${penaltyDescription}`
+        },
+        {
+          name: 'Data Reliability',
+          value: genotypedRatio,
+          score: Math.round(dataReliabilityScore * 10) / 10,
+          maxScore: 15,
+          weight: '15%',
+          description: `${genotypedVariants.toLocaleString()} genotyped / ${imputedVariants.toLocaleString()} imputed (${(genotypedRatio * 100).toFixed(1)}% real DNA)`
+        },
+        {
+          name: 'Coverage',
+          value: coverage,
+          score: Math.round(coverageScore * 10) / 10,
+          maxScore: 10,
+          weight: '10%',
+          description: `${(coverage * 100).toFixed(1)}% of PGS variants found`
+        },
+        {
+          name: 'Sample Size',
+          value: matchedVariants,
+          score: Math.round(sampleScore * 10) / 10,
+          maxScore: 10,
+          weight: '10%',
+          description: `${matchedVariants.toLocaleString()} variants matched (log scale)`
+        },
+        {
+          name: 'Normalization',
+          value: hasNormalization ? 1 : 0.5,
+          score: normalizationScore,
+          maxScore: 10,
+          weight: '10%',
+          description: hasNormalization
+            ? 'Percentile available'
+            : 'No percentile data'
+        },
+        {
+          name: 'Signal Strength',
+          value: zScore !== null ? Math.abs(zScore) : 0,
+          score: Math.round(signalScore * 10) / 10,
+          maxScore: 20,
+          weight: '20%',
+          description: signalDescription
+        }
       ],
-      explanation: total >= 70 ? 'Excellent predictive power and highly informative' :
-                   total >= 50 ? 'Good reliability and informative' :
-                   total >= 30 ? 'Moderate predictive value' :
-                   'Limited predictive value'
+      explanation:
+        total >= 70
+          ? 'Excellent predictive power and highly informative'
+          : total >= 50
+            ? 'Good reliability and informative'
+            : total >= 30
+              ? 'Moderate predictive value'
+              : 'Limited predictive value'
     };
   }
 
@@ -177,7 +277,13 @@ export class SharedRiskCalculator {
    * KEY FIX: Never scale mean/SD by coverage.
    * Coverage affects confidence (quality score), not the z-score itself.
    */
-  async finalize(traitType = 'disease_risk', _unit = null, phenotypeMean = null, phenotypeSd = null, pgsPerformanceMetrics = {}) {
+  async finalize(
+    traitType = 'disease_risk',
+    _unit = null,
+    phenotypeMean = null,
+    phenotypeSd = null,
+    pgsPerformanceMetrics = {}
+  ) {
     // Initialize any PGS from normalizationParams that weren't matched
     for (const pgsId in this.normalizationParams) {
       this.initializePGS(pgsId, this.normalizationParams[pgsId]);
@@ -193,12 +299,18 @@ export class SharedRiskCalculator {
 
       let mean = metadata.mean ?? metadata.norm_mean ?? normParams.norm_mean;
       let sd = metadata.std ?? metadata.norm_sd ?? normParams.norm_sd;
-      const performanceWeight = metadata.performance_weight ?? normParams.performance_weight ?? 0.05;
+      const performanceWeight =
+        metadata.performance_weight ?? normParams.performance_weight ?? 0.05;
 
       // FIXED: Use metadata.variants_number (parquet count from scorer) as canonical denominator
       // breakdown.total = matched variants, metadata.variants_number = total in parquet
-      const totalVariants = metadata.variants_number || breakdown?.total || details.matchedVariants || 0;
-      const coverage = totalVariants > 0 ? details.matchedVariants / totalVariants : 0;
+      const totalVariants =
+        metadata.variants_number ||
+        breakdown?.total ||
+        details.matchedVariants ||
+        0;
+      const coverage =
+        totalVariants > 0 ? details.matchedVariants / totalVariants : 0;
 
       const hasEmpiricalData = sd !== undefined && sd > 0;
       const sufficientCoverage = coverage >= MIN_COVERAGE_FOR_NORMALIZATION;
@@ -214,29 +326,50 @@ export class SharedRiskCalculator {
       // are clearly incompatible — fall back to theoretical normalization.
       let useEmpirical = hasEmpiricalData && sufficientCoverage;
 
-      if (useEmpirical && coverage < 0.80 && mean !== undefined && mean !== 0) {
+      if (useEmpirical && coverage < 0.8 && mean !== undefined && mean !== 0) {
         const naiveZ = Math.abs((details.score - mean) / sd);
         if (naiveZ > 20) {
           // Raw score is >20σ from mean — empirical stats are for a different distribution
           useEmpirical = false;
-          Debug.log(1, 'SharedRiskCalculator', `PGS ${pgsId}: Empirical stats incompatible (naiveZ=${naiveZ.toFixed(0)}σ, coverage=${(coverage * 100).toFixed(1)}%) — falling back to theoretical`);
+          Debug.log(
+            1,
+            'SharedRiskCalculator',
+            `PGS ${pgsId}: Empirical stats incompatible (naiveZ=${naiveZ.toFixed(0)}σ, coverage=${(coverage * 100).toFixed(1)}%) — falling back to theoretical`
+          );
         }
       }
 
       if (useEmpirical) {
-        Debug.log(1, 'SharedRiskCalculator', `PGS ${pgsId}: Using unscaled empirical normalization (coverage ${(coverage * 100).toFixed(1)}%, mean=${mean?.toFixed(4)}, sd=${sd?.toFixed(4)})`);
+        Debug.log(
+          1,
+          'SharedRiskCalculator',
+          `PGS ${pgsId}: Using unscaled empirical normalization (coverage ${(coverage * 100).toFixed(1)}%, mean=${mean?.toFixed(4)}, sd=${sd?.toFixed(4)})`
+        );
       } else if (breakdown?.total > 0) {
         mean = 0;
-        sd = SharedRiskCalculator.estimateTheoreticalSD(breakdown.weightSumSquared, breakdown.total);
-        const reason = !hasEmpiricalData ? 'no empirical data'
-          : !sufficientCoverage ? `low coverage (${(coverage * 100).toFixed(1)}%)`
-          : 'incompatible empirical stats';
-        Debug.log(1, 'SharedRiskCalculator', `PGS ${pgsId}: Using theoretical normalization due to ${reason} (mean=0, sd=${sd.toFixed(4)})`);
+        sd = SharedRiskCalculator.estimateTheoreticalSD(
+          breakdown.weightSumSquared,
+          breakdown.total
+        );
+        const reason = !hasEmpiricalData
+          ? 'no empirical data'
+          : !sufficientCoverage
+            ? `low coverage (${(coverage * 100).toFixed(1)}%)`
+            : 'incompatible empirical stats';
+        Debug.log(
+          1,
+          'SharedRiskCalculator',
+          `PGS ${pgsId}: Using theoretical normalization due to ${reason} (mean=0, sd=${sd.toFixed(4)})`
+        );
       }
 
-      details.confidence = SharedRiskCalculator.calculateConfidence(details.matchedVariants);
-      details.insufficientData = details.matchedVariants < MIN_VARIANT_THRESHOLD;
-      details.insufficientEmpiricalData = !hasEmpiricalData || !sufficientCoverage;
+      details.confidence = SharedRiskCalculator.calculateConfidence(
+        details.matchedVariants
+      );
+      details.insufficientData =
+        details.matchedVariants < MIN_VARIANT_THRESHOLD;
+      details.insufficientEmpiricalData =
+        !hasEmpiricalData || !sufficientCoverage;
       details.insufficientCoverage = !sufficientCoverage;
       details.coverage = coverage;
       details.performanceMetric = performanceWeight;
@@ -244,18 +377,37 @@ export class SharedRiskCalculator {
       details.normSd = sd;
       details.normalizationScaled = false; // FIXED: never scaled
 
-      if (mean !== undefined && sd !== undefined && sd > 0 && details.matchedVariants > 0) {
-        details.zScore = SharedRiskCalculator.calculateZScore(details.score, { mean, sd });
-        details.percentile = SharedRiskCalculator.calculatePercentile(details.zScore);
-
-        details.qualityScore = SharedRiskCalculator.calculatePGSQualityScore(
-          details.matchedVariants, totalVariants, performanceWeight,
-          !details.insufficientEmpiricalData, details.zScore, details.genotypedVariants
+      if (
+        mean !== undefined &&
+        sd !== undefined &&
+        sd > 0 &&
+        details.matchedVariants > 0
+      ) {
+        details.zScore = SharedRiskCalculator.calculateZScore(details.score, {
+          mean,
+          sd
+        });
+        details.percentile = SharedRiskCalculator.calculatePercentile(
+          details.zScore
         );
 
-        if (traitType === 'quantitative' && phenotypeMean !== null && phenotypeSd !== null) {
+        details.qualityScore = SharedRiskCalculator.calculatePGSQualityScore(
+          details.matchedVariants,
+          totalVariants,
+          performanceWeight,
+          !details.insufficientEmpiricalData,
+          details.zScore,
+          details.genotypedVariants
+        );
+
+        if (
+          traitType === 'quantitative' &&
+          phenotypeMean !== null &&
+          phenotypeSd !== null
+        ) {
           const r2 = pgsPerformanceMetrics[pgsId]?.r2 || performanceWeight;
-          details.value = phenotypeMean + (details.zScore * Math.sqrt(r2) * phenotypeSd);
+          details.value =
+            phenotypeMean + details.zScore * Math.sqrt(r2) * phenotypeSd;
           details.r2 = r2;
         }
 
@@ -268,22 +420,35 @@ export class SharedRiskCalculator {
         details.percentile = null;
         details.value = null;
         details.qualityScore = SharedRiskCalculator.calculatePGSQualityScore(
-          details.matchedVariants, totalVariants, performanceWeight,
-          !details.insufficientEmpiricalData, null, details.genotypedVariants
+          details.matchedVariants,
+          totalVariants,
+          performanceWeight,
+          !details.insufficientEmpiricalData,
+          null,
+          details.genotypedVariants
         );
       }
 
       if (details.topVariants) {
         const variantSd = sd || 1;
-        details.topVariants.forEach(v => { v.standardizedContribution = v.contribution / variantSd; });
-        details.topVariants.sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
+        details.topVariants.forEach(v => {
+          v.standardizedContribution = v.contribution / variantSd;
+        });
+        details.topVariants.sort(
+          (a, b) => Math.abs(b.contribution) - Math.abs(a.contribution)
+        );
       }
     }
 
     // Compute weight buckets and clean up
     for (const [, breakdown] of this.pgsBreakdown.entries()) {
       if (breakdown.total > 0 && breakdown.weightMin !== Infinity) {
-        breakdown.weightBuckets = this.computeWeightBuckets(breakdown.weightMin, breakdown.weightMax, breakdown.total, breakdown._histCounts);
+        breakdown.weightBuckets = this.computeWeightBuckets(
+          breakdown.weightMin,
+          breakdown.weightMax,
+          breakdown.total,
+          breakdown._histCounts
+        );
       } else {
         breakdown.weightBuckets = [];
       }
@@ -304,7 +469,10 @@ export class SharedRiskCalculator {
     let bestPGS = null;
     let bestQualityScore = 0;
     for (const [pgsId, details] of this.pgsDetails.entries()) {
-      if (!details.insufficientData && details.qualityScore > bestQualityScore) {
+      if (
+        !details.insufficientData &&
+        details.qualityScore > bestQualityScore
+      ) {
         bestQualityScore = details.qualityScore;
         bestPGS = pgsId;
       }
@@ -314,7 +482,10 @@ export class SharedRiskCalculator {
     // (user gets a result with low confidence rather than nothing)
     if (!bestPGS && this.pgsDetails.size > 0) {
       for (const [pgsId, details] of this.pgsDetails.entries()) {
-        if (details.qualityScore > bestQualityScore && details.zScore !== null) {
+        if (
+          details.qualityScore > bestQualityScore &&
+          details.zScore !== null
+        ) {
           bestQualityScore = details.qualityScore;
           bestPGS = pgsId;
         }
@@ -322,8 +493,14 @@ export class SharedRiskCalculator {
     }
 
     const bestDetails = bestPGS ? this.pgsDetails.get(bestPGS) : null;
-    const overallZScore = bestDetails?.zScore ?? (totalWeight > 0 ? totalWeightedZScore / totalWeight : null);
-    const overallPercentile = bestDetails?.percentile ?? (overallZScore ? SharedRiskCalculator.calculatePercentile(overallZScore) : null);
+    const overallZScore =
+      bestDetails?.zScore ??
+      (totalWeight > 0 ? totalWeightedZScore / totalWeight : null);
+    const overallPercentile =
+      bestDetails?.percentile ??
+      (overallZScore
+        ? SharedRiskCalculator.calculatePercentile(overallZScore)
+        : null);
     const overallConfidence = bestDetails?.confidence ?? 'medium';
     const overallValue = bestDetails?.value ?? null;
 
@@ -341,9 +518,15 @@ export class SharedRiskCalculator {
 
     if (traitType === 'quantitative' && overallValue !== null) {
       result.value = overallValue;
-    } else if (traitType === 'quantitative' && phenotypeMean !== null && phenotypeSd !== null && overallZScore !== null) {
+    } else if (
+      traitType === 'quantitative' &&
+      phenotypeMean !== null &&
+      phenotypeSd !== null &&
+      overallZScore !== null
+    ) {
       const bestR2 = bestDetails?.r2 || 0.05;
-      result.value = phenotypeMean + (overallZScore * Math.sqrt(bestR2) * phenotypeSd);
+      result.value =
+        phenotypeMean + overallZScore * Math.sqrt(bestR2) * phenotypeSd;
     }
 
     return result;
@@ -363,17 +546,30 @@ export class SharedRiskCalculator {
   }
 
   static calculateZScore(rawScore, empiricalStats) {
-    if (!empiricalStats || empiricalStats.mean === undefined || empiricalStats.mean === null || !empiricalStats.sd) return null;
+    if (
+      !empiricalStats ||
+      empiricalStats.mean === undefined ||
+      empiricalStats.mean === null ||
+      !empiricalStats.sd
+    )
+      return null;
     return (rawScore - empiricalStats.mean) / empiricalStats.sd;
   }
 
   static calculatePercentile(zScore) {
     if (zScore === null || zScore === undefined) return null;
-    const erf = (x) => {
+    const erf = x => {
       const sign = x >= 0 ? 1 : -1;
       x = Math.abs(x);
       const t = 1.0 / (1.0 + 0.3275911 * x);
-      const y = 1.0 - (((((1.061405429 * t + -1.453152027) * t) + 1.421413741) * t + -0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+      const y =
+        1.0 -
+        ((((1.061405429 * t + -1.453152027) * t + 1.421413741) * t +
+          -0.284496736) *
+          t +
+          0.254829592) *
+          t *
+          Math.exp(-x * x);
       return sign * y;
     };
     return 0.5 * (1 + erf(zScore / Math.sqrt(2))) * 100;
@@ -382,7 +578,8 @@ export class SharedRiskCalculator {
   computeWeightBuckets(min, max, totalCount, histCounts = null) {
     if (totalCount === 0) return [];
     const range = max - min;
-    if (range === 0) return [{ min, max, count: totalCount, label: min.toExponential(2) }];
+    if (range === 0)
+      return [{ min, max, count: totalCount, label: min.toExponential(2) }];
 
     const numBuckets = 10;
     const bucketSize = range / numBuckets;
@@ -390,11 +587,14 @@ export class SharedRiskCalculator {
       const bMin = min + i * bucketSize;
       const bMax = min + (i + 1) * bucketSize;
       const absMax = Math.max(Math.abs(bMin), Math.abs(bMax));
-      const label = absMax >= 1 ? `${bMin.toFixed(2)} to ${bMax.toFixed(2)}` :
-                    absMax >= 0.01 ? `${bMin.toFixed(3)} to ${bMax.toFixed(3)}` :
-                    `${bMin.toExponential(1)} to ${bMax.toExponential(1)}`;
+      const label =
+        absMax >= 1
+          ? `${bMin.toFixed(2)} to ${bMax.toFixed(2)}`
+          : absMax >= 0.01
+            ? `${bMin.toFixed(3)} to ${bMax.toFixed(3)}`
+            : `${bMin.toExponential(1)} to ${bMax.toExponential(1)}`;
       // WIDTH_BUCKET returns 1-indexed buckets
-      const count = histCounts ? (histCounts.get(i + 1) || 0) : 0;
+      const count = histCounts ? histCounts.get(i + 1) || 0 : 0;
       return { min: bMin, max: bMax, count, label };
     });
   }

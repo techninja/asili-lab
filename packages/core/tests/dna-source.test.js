@@ -23,21 +23,38 @@ describe('GenotypedDNASource', () => {
   const userVariants = [
     { chromosome: '1', position: 100, allele1: 'A', allele2: 'G', rsid: 'rs1' },
     { chromosome: '1', position: 200, allele1: 'T', allele2: 'T', rsid: 'rs2' },
-    { chromosome: '2', position: 300, allele1: 'C', allele2: 'G', rsid: 'rs3' },
+    { chromosome: '2', position: 300, allele1: 'C', allele2: 'G', rsid: 'rs3' }
   ];
 
   it('matches variants by position', async () => {
     const traitRows = [
-      { variant_id: '1:100:A:G', effect_allele: 'A', effect_weight: '0.5', pgs_id: 'PGS001' },
-      { variant_id: '1:200:T:C', effect_allele: 'T', effect_weight: '0.3', pgs_id: 'PGS001' },
-      { variant_id: '3:999:X:Y', effect_allele: 'X', effect_weight: '0.1', pgs_id: 'PGS001' }, // no match
+      {
+        variant_id: '1:100:A:G',
+        effect_allele: 'A',
+        effect_weight: '0.5',
+        pgs_id: 'PGS001'
+      },
+      {
+        variant_id: '1:200:T:C',
+        effect_allele: 'T',
+        effect_weight: '0.3',
+        pgs_id: 'PGS001'
+      },
+      {
+        variant_id: '3:999:X:Y',
+        effect_allele: 'X',
+        effect_weight: '0.1',
+        pgs_id: 'PGS001'
+      } // no match
     ];
 
     const source = new GenotypedDNASource(userVariants);
     const duckdb = new MockDuckDB(traitRows);
     const matches = [];
 
-    for await (const batch of source.matchVariants('dummy.parquet', { duckdb })) {
+    for await (const batch of source.matchVariants('dummy.parquet', {
+      duckdb
+    })) {
       matches.push(...batch);
     }
 
@@ -49,14 +66,21 @@ describe('GenotypedDNASource', () => {
 
   it('skips variants with 0 effect allele count', async () => {
     const traitRows = [
-      { variant_id: '2:300:C:G', effect_allele: 'A', effect_weight: '0.5', pgs_id: 'PGS001' }, // C/G, effect=A → 0
+      {
+        variant_id: '2:300:C:G',
+        effect_allele: 'A',
+        effect_weight: '0.5',
+        pgs_id: 'PGS001'
+      } // C/G, effect=A → 0
     ];
 
     const source = new GenotypedDNASource(userVariants);
     const duckdb = new MockDuckDB(traitRows);
     const matches = [];
 
-    for await (const batch of source.matchVariants('dummy.parquet', { duckdb })) {
+    for await (const batch of source.matchVariants('dummy.parquet', {
+      duckdb
+    })) {
       matches.push(...batch);
     }
 
@@ -65,14 +89,21 @@ describe('GenotypedDNASource', () => {
 
   it('yields correct fields per match', async () => {
     const traitRows = [
-      { variant_id: '1:100:A:G', effect_allele: 'A', effect_weight: '0.5', pgs_id: 'PGS001' },
+      {
+        variant_id: '1:100:A:G',
+        effect_allele: 'A',
+        effect_weight: '0.5',
+        pgs_id: 'PGS001'
+      }
     ];
 
     const source = new GenotypedDNASource(userVariants);
     const duckdb = new MockDuckDB(traitRows);
     const matches = [];
 
-    for await (const batch of source.matchVariants('dummy.parquet', { duckdb })) {
+    for await (const batch of source.matchVariants('dummy.parquet', {
+      duckdb
+    })) {
       matches.push(...batch);
     }
 
@@ -96,18 +127,27 @@ describe('GenotypedDNASource', () => {
     const source = new GenotypedDNASource(userVariants);
 
     await expect(async () => {
-      for await (const _ of source.matchVariants('dummy.parquet')) { /* noop */ }
+      for await (const _ of source.matchVariants('dummy.parquet')) {
+        /* noop */
+      }
     }).rejects.toThrow('requires duckdb adapter');
   });
 
   it('handles empty variant list', async () => {
     const source = new GenotypedDNASource([]);
     const duckdb = new MockDuckDB([
-      { variant_id: '1:100:A:G', effect_allele: 'A', effect_weight: '0.5', pgs_id: 'PGS001' },
+      {
+        variant_id: '1:100:A:G',
+        effect_allele: 'A',
+        effect_weight: '0.5',
+        pgs_id: 'PGS001'
+      }
     ]);
 
     const matches = [];
-    for await (const batch of source.matchVariants('dummy.parquet', { duckdb })) {
+    for await (const batch of source.matchVariants('dummy.parquet', {
+      duckdb
+    })) {
       matches.push(...batch);
     }
 

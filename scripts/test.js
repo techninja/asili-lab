@@ -23,10 +23,14 @@ const ROOT = join(__dirname, '..');
 // Discover available test groups by checking for tests/ directories
 const TEST_GROUPS = [];
 const locations = [
-  { dir: 'packages/core/tests', name: 'core', label: 'Core library (genomic processor, calculator, scorer)' },
+  {
+    dir: 'packages/core/tests',
+    name: 'core',
+    label: 'Core library (genomic processor, calculator, scorer)'
+  },
   { dir: 'packages/pipeline/tests', name: 'pipeline', label: 'ETL pipeline' },
   { dir: 'apps/calc/tests', name: 'calc', label: 'Calculation server' },
-  { dir: 'apps/web/tests', name: 'web', label: 'Web app' },
+  { dir: 'apps/web/tests', name: 'web', label: 'Web app' }
 ];
 
 for (const loc of locations) {
@@ -38,7 +42,9 @@ for (const loc of locations) {
       if (testFiles.length > 0) {
         TEST_GROUPS.push({ ...loc, count: testFiles.length });
       }
-    } catch { /* empty dir */ }
+    } catch {
+      /* empty dir */
+    }
   }
 }
 
@@ -60,7 +66,9 @@ if (arg === 'all') {
   const group = TEST_GROUPS.find(g => g.name === arg);
   if (!group) {
     console.error(`\n❌ Unknown test group: "${arg}"`);
-    console.error(`   Available: ${TEST_GROUPS.map(g => g.name).join(', ') || '(none found)'}`);
+    console.error(
+      `   Available: ${TEST_GROUPS.map(g => g.name).join(', ') || '(none found)'}`
+    );
     console.error(`   Or use "all" to run everything\n`);
     process.exit(1);
   }
@@ -94,7 +102,9 @@ Available groups:`);
 
 async function interactiveMenu() {
   if (TEST_GROUPS.length === 0) {
-    console.log('\n⚠️  No test files found. Create tests in packages/*/tests/ or apps/*/tests/\n');
+    console.log(
+      '\n⚠️  No test files found. Create tests in packages/*/tests/ or apps/*/tests/\n'
+    );
     process.exit(0);
   }
 

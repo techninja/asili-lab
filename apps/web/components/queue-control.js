@@ -25,14 +25,14 @@ export class QueueControl extends HTMLElement {
 
   connectedCallback() {
     this.render();
-    
+
     // Subscribe to store changes for individual selection
     this.storeUnsubscribe = useAppStore.subscribe((state, prevState) => {
       if (state.selectedIndividual !== prevState.selectedIndividual) {
         this.loadProgressFromServer();
       }
     });
-    
+
     // Initial load
     this.loadProgressFromServer();
   }
@@ -54,9 +54,13 @@ export class QueueControl extends HTMLElement {
         if (event.event === 'progress') {
           // Extract speed from statusMessage if available
           if (event.data?.message) {
-            const speedMatch = event.data.message.match(/\((\d+(?:,\d+)*)\/(sec|s)\)/);
+            const speedMatch = event.data.message.match(
+              /\((\d+(?:,\d+)*)\/(sec|s)\)/
+            );
             if (speedMatch) {
-              this.variantsPerSecond = parseInt(speedMatch[1].replace(/,/g, ''));
+              this.variantsPerSecond = parseInt(
+                speedMatch[1].replace(/,/g, '')
+              );
               if (this.isExpanded) {
                 this.updateDetails(this.queueManager.getQueueState());
               }
@@ -73,11 +77,22 @@ export class QueueControl extends HTMLElement {
 
         // Update individual cards based on queue events
         if (event.event === 'processing') {
-          this.updateCardForProcessing(event.data.traitId, event.data.individualId);
+          this.updateCardForProcessing(
+            event.data.traitId,
+            event.data.individualId
+          );
         } else if (event.event === 'progress') {
-          this.updateCardProgress(event.data.traitId, event.data.individualId, event.data.percent, event.data.message);
+          this.updateCardProgress(
+            event.data.traitId,
+            event.data.individualId,
+            event.data.percent,
+            event.data.message
+          );
         } else if (event.event === 'itemCompleted') {
-          await this.updateCardCompleted(event.data.item.traitId, event.data.item.individualId);
+          await this.updateCardCompleted(
+            event.data.item.traitId,
+            event.data.item.individualId
+          );
           this.loadProgressFromServer();
           this.variantsPerSecond = 0;
         }
@@ -105,7 +120,9 @@ export class QueueControl extends HTMLElement {
   updateCardForProcessing(traitId, _individualId) {
     const riskDashboard = document.querySelector('risk-dashboard');
     if (riskDashboard) {
-      const card = riskDashboard.shadowRoot.querySelector(`[data-trait-id="${traitId}"]`);
+      const card = riskDashboard.shadowRoot.querySelector(
+        `[data-trait-id="${traitId}"]`
+      );
       if (card) {
         const riskDisplay = card.querySelector('.risk-display');
         if (riskDisplay) {
@@ -122,7 +139,9 @@ export class QueueControl extends HTMLElement {
   updateCardProgress(traitId, individualId, progress, message) {
     const riskDashboard = document.querySelector('risk-dashboard');
     if (riskDashboard) {
-      const card = riskDashboard.shadowRoot.querySelector(`[data-trait-id="${traitId}"]`);
+      const card = riskDashboard.shadowRoot.querySelector(
+        `[data-trait-id="${traitId}"]`
+      );
       if (card) {
         const button = card.querySelector('.analyze-btn.progress');
         if (button) {
@@ -160,12 +179,23 @@ export class QueueControl extends HTMLElement {
     // Update summary with dynamic time estimates
     const totalAvailableTraits = this.getTotalAvailableTraits();
     const completedTraits = this.cachedTraitsCount;
-    const overallProgress = totalAvailableTraits > 0 ? (completedTraits / totalAvailableTraits) * 100 : 0;
-    const currentItem = this.queueManager?.getQueue().find(item => item.status === 'processing');
-    
+    const overallProgress =
+      totalAvailableTraits > 0
+        ? (completedTraits / totalAvailableTraits) * 100
+        : 0;
+    const currentItem = this.queueManager
+      ?.getQueue()
+      .find(item => item.status === 'processing');
+
     // Get updated queue time estimate
-    const queueTimeMs = this.queueManager?.timeEstimator?.estimateQueueTime(this.queueManager.getQueue()) || 0;
-    const timeDisplay = state.isProcessing && queueTimeMs > 0 ? this.formatTime(queueTimeMs) : '--';
+    const queueTimeMs =
+      this.queueManager?.timeEstimator?.estimateQueueTime(
+        this.queueManager.getQueue()
+      ) || 0;
+    const timeDisplay =
+      state.isProcessing && queueTimeMs > 0
+        ? this.formatTime(queueTimeMs)
+        : '--';
 
     summary.innerHTML = `
       <div class="queue-status ${state.isProcessing ? 'active' : 'idle'}">
@@ -178,12 +208,16 @@ export class QueueControl extends HTMLElement {
           <div class="summary-progress-fill" style="width: ${overallProgress}%"></div>
         </div>
         <div class="overall-progress">${Math.round(overallProgress)}% complete (${completedTraits}/${totalAvailableTraits})</div>
-        ${currentItem ? `
+        ${
+          currentItem
+            ? `
           <div class="current-progress-bar">
             <div class="current-progress-fill" style="width: ${currentItem.progress}%"></div>
           </div>
           <div class="current-progress">${Math.round(currentItem.progress)}% current</div>
-        ` : ''}
+        `
+            : ''
+        }
       </div>
       <div class="queue-time">
         ${timeDisplay}
@@ -268,12 +302,13 @@ export class QueueControl extends HTMLElement {
     `;
   }
 
-getTraitName(item) {
+  getTraitName(item) {
     const { traitId, trait } = item;
-    
+
     // Try to get trait from risk dashboard if not in item
-    const traitData = trait || this.riskDashboard?.availableTraits?.find(t => t.id === traitId);
-    
+    const traitData =
+      trait || this.riskDashboard?.availableTraits?.find(t => t.id === traitId);
+
     if (traitData) {
       const variantCount = this.formatVariantCount(traitData.variant_count);
       const pgsCount = Object.keys(traitData.pgs_metadata || {}).length;
@@ -287,63 +322,76 @@ getTraitName(item) {
         </div>
       `;
     }
-    
+
     return traitId.replace(/^MONDO_|^EFO_/, '').replace(/_/g, ' ');
   }
 
   getCurrentItemName(item) {
     const { traitId, trait } = item;
-    
+
     // Try to get trait from risk dashboard if not in item
-    const traitData = trait || this.riskDashboard?.availableTraits?.find(t => t.id === traitId);
-    
+    const traitData =
+      trait || this.riskDashboard?.availableTraits?.find(t => t.id === traitId);
+
     if (traitData) {
       const variantCount = this.formatVariantCount(traitData.variant_count);
       return `${traitData.name} - ${variantCount}`;
     }
-    
+
     return traitId.replace(/^MONDO_|^EFO_/, '').replace(/_/g, ' ');
   }
 
   getItemTimeRemaining(item) {
-    const traitData = item.trait || this.riskDashboard?.availableTraits?.find(t => t.id === item.traitId);
+    const traitData =
+      item.trait ||
+      this.riskDashboard?.availableTraits?.find(t => t.id === item.traitId);
     if (!traitData?.variant_count || !item.progress) return '--';
-    
-    const performance = this.queueManager?.timeEstimator?.getCurrentPerformance();
+
+    const performance =
+      this.queueManager?.timeEstimator?.getCurrentPerformance();
     const variantsPerSecond = performance?.variantsPerSecond || 100000;
-    
+
     const totalVariants = traitData.variant_count;
     const remainingVariants = totalVariants * (1 - item.progress / 100);
     const remainingSeconds = remainingVariants / variantsPerSecond;
-    
+
     return this.formatTime(remainingSeconds * 1000);
   }
 
   async loadProgressFromServer() {
     const selectedIndividual = useAppStore.getState().selectedIndividual;
-    
+
     if (!selectedIndividual) {
       this.cachedTraitsCount = 0;
       this.totalTraits = 0;
       return;
     }
-    
+
     try {
       const response = await fetch('/status');
       const data = await response.json();
-      
+
       console.log('[QueueControl] Server progress data:', data.progress);
-      
+
       this.totalTraits = data.progress?.totalTraits || 0;
-      this.cachedTraitsCount = data.progress?.cachedByIndividual?.[selectedIndividual] || 0;
-      
-      console.log('[QueueControl] Set totalTraits:', this.totalTraits, 'cachedTraitsCount:', this.cachedTraitsCount);
-      
+      this.cachedTraitsCount =
+        data.progress?.cachedByIndividual?.[selectedIndividual] || 0;
+
+      console.log(
+        '[QueueControl] Set totalTraits:',
+        this.totalTraits,
+        'cachedTraitsCount:',
+        this.cachedTraitsCount
+      );
+
       if (this.queueManager) {
         this.updateDisplay({ queue: this.queueManager.getQueueState() });
       }
     } catch (error) {
-      console.error('[QueueControl] Failed to load progress from server:', error);
+      console.error(
+        '[QueueControl] Failed to load progress from server:',
+        error
+      );
     }
   }
 
@@ -360,11 +408,12 @@ getTraitName(item) {
 
   estimateProcessingTime(variantCount) {
     if (!variantCount) return '~1m';
-    
+
     // Get current performance from queue manager's time estimator
-    const performance = this.queueManager?.timeEstimator?.getCurrentPerformance();
+    const performance =
+      this.queueManager?.timeEstimator?.getCurrentPerformance();
     const variantsPerSecond = performance?.variantsPerSecond || 100000;
-    
+
     const seconds = Math.max(30, variantCount / variantsPerSecond);
     return this.formatTime(seconds * 1000);
   }

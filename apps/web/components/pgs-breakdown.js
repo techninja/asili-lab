@@ -39,7 +39,7 @@ export class PGSBreakdown extends HTMLElement {
   }
 
   setupEventListeners() {
-    this.shadowRoot.addEventListener('click', (e) => {
+    this.shadowRoot.addEventListener('click', e => {
       if (e.target.closest('.back-btn')) {
         this.goBack();
       }
@@ -71,22 +71,22 @@ export class PGSBreakdown extends HTMLElement {
 
   updateDisplay() {
     if (!this.traitId || !this.pgsId) return;
-    
+
     const content = this.shadowRoot?.querySelector('.content');
     if (!content) return;
-    
+
     const state = useTraitStore.getState().getTraitState(this.traitId);
     if (!state.cached?.pgsDetails?.[this.pgsId]) return;
-    
+
     const appState = useAppStore.getState();
     const allIndividuals = appState.individuals || [];
-    
+
     const pgsData = state.cached.pgsDetails[this.pgsId];
     const pgsBreakdown = state.cached.pgsBreakdown[this.pgsId];
     const navigation = state.pgsNavigation;
     const score = pgsBreakdown.positiveSum + pgsBreakdown.negativeSum;
     const _gridCols = `12em repeat(${allIndividuals.length}, auto) auto auto auto`;
-    
+
     content.innerHTML = `
 
       <div class="header">
@@ -101,13 +101,17 @@ export class PGSBreakdown extends HTMLElement {
       </div>
       
       <div class="pgs-info">
-        ${pgsData.zScore !== null && pgsData.zScore !== undefined ? `
+        ${
+          pgsData.zScore !== null && pgsData.zScore !== undefined
+            ? `
           <div class="z-score">${pgsData.zScore >= 0 ? '+' : ''}${pgsData.zScore.toFixed(3)}σ</div>
           <div class="percentile">${this.zScoreToPercentile(pgsData.zScore)}${this.getOrdinalSuffix(this.zScoreToPercentile(pgsData.zScore))} percentile</div>
           <risk-distribution score="${pgsData.zScore}" style="height:80px;margin:4px 0 0"></risk-distribution>
-        ` : `
+        `
+            : `
           <div class="z-score">N/A</div>
-        `}
+        `
+        }
       </div>
       
       <div class="chromosome-section">
@@ -119,34 +123,50 @@ export class PGSBreakdown extends HTMLElement {
         <div>• ${pgsBreakdown.positive} variants increase risk (+${pgsBreakdown.positiveSum.toFixed(4)})</div>
         <div>• ${pgsBreakdown.negative} variants decrease risk (${pgsBreakdown.negativeSum.toFixed(4)})</div>
         <div><strong>Raw Score: ${score >= 0 ? '+' : ''}${score.toFixed(4)}</strong></div>
-        ${pgsData.zScore !== null && pgsData.zScore !== undefined ? (() => {
-          const traitType = state.cached.trait_type || 'disease_risk';
-          const unit = state.cached.unit || null;
-          
-          return `
+        ${
+          pgsData.zScore !== null && pgsData.zScore !== undefined
+            ? (() => {
+                const traitType = state.cached.trait_type || 'disease_risk';
+                const unit = state.cached.unit || null;
+
+                return `
           <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
             <div><strong>PGS Information:</strong></div>
             <div>• ID: <a href="https://www.pgscatalog.org/score/${this.pgsId}" target="_blank" style="color: #007acc;">${this.pgsId}</a></div>
             ${pgsData.metadata?.name ? `<div>• Name: ${pgsData.metadata.name}</div>` : ''}
             ${pgsData.metadata?.variants_number ? `<div>• Total variants: ${pgsData.metadata.variants_number.toLocaleString()}</div>` : ''}
             ${pgsData.performanceMetric ? `<div>• Performance (R²): ${(pgsData.performanceMetric * 100).toFixed(1)}%</div>` : ''}
-            ${pgsData.qualityScore !== undefined ? `
+            ${
+              pgsData.qualityScore !== undefined
+                ? `
             <div>• Quality Score: <strong>${pgsData.qualityScore.toFixed(1)}/100</strong> 
               <button class="quality-info-btn" data-pgs-id="${this.pgsId}" title="How is this score calculated?">ℹ️</button>
             </div>
-            ` : ''}
-            ${traitType === 'quantitative' && unit && pgsData.value !== null && pgsData.value !== undefined ? `
+            `
+                : ''
+            }
+            ${
+              traitType === 'quantitative' &&
+              unit &&
+              pgsData.value !== null &&
+              pgsData.value !== undefined
+                ? `
             <div style="margin-top: 8px;"><strong>Quantitative Value:</strong></div>
             <div>• Predicted value: ${pgsData.value.toFixed(2)} ${unit}</div>
             <div>• Z-score: ${pgsData.zScore >= 0 ? '+' : ''}${pgsData.zScore.toFixed(3)}σ</div>
             <div>• Percentile: ${this.zScoreToPercentile(pgsData.zScore)}${this.getOrdinalSuffix(this.zScoreToPercentile(pgsData.zScore))}</div>
-            ${state.cached.phenotype_mean && state.cached.phenotype_sd ? `
+            ${
+              state.cached.phenotype_mean && state.cached.phenotype_sd
+                ? `
             <div style="margin-top: 8px;"><strong>Population Context:</strong></div>
             <div>• Population mean: ${state.cached.phenotype_mean} ${unit}</div>
             <div>• Population std dev: ${state.cached.phenotype_sd} ${unit}</div>
             <div>• Reference: ${state.cached.reference_population || 'General population'}</div>
-            ` : ''}
-            ` : `
+            `
+                : ''
+            }
+            `
+                : `
             <div style="margin-top: 8px;"><strong>Genetic Risk Score:</strong></div>
             <div>• Raw score: ${score >= 0 ? '+' : ''}${score.toFixed(4)}</div>
             <div>• Z-score: ${pgsData.zScore >= 0 ? '+' : ''}${pgsData.zScore.toFixed(3)}σ</div>
@@ -155,8 +175,10 @@ export class PGSBreakdown extends HTMLElement {
             <div>• Population mean: ${pgsData.normMean !== undefined && pgsData.normMean !== null ? pgsData.normMean.toFixed(4) : 'N/A'}</div>
             <div>• Population std dev: ${pgsData.normSd !== undefined && pgsData.normSd !== null ? pgsData.normSd.toFixed(4) : 'N/A'}</div>
             ${(() => {
-              const totalVars = pgsData.metadata?.variants_number || pgsBreakdown.total || 1;
-              const cov = pgsData.coverage ?? (pgsData.matchedVariants / totalVars);
+              const totalVars =
+                pgsData.metadata?.variants_number || pgsBreakdown.total || 1;
+              const cov =
+                pgsData.coverage ?? pgsData.matchedVariants / totalVars;
               if (pgsData.normalizationScaled) {
                 return `<div style="color: #0066cc;">ℹ️ Scaled by coverage (${(cov * 100).toFixed(1)}%) to match partial variant set</div>`;
               } else if (pgsData.insufficientCoverage) {
@@ -165,10 +187,13 @@ export class PGSBreakdown extends HTMLElement {
               return '';
             })()}
             ${pgsData.normMean !== undefined && pgsData.normSd !== undefined ? `<div>• Formula: (${score.toFixed(4)} - ${pgsData.normMean.toFixed(4)}) / ${pgsData.normSd.toFixed(4)} = ${pgsData.zScore.toFixed(3)}</div>` : ''}
-            `}
+            `
+            }
           </div>
           `;
-        })() : ''}
+              })()
+            : ''
+        }
       </div>
       
       <div class="score-distribution">
@@ -199,60 +224,89 @@ export class PGSBreakdown extends HTMLElement {
             </thead>
             <tbody>
           ${(() => {
-            const topVariants = (pgsData.topVariants || pgsBreakdown.topVariants || []).slice(0, 20);
+            const topVariants = (
+              pgsData.topVariants ||
+              pgsBreakdown.topVariants ||
+              []
+            ).slice(0, 20);
             let cumulative = 0;
             const waterfall = topVariants.map(v => {
-              const contribution = v.contribution != null ? v.contribution : (() => {
-                const genotype = v.userGenotype || 'N/A';
-                const effectAlleleCount = genotype === 'N/A' ? 0 : genotype.split('').filter(allele => allele === v.effect_allele).length;
-                return v.effect_weight * effectAlleleCount;
-              })();
+              const contribution =
+                v.contribution != null
+                  ? v.contribution
+                  : (() => {
+                      const genotype = v.userGenotype || 'N/A';
+                      const effectAlleleCount =
+                        genotype === 'N/A'
+                          ? 0
+                          : genotype
+                              .split('')
+                              .filter(allele => allele === v.effect_allele)
+                              .length;
+                      return v.effect_weight * effectAlleleCount;
+                    })();
               const start = cumulative;
               cumulative += contribution;
               return { ...v, start, end: cumulative, contribution };
             });
 
-            const maxAbs = Math.max(...waterfall.map(v => Math.abs(v.end)), 0.01);
+            const maxAbs = Math.max(
+              ...waterfall.map(v => Math.abs(v.end)),
+              0.01
+            );
 
-            return waterfall.map((variant) => {
-              const variantId = variant.rsid || 'Unknown';
-              let displayId, linkUrl, linkTitle;
-              if (variantId.startsWith('rs')) {
-                displayId = variantId;
-                linkUrl = `https://www.ncbi.nlm.nih.gov/snp/${variantId}`;
-                linkTitle = `See more about ${variantId} on NCBI dbSNP`;
-              } else if (variantId.includes(':')) {
-                const parts = variantId.split(':');
-                displayId = parts.length >= 3 ? `chr${parts[0]}:${parts[1]}` : variantId;
-                const pos = parseInt(parts[1]);
-                linkUrl = `https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg19&position=chr${parts[0]}:${Math.max(1, pos - 5000)}-${pos + 5000}`;
-                linkTitle = `See more about ${displayId} on UCSC Genome Browser`;
-              } else {
-                displayId = variantId;
-                linkUrl = null;
-              }
+            return waterfall
+              .map(variant => {
+                const variantId = variant.rsid || 'Unknown';
+                let displayId, linkUrl, linkTitle;
+                if (variantId.startsWith('rs')) {
+                  displayId = variantId;
+                  linkUrl = `https://www.ncbi.nlm.nih.gov/snp/${variantId}`;
+                  linkTitle = `See more about ${variantId} on NCBI dbSNP`;
+                } else if (variantId.includes(':')) {
+                  const parts = variantId.split(':');
+                  displayId =
+                    parts.length >= 3
+                      ? `chr${parts[0]}:${parts[1]}`
+                      : variantId;
+                  const pos = parseInt(parts[1]);
+                  linkUrl = `https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg19&position=chr${parts[0]}:${Math.max(1, pos - 5000)}-${pos + 5000}`;
+                  linkTitle = `See more about ${displayId} on UCSC Genome Browser`;
+                } else {
+                  displayId = variantId;
+                  linkUrl = null;
+                }
 
-              const barStartPercent = 50 + (Math.min(variant.start, variant.end) / maxAbs) * 40;
-              const barWidthPercent = (Math.abs(variant.contribution) / maxAbs) * 40;
-              const barColor = variant.contribution >= 0 ? 'rgba(220, 53, 69, 0.3)' : 'rgba(21, 87, 36, 0.3)';
-              const userDosage = variant.dosage != null ? variant.dosage : 0;
+                const barStartPercent =
+                  50 + (Math.min(variant.start, variant.end) / maxAbs) * 40;
+                const barWidthPercent =
+                  (Math.abs(variant.contribution) / maxAbs) * 40;
+                const barColor =
+                  variant.contribution >= 0
+                    ? 'rgba(220, 53, 69, 0.3)'
+                    : 'rgba(21, 87, 36, 0.3)';
+                const userDosage = variant.dosage != null ? variant.dosage : 0;
 
-              return `
+                return `
               <tr data-bar-left="${barStartPercent}" data-bar-width="${barWidthPercent}" data-bar-color="${barColor}">
                 <td class="variant-id" title="Variant: ${displayId}">${linkUrl ? `<a href="${linkUrl}" target="_blank" title="${linkTitle}">${displayId}</a>` : displayId}</td>
-                ${allIndividuals.map(ind => {
-                  if (ind.id === appState.selectedIndividual) {
-                    const geno = variant.userGenotype || '—';
-                    return `<td class="genotype" title="${ind.name}: ${geno}">${geno}</td>`;
-                  }
-                  const other = variant.otherGenotypes?.[ind.id];
-                  return `<td class="genotype" title="${ind.name}: ${other?.genotype || 'no data'}">${other?.genotype || '—'}</td>`;
-                }).join('')}
+                ${allIndividuals
+                  .map(ind => {
+                    if (ind.id === appState.selectedIndividual) {
+                      const geno = variant.userGenotype || '—';
+                      return `<td class="genotype" title="${ind.name}: ${geno}">${geno}</td>`;
+                    }
+                    const other = variant.otherGenotypes?.[ind.id];
+                    return `<td class="genotype" title="${ind.name}: ${other?.genotype || 'no data'}">${other?.genotype || '—'}</td>`;
+                  })
+                  .join('')}
                 <td class="effect-allele" title="Effect allele: ${variant.effect_allele}">${variant.effect_allele}</td>
                 <td class="weight ${variant.effect_weight >= 0 ? 'positive' : 'negative'}" title="Effect weight: ${variant.effect_weight >= 0 ? '+' : ''}${variant.effect_weight.toFixed(6)}">${variant.effect_weight >= 0 ? '+' : ''}${variant.effect_weight.toFixed(6)}</td>
                 <td class="contribution" title="Dosage: ${userDosage.toFixed(2)}">×${Number.isInteger(userDosage) ? userDosage : userDosage.toFixed(1)}</td>
               </tr>
-            `}).join('');
+            `;
+              })
+              .join('');
           })()}
             </tbody>
           </table>
@@ -261,7 +315,7 @@ export class PGSBreakdown extends HTMLElement {
       
       </div>
     `;
-    
+
     // Set component data after DOM update
     setTimeout(() => {
       this.createChart(pgsData);
@@ -321,12 +375,14 @@ export class PGSBreakdown extends HTMLElement {
     const state = useTraitStore.getState().getTraitState(this.traitId);
     const navigation = state.pgsNavigation;
     if (!navigation) return;
-    
+
     const newIndex = navigation.currentIndex + direction;
     if (newIndex >= 0 && newIndex < navigation.pgsIds.length) {
       const newPgsId = navigation.pgsIds[newIndex];
       const newNavigation = { ...navigation, currentIndex: newIndex };
-      useTraitStore.getState().setSelectedPgs(this.traitId, newPgsId, newNavigation);
+      useTraitStore
+        .getState()
+        .setSelectedPgs(this.traitId, newPgsId, newNavigation);
     }
   }
 
@@ -334,16 +390,25 @@ export class PGSBreakdown extends HTMLElement {
     if (score == null) return 'N/A';
     const abs = Math.abs(score);
     const sign = score >= 0 ? '+' : '';
-    return abs >= 10 ? `${sign}${score.toFixed(2)}σ` : `${sign}${score.toFixed(3)}σ`;
+    return abs >= 10
+      ? `${sign}${score.toFixed(2)}σ`
+      : `${sign}${score.toFixed(3)}σ`;
   }
 
   zScoreToPercentile(zScore) {
-    const erf = (x) => {
+    const erf = x => {
       const sign = x >= 0 ? 1 : -1;
       x = Math.abs(x);
-      const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+      const a1 = 0.254829592,
+        a2 = -0.284496736,
+        a3 = 1.421413741,
+        a4 = -1.453152027,
+        a5 = 1.061405429,
+        p = 0.3275911;
       const t = 1.0 / (1.0 + p * x);
-      const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+      const y =
+        1.0 -
+        ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
       return sign * y;
     };
     return Math.round(0.5 * (1 + erf(zScore / Math.sqrt(2))) * 100);
@@ -362,28 +427,34 @@ export class PGSBreakdown extends HTMLElement {
     if (!pgsData || !pgsBreakdown) return;
 
     // Import SharedRiskCalculator to get breakdown
-    import('../../packages/core/src/genomic-processor/calculator.js').then(({ SharedRiskCalculator }) => {
-      const breakdown = SharedRiskCalculator.getQualityScoreBreakdown(
-        pgsData.matchedVariants,
-        pgsData.metadata?.variants_number || pgsBreakdown.total,
-        pgsData.performanceMetric,
-        !pgsData.insufficientEmpiricalData,
-        pgsData.zScore,
-        pgsData.genotypedVariants
-      );
+    import('../../packages/core/src/genomic-processor/calculator.js').then(
+      ({ SharedRiskCalculator }) => {
+        const breakdown = SharedRiskCalculator.getQualityScoreBreakdown(
+          pgsData.matchedVariants,
+          pgsData.metadata?.variants_number || pgsBreakdown.total,
+          pgsData.performanceMetric,
+          !pgsData.insufficientEmpiricalData,
+          pgsData.zScore,
+          pgsData.genotypedVariants
+        );
 
-      const totalVariants = pgsData.metadata?.variants_number || pgsBreakdown.total || 1;
-      const coverage = pgsData.coverage ?? (pgsData.matchedVariants / totalVariants);
-      const coveragePct = (coverage * 100).toFixed(1);
-      const penaltyInfo = breakdown.coveragePenalty !== undefined && breakdown.coveragePenalty < 1.0 ? 
-        `<div class="coverage-penalty-warning">
+        const totalVariants =
+          pgsData.metadata?.variants_number || pgsBreakdown.total || 1;
+        const coverage =
+          pgsData.coverage ?? pgsData.matchedVariants / totalVariants;
+        const coveragePct = (coverage * 100).toFixed(1);
+        const penaltyInfo =
+          breakdown.coveragePenalty !== undefined &&
+          breakdown.coveragePenalty < 1.0
+            ? `<div class="coverage-penalty-warning">
           ⚠️ <strong>Coverage Penalty Applied:</strong> Only ${coveragePct}% of PGS variants matched. 
           R² contribution reduced to ${(breakdown.coveragePenalty * 100).toFixed(1)}% of its value.
-        </div>` : '';
+        </div>`
+            : '';
 
-      const modal = document.createElement('div');
-      modal.className = 'quality-modal';
-      modal.innerHTML = `
+        const modal = document.createElement('div');
+        modal.className = 'quality-modal';
+        modal.innerHTML = `
         <div class="quality-modal-content">
           <div class="quality-modal-header">
             <h3>Quality Score Breakdown</h3>
@@ -397,7 +468,9 @@ export class PGSBreakdown extends HTMLElement {
               <span class="quality-label">${breakdown.explanation}</span>
             </div>
             <div class="quality-components">
-              ${breakdown.components.map(comp => `
+              ${breakdown.components
+                .map(
+                  comp => `
                 <div class="quality-component">
                   <div class="component-header">
                     <span class="component-name">${comp.name}</span>
@@ -409,7 +482,9 @@ export class PGSBreakdown extends HTMLElement {
                   </div>
                   <div class="component-desc">${comp.description}</div>
                 </div>
-              `).join('')}
+              `
+                )
+                .join('')}
             </div>
             <div class="quality-footer">
               <p><strong>Why this matters:</strong> Quality score prioritizes predictive accuracy (R²) over variant count. A PGS with high R² and fewer variants is scientifically superior to one with low R² and many variants.</p>
@@ -418,8 +493,9 @@ export class PGSBreakdown extends HTMLElement {
           </div>
         </div>
       `;
-      this.shadowRoot.appendChild(modal);
-    });
+        this.shadowRoot.appendChild(modal);
+      }
+    );
   }
 
   hideQualityBreakdown() {
@@ -428,7 +504,9 @@ export class PGSBreakdown extends HTMLElement {
   }
 
   async createChart(_pgsData) {
-    const canvas = this.shadowRoot.getElementById(`distributionChart-${this.pgsId}`);
+    const canvas = this.shadowRoot.getElementById(
+      `distributionChart-${this.pgsId}`
+    );
     if (!canvas) return;
 
     // Destroy existing chart if it exists
@@ -440,7 +518,7 @@ export class PGSBreakdown extends HTMLElement {
     const state = useTraitStore.getState().getTraitState(this.traitId);
     const pgsBreakdown = state.cached.pgsBreakdown[this.pgsId];
     const buckets = pgsBreakdown?.weightBuckets || [];
-    
+
     if (buckets.length === 0) {
       canvas.style.display = 'none';
       return;
@@ -455,7 +533,8 @@ export class PGSBreakdown extends HTMLElement {
     const labels = buckets.map((b, i) => {
       if (i === 0) return b.min.toFixed(4);
       if (i === buckets.length - 1) return b.max.toFixed(4);
-      if (i === Math.floor(buckets.length / 2)) return ((b.min + b.max) / 2).toFixed(4);
+      if (i === Math.floor(buckets.length / 2))
+        return ((b.min + b.max) / 2).toFixed(4);
       return '';
     });
 
@@ -463,45 +542,47 @@ export class PGSBreakdown extends HTMLElement {
       type: 'line',
       data: {
         labels: labels,
-        datasets: [{
-          label: 'Variant Count',
-          data: buckets.map(b => b.count),
-          borderColor: '#007acc',
-          backgroundColor: 'rgba(0, 122, 204, 0.1)',
-          fill: true,
-          tension: 0.4,
-          pointRadius: 3,
-          pointHoverRadius: 5,
-          spanGaps: true
-        }]
+        datasets: [
+          {
+            label: 'Variant Count',
+            data: buckets.map(b => b.count),
+            borderColor: '#007acc',
+            backgroundColor: 'rgba(0, 122, 204, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            spanGaps: true
+          }
+        ]
       },
       options: {
         responsive: false,
         scales: {
-          y: { 
-            beginAtZero: true, 
+          y: {
+            beginAtZero: true,
             title: { display: true, text: 'Variants' },
             type: 'logarithmic',
             min: 1
           },
-          x: { 
-            title: { display: true, text: 'Effect Weight' }, 
-            ticks: { 
+          x: {
+            title: { display: true, text: 'Effect Weight' },
+            ticks: {
               maxRotation: 0,
               autoSkip: false
-            } 
+            }
           }
         },
-        plugins: { 
+        plugins: {
           legend: { display: false },
           tooltip: {
             callbacks: {
-              title: (items) => {
+              title: items => {
                 const idx = items[0].dataIndex;
                 const bucket = buckets[idx];
                 return `${bucket.min.toFixed(4)} to ${bucket.max.toFixed(4)}`;
               },
-              label: (context) => `${context.parsed.y} variants`
+              label: context => `${context.parsed.y} variants`
             }
           }
         }

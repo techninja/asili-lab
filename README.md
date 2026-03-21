@@ -81,8 +81,6 @@ docker compose run --rm pipeline pnpm run etl
 pnpm run etl
 ```
 
-
-
 ## Contributing
 
 ### Development Setup
@@ -113,6 +111,7 @@ asili/
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines and [PLAN.md](PLAN.md) for the project roadmap. benchmarks
+
 - **Security Tests**: Privacy compliance and vulnerability scanning
 - **Cross-Platform Tests**: Validation across browser, mobile, and server
 
@@ -121,12 +120,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines and [PLAN.md](
 AGPLv3 License - See [LICENSE](LICENSE) for details.
 
 **Why AGPLv3?**
+
 - Prevents proprietary forks - anyone who modifies Asili must share their changes
 - Network copyleft - if you run a modified version as a web service, you must provide source code
 - Protects the community - ensures improvements benefit everyone
 - Commercial use allowed - you can charge for services, but must keep code open source
 
 **What this means:**
+
 - ✅ Use Asili freely for personal or commercial purposes
 - ✅ Modify and improve the code
 - ✅ Run it as a service for others

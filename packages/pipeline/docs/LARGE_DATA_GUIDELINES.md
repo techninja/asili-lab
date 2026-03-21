@@ -25,7 +25,8 @@ merged = array1.concat(array2);
 
 ```javascript
 // WRONG - Creates huge intermediate arrays
-for (const [key, value] of Object.entries(hugeObject)) { }
+for (const [key, value] of Object.entries(hugeObject)) {
+}
 const obj = Object.fromEntries(hugeMap);
 ```
 
@@ -51,11 +52,13 @@ for (const [key, value] of map) {
 Worker threads cannot transfer Maps/Sets directly. They serialize to empty objects.
 
 ### ❌ WRONG
+
 ```javascript
 parentPort.postMessage({ data: myMap });
 ```
 
 ### ✅ CORRECT
+
 ```javascript
 const array = [];
 for (const [key, value] of myMap) {

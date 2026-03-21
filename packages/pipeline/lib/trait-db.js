@@ -54,11 +54,11 @@ class TraitMetadataDB {
     await this.init();
     const conn = await this.getConnection();
     const now = new Date().toISOString();
-    
+
     // Merge with overrides
     const overrides = getOverrides();
     const override = overrides[traitId] || {};
-    
+
     const mergedData = {
       ...data,
       unit: override.unit || null,
@@ -71,7 +71,7 @@ class TraitMetadataDB {
       reference_population: override.reference_population || null,
       metadata_hash: calculateMetadataHash(override)
     };
-    
+
     return new Promise((resolve, reject) => {
       const stmt = conn.prepare(`
         INSERT INTO traits (
@@ -99,11 +99,11 @@ class TraitMetadataDB {
           last_updated=EXCLUDED.last_updated
       `);
       stmt.run(
-        traitId, 
-        data.name, 
-        data.description ?? null, 
-        data.categories ?? '', 
-        data.expected_variants ?? null, 
+        traitId,
+        data.name,
+        data.description ?? null,
+        data.categories ?? '',
+        data.expected_variants ?? null,
         data.estimated_unique_variants ?? null,
         mergedData.unit,
         mergedData.emoji,
@@ -114,7 +114,7 @@ class TraitMetadataDB {
         mergedData.phenotype_sd,
         mergedData.reference_population,
         mergedData.metadata_hash,
-        now, 
+        now,
         err => {
           stmt.finalize();
           err ? reject(err) : resolve();
@@ -127,7 +127,9 @@ class TraitMetadataDB {
     await this.init();
     const conn = await this.getConnection();
     return new Promise((resolve, reject) => {
-      conn.all('SELECT * FROM traits ORDER BY name', (err, rows) => err ? reject(err) : resolve(rows));
+      conn.all('SELECT * FROM traits ORDER BY name', (err, rows) =>
+        err ? reject(err) : resolve(rows)
+      );
     });
   }
 
@@ -135,7 +137,9 @@ class TraitMetadataDB {
     await this.init();
     const conn = await this.getConnection();
     return new Promise((resolve, reject) => {
-      const stmt = conn.prepare(`INSERT INTO trait_pgs VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET performance_weight=EXCLUDED.performance_weight`);
+      const stmt = conn.prepare(
+        `INSERT INTO trait_pgs VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET performance_weight=EXCLUDED.performance_weight`
+      );
       stmt.run(traitId, pgsId, performanceWeight, err => {
         stmt.finalize();
         err ? reject(err) : resolve();
@@ -147,11 +151,20 @@ class TraitMetadataDB {
     await this.init();
     const conn = await this.getConnection();
     return new Promise((resolve, reject) => {
-      const stmt = conn.prepare(`INSERT INTO trait_excluded_pgs VALUES (?, ?, ?, ?, ?) ON CONFLICT DO UPDATE SET reason=EXCLUDED.reason`);
-      stmt.run(traitId, pgsId, reason, method ?? null, weightType ?? null, err => {
-        stmt.finalize();
-        err ? reject(err) : resolve();
-      });
+      const stmt = conn.prepare(
+        `INSERT INTO trait_excluded_pgs VALUES (?, ?, ?, ?, ?) ON CONFLICT DO UPDATE SET reason=EXCLUDED.reason`
+      );
+      stmt.run(
+        traitId,
+        pgsId,
+        reason,
+        method ?? null,
+        weightType ?? null,
+        err => {
+          stmt.finalize();
+          err ? reject(err) : resolve();
+        }
+      );
     });
   }
 
@@ -159,7 +172,11 @@ class TraitMetadataDB {
     await this.init();
     const conn = await this.getConnection();
     return new Promise((resolve, reject) => {
-      conn.all('SELECT pgs_id, performance_weight FROM trait_pgs WHERE trait_id = ?', [traitId], (err, rows) => err ? reject(err) : resolve(rows));
+      conn.all(
+        'SELECT pgs_id, performance_weight FROM trait_pgs WHERE trait_id = ?',
+        [traitId],
+        (err, rows) => (err ? reject(err) : resolve(rows))
+      );
     });
   }
 
@@ -167,7 +184,11 @@ class TraitMetadataDB {
     await this.init();
     const conn = await this.getConnection();
     return new Promise((resolve, reject) => {
-      conn.all('SELECT * FROM trait_excluded_pgs WHERE trait_id = ?', [traitId], (err, rows) => err ? reject(err) : resolve(rows));
+      conn.all(
+        'SELECT * FROM trait_excluded_pgs WHERE trait_id = ?',
+        [traitId],
+        (err, rows) => (err ? reject(err) : resolve(rows))
+      );
     });
   }
 
@@ -175,13 +196,21 @@ class TraitMetadataDB {
     await this.init();
     const conn = await this.getConnection();
     await new Promise((resolve, reject) => {
-      conn.run('DELETE FROM trait_pgs WHERE trait_id = ?', [traitId], err => err ? reject(err) : resolve());
+      conn.run('DELETE FROM trait_pgs WHERE trait_id = ?', [traitId], err =>
+        err ? reject(err) : resolve()
+      );
     });
     await new Promise((resolve, reject) => {
-      conn.run('DELETE FROM trait_excluded_pgs WHERE trait_id = ?', [traitId], err => err ? reject(err) : resolve());
+      conn.run(
+        'DELETE FROM trait_excluded_pgs WHERE trait_id = ?',
+        [traitId],
+        err => (err ? reject(err) : resolve())
+      );
     });
     await new Promise((resolve, reject) => {
-      conn.run('DELETE FROM traits WHERE trait_id = ?', [traitId], err => err ? reject(err) : resolve());
+      conn.run('DELETE FROM traits WHERE trait_id = ?', [traitId], err =>
+        err ? reject(err) : resolve()
+      );
     });
   }
 
@@ -204,7 +233,13 @@ export async function addTraitPGS(traitId, pgsId, performanceWeight) {
   return traitDB.addTraitPGS(traitId, pgsId, performanceWeight);
 }
 
-export async function addExcludedPGS(traitId, pgsId, reason, method, weightType) {
+export async function addExcludedPGS(
+  traitId,
+  pgsId,
+  reason,
+  method,
+  weightType
+) {
   return traitDB.addExcludedPGS(traitId, pgsId, reason, method, weightType);
 }
 

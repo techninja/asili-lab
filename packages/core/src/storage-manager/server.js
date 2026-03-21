@@ -38,8 +38,11 @@ export class ServerStorageManager extends StorageManager {
       // Create tables (will be ignored if they already exist)
       await this._createTables();
 
-      Debug.log(1, 'ServerStorageManager', `Initialized with data directory: ${this.dataDir}`);
-
+      Debug.log(
+        1,
+        'ServerStorageManager',
+        `Initialized with data directory: ${this.dataDir}`
+      );
     } catch (error) {
       throw new Error(`Failed to initialize server storage: ${error.message}`);
     }
@@ -88,7 +91,8 @@ export class ServerStorageManager extends StorageManager {
     let finalSql = sql;
     if (params.length > 0) {
       params.forEach((param, _index) => {
-        const value = typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
+        const value =
+          typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
         finalSql = finalSql.replace('?', value);
       });
     }
@@ -101,7 +105,12 @@ export class ServerStorageManager extends StorageManager {
           Debug.log(1, 'ServerStorageManager', 'SQL Error:', err.message);
           reject(err);
         } else {
-          Debug.log(3, 'ServerStorageManager', 'SQL Success, result type:', typeof result);
+          Debug.log(
+            3,
+            'ServerStorageManager',
+            'SQL Success, result type:',
+            typeof result
+          );
           resolve(result);
         }
       });
@@ -112,7 +121,8 @@ export class ServerStorageManager extends StorageManager {
     let finalSql = sql;
     if (params.length > 0) {
       params.forEach((param, _index) => {
-        const value = typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
+        const value =
+          typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
         finalSql = finalSql.replace('?', value);
       });
     }
@@ -127,8 +137,20 @@ export class ServerStorageManager extends StorageManager {
         } else {
           const row = result?.[0] || null;
           if (row) {
-            Debug.log(3, 'ServerStorageManager', 'GET Query result row keys:', Object.keys(row));
-            Debug.log(3, 'ServerStorageManager', 'GET Query result row types:', Object.entries(row).map(([k, v]) => `${k}: ${typeof v}`).join(', '));
+            Debug.log(
+              3,
+              'ServerStorageManager',
+              'GET Query result row keys:',
+              Object.keys(row)
+            );
+            Debug.log(
+              3,
+              'ServerStorageManager',
+              'GET Query result row types:',
+              Object.entries(row)
+                .map(([k, v]) => `${k}: ${typeof v}`)
+                .join(', ')
+            );
           }
           resolve(row);
         }
@@ -140,7 +162,8 @@ export class ServerStorageManager extends StorageManager {
     let finalSql = sql;
     if (params.length > 0) {
       params.forEach((param, _index) => {
-        const value = typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
+        const value =
+          typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
         finalSql = finalSql.replace('?', value);
       });
     }
@@ -154,8 +177,19 @@ export class ServerStorageManager extends StorageManager {
           reject(err);
         } else {
           if (result && result.length > 0) {
-            Debug.log(3, 'ServerStorageManager', `ALL Query returned ${result.length} rows`);
-            Debug.log(3, 'ServerStorageManager', 'First row types:', Object.entries(result[0]).map(([k, v]) => `${k}: ${typeof v}`).join(', '));
+            Debug.log(
+              3,
+              'ServerStorageManager',
+              `ALL Query returned ${result.length} rows`
+            );
+            Debug.log(
+              3,
+              'ServerStorageManager',
+              'First row types:',
+              Object.entries(result[0])
+                .map(([k, v]) => `${k}: ${typeof v}`)
+                .join(', ')
+            );
           }
           resolve(result || []);
         }
@@ -177,10 +211,9 @@ export class ServerStorageManager extends StorageManager {
   async retrieve(key) {
     await this.initialize();
 
-    const row = await this._getQuery(
-      'SELECT data FROM data WHERE key = ?',
-      [key]
-    );
+    const row = await this._getQuery('SELECT data FROM data WHERE key = ?', [
+      key
+    ]);
 
     return row ? JSON.parse(row.data) : null;
   }
@@ -216,7 +249,14 @@ export class ServerStorageManager extends StorageManager {
       [id, name, relationship, emoji, now, now]
     );
 
-    return { id, name, relationship, emoji, status: 'importing', createdAt: now };
+    return {
+      id,
+      name,
+      relationship,
+      emoji,
+      status: 'importing',
+      createdAt: now
+    };
   }
 
   async updateIndividual(id, updates) {
@@ -258,7 +298,9 @@ export class ServerStorageManager extends StorageManager {
   async getIndividuals() {
     await this.initialize();
 
-    return await this._allQuery('SELECT * FROM individuals ORDER BY created_at DESC');
+    return await this._allQuery(
+      'SELECT * FROM individuals ORDER BY created_at DESC'
+    );
   }
 
   async getIndividual(id) {
@@ -271,9 +313,17 @@ export class ServerStorageManager extends StorageManager {
   async storeVariants(individualId, variants, progressCallback) {
     await this.initialize();
 
-    Debug.log(1, 'ServerStorageManager', `Storing ${variants.length} variants for individual: ${individualId}`);
+    Debug.log(
+      1,
+      'ServerStorageManager',
+      `Storing ${variants.length} variants for individual: ${individualId}`
+    );
 
-    const variantFile = path.join(this.dataDir, 'variants', `${individualId}.json`);
+    const variantFile = path.join(
+      this.dataDir,
+      'variants',
+      `${individualId}.json`
+    );
 
     // Store variants as JSON file for efficient access
     const variantData = {
@@ -303,14 +353,22 @@ export class ServerStorageManager extends StorageManager {
 
     progressCallback?.(variants.length, variants.length);
 
-    Debug.log(1, 'ServerStorageManager', `Successfully stored ${variants.length} variants for ${individualId}`);
+    Debug.log(
+      1,
+      'ServerStorageManager',
+      `Successfully stored ${variants.length} variants for ${individualId}`
+    );
     return variants.length;
   }
 
   async getVariants(individualId) {
     await this.initialize();
 
-    Debug.log(2, 'ServerStorageManager', `Loading variants for individual: ${individualId}`);
+    Debug.log(
+      2,
+      'ServerStorageManager',
+      `Loading variants for individual: ${individualId}`
+    );
 
     const metadata = await this._getQuery(
       'SELECT file_path FROM variant_files WHERE individual_id = ?',
@@ -318,7 +376,11 @@ export class ServerStorageManager extends StorageManager {
     );
 
     if (!metadata) {
-      Debug.log(2, 'ServerStorageManager', `No variants found for individual: ${individualId}`);
+      Debug.log(
+        2,
+        'ServerStorageManager',
+        `No variants found for individual: ${individualId}`
+      );
       return [];
     }
 
@@ -336,11 +398,19 @@ export class ServerStorageManager extends StorageManager {
         imputed: false
       }));
 
-      Debug.log(2, 'ServerStorageManager', `Loaded ${variants.length} variants for ${individualId}`);
+      Debug.log(
+        2,
+        'ServerStorageManager',
+        `Loaded ${variants.length} variants for ${individualId}`
+      );
       return variants;
-
     } catch (error) {
-      Debug.log(1, 'ServerStorageManager', `Failed to load variants for ${individualId}:`, error.message);
+      Debug.log(
+        1,
+        'ServerStorageManager',
+        `Failed to load variants for ${individualId}:`,
+        error.message
+      );
       return [];
     }
   }
@@ -348,7 +418,11 @@ export class ServerStorageManager extends StorageManager {
   async queryImputedVariant(individualId, variantId) {
     await this.initialize();
 
-    const imputedFile = path.join(this.dataDir, 'imputed', `${individualId}_imputed.parquet`);
+    const imputedFile = path.join(
+      this.dataDir,
+      'imputed',
+      `${individualId}_imputed.parquet`
+    );
 
     try {
       await fs.access(imputedFile);
@@ -387,9 +461,12 @@ export class ServerStorageManager extends StorageManager {
         dosage: result.genotype_dosage,
         quality: 1.0
       };
-
     } catch (_error) {
-      Debug.log(3, 'ServerStorageManager', `No imputed variant ${variantId} for ${individualId}`);
+      Debug.log(
+        3,
+        'ServerStorageManager',
+        `No imputed variant ${variantId} for ${individualId}`
+      );
       return null;
     }
   }
@@ -397,14 +474,22 @@ export class ServerStorageManager extends StorageManager {
   async getImputedVariants(individualId) {
     await this.initialize();
 
-    const imputedFile = path.join(this.dataDir, 'imputed', `${individualId}_imputed.parquet`);
-    
+    const imputedFile = path.join(
+      this.dataDir,
+      'imputed',
+      `${individualId}_imputed.parquet`
+    );
+
     console.log(`🔍 Looking for imputed file at: ${imputedFile}`);
 
     try {
       await fs.access(imputedFile);
       console.log(`✅ Found imputed file for ${individualId}`);
-      Debug.log(2, 'ServerStorageManager', `Loading imputed variants for ${individualId}`);
+      Debug.log(
+        2,
+        'ServerStorageManager',
+        `Loading imputed variants for ${individualId}`
+      );
 
       // Use DuckDB to read Parquet
       const duckdb = await import('duckdb');
@@ -438,9 +523,10 @@ export class ServerStorageManager extends StorageManager {
         };
       });
 
-      console.log(`✅ Loaded ${formatted.length.toLocaleString()} imputed variants for ${individualId}`);
+      console.log(
+        `✅ Loaded ${formatted.length.toLocaleString()} imputed variants for ${individualId}`
+      );
       return formatted;
-
     } catch (error) {
       console.log(`❌ No imputed data for ${individualId}: ${error.message}`);
       return [];
@@ -458,10 +544,15 @@ export class ServerStorageManager extends StorageManager {
       this.getImputedVariants(individualId)
     ]);
 
-    console.log(`📊 Loaded ${genotyped.length} genotyped + ${imputed.length} imputed variants`);
+    console.log(
+      `📊 Loaded ${genotyped.length} genotyped + ${imputed.length} imputed variants`
+    );
 
-    Debug.log(1, 'ServerStorageManager', 
-      `Loaded ${genotyped.length} genotyped + ${imputed.length} imputed = ${genotyped.length + imputed.length} total variants for ${individualId}`);
+    Debug.log(
+      1,
+      'ServerStorageManager',
+      `Loaded ${genotyped.length} genotyped + ${imputed.length} imputed = ${genotyped.length + imputed.length} total variants for ${individualId}`
+    );
 
     // Merge: genotyped takes precedence over imputed at same position
     const merged = [...genotyped];
@@ -477,7 +568,11 @@ export class ServerStorageManager extends StorageManager {
     }
 
     console.log(`✅ Merged to ${merged.length} unique variants`);
-    Debug.log(1, 'ServerStorageManager', `Merged to ${merged.length} unique variants`);
+    Debug.log(
+      1,
+      'ServerStorageManager',
+      `Merged to ${merged.length} unique variants`
+    );
     return merged;
   }
 
@@ -485,7 +580,11 @@ export class ServerStorageManager extends StorageManager {
   async storeRiskScore(individualId, traitId, riskData) {
     await this.initialize();
 
-    Debug.log(1, 'ServerStorageManager', `💾 Storing risk score for ${individualId}:${traitId}`);
+    Debug.log(
+      1,
+      'ServerStorageManager',
+      `💾 Storing risk score for ${individualId}:${traitId}`
+    );
 
     try {
       const cacheFile = PATHS.RISK_SCORES_DB;
@@ -524,7 +623,8 @@ export class ServerStorageManager extends StorageManager {
 
       await new Promise((resolve, reject) => {
         // Store trait-level result
-        writeConn.exec(`
+        writeConn.exec(
+          `
           INSERT OR REPLACE INTO trait_results VALUES (
             '${individualId}', '${traitId}', 
             ${riskData.bestPGS ? `'${riskData.bestPGS}'` : 'NULL'},
@@ -538,21 +638,33 @@ export class ServerStorageManager extends StorageManager {
             ${Date.now()},
             ${riskData.value !== null && riskData.value !== undefined ? riskData.value : 'NULL'}
           )
-        `, (err) => {
-          if (err) return reject(err);
+        `,
+          err => {
+            if (err) return reject(err);
 
-          // Store PGS-level results
-          const pgsInserts = [];
-          sortedPgs.forEach((item) => {
-            const { pgsId, breakdown, details } = item;
-            if (!details) return;
+            // Store PGS-level results
+            const pgsInserts = [];
+            sortedPgs.forEach(item => {
+              const { pgsId, breakdown, details } = item;
+              if (!details) return;
 
-            const weightBucketsJson = breakdown.weightBuckets ? JSON.stringify(breakdown.weightBuckets).replace(/'/g, "''") : '[]';
-            const chromosomeCoverageJson = breakdown.chromosomeCoverage ? JSON.stringify(breakdown.chromosomeCoverage).replace(/'/g, "''") : '{}';
-            const chrTotalsJson = breakdown.chrTotals ? JSON.stringify(breakdown.chrTotals).replace(/'/g, "''") : '{}';
-            const topVariantsJson = details.topVariants ? JSON.stringify(details.topVariants).replace(/'/g, "''") : '[]';
+              const weightBucketsJson = breakdown.weightBuckets
+                ? JSON.stringify(breakdown.weightBuckets).replace(/'/g, "''")
+                : '[]';
+              const chromosomeCoverageJson = breakdown.chromosomeCoverage
+                ? JSON.stringify(breakdown.chromosomeCoverage).replace(
+                    /'/g,
+                    "''"
+                  )
+                : '{}';
+              const chrTotalsJson = breakdown.chrTotals
+                ? JSON.stringify(breakdown.chrTotals).replace(/'/g, "''")
+                : '{}';
+              const topVariantsJson = details.topVariants
+                ? JSON.stringify(details.topVariants).replace(/'/g, "''")
+                : '[]';
 
-            pgsInserts.push(`
+              pgsInserts.push(`
               ('${individualId}', '${traitId}', '${pgsId}',
                ${details.score || 0}, 
                ${details.zScore !== null && details.zScore !== undefined ? details.zScore : 'NULL'},
@@ -573,35 +685,51 @@ export class ServerStorageManager extends StorageManager {
                '${chrTotalsJson}',
                '${topVariantsJson}')
             `);
-          });
+            });
 
-          if (pgsInserts.length > 0) {
-            writeConn.exec(`
+            if (pgsInserts.length > 0) {
+              writeConn.exec(
+                `
               INSERT OR REPLACE INTO pgs_results VALUES ${pgsInserts.join(',')}
-            `, (err2) => {
+            `,
+                err2 => {
+                  writeConn.close();
+                  writeDb.close();
+                  if (err2) reject(err2);
+                  else resolve();
+                }
+              );
+            } else {
               writeConn.close();
               writeDb.close();
-              if (err2) reject(err2);
-              else resolve();
-            });
-          } else {
-            writeConn.close();
-            writeDb.close();
-            resolve();
+              resolve();
+            }
           }
-        });
+        );
       });
 
-      Debug.log(1, 'ServerStorageManager', `✅ Successfully stored risk score for ${individualId}:${traitId}`);
+      Debug.log(
+        1,
+        'ServerStorageManager',
+        `✅ Successfully stored risk score for ${individualId}:${traitId}`
+      );
     } catch (error) {
-      Debug.log(1, 'ServerStorageManager', `❌ Failed to store risk score:`, error.message);
+      Debug.log(
+        1,
+        'ServerStorageManager',
+        `❌ Failed to store risk score:`,
+        error.message
+      );
       throw error;
     }
   }
 
   _getTotalExpectedVariants(pgsDetails) {
     if (!pgsDetails) return 0;
-    return Object.values(pgsDetails).reduce((sum, d) => sum + (d.metadata?.variants_number || 0), 0);
+    return Object.values(pgsDetails).reduce(
+      (sum, d) => sum + (d.metadata?.variants_number || 0),
+      0
+    );
   }
 
   async getCachedRiskScore(individualId, traitId) {
@@ -612,7 +740,10 @@ export class ServerStorageManager extends StorageManager {
       await fs.access(cacheFile);
 
       const duckdb = await import('duckdb');
-      const readDb = new duckdb.default.Database(cacheFile, duckdb.default.OPEN_READONLY);
+      const readDb = new duckdb.default.Database(
+        cacheFile,
+        duckdb.default.OPEN_READONLY
+      );
       const readConn = readDb.connect();
 
       const result = await new Promise((resolve, reject) => {
@@ -637,8 +768,7 @@ export class ServerStorageManager extends StorageManager {
           readDb.close();
           if (err) reject(err);
           else resolve(rows?.[0] || null);
-        }
-        );
+        });
       });
 
       if (!result) return null;
@@ -648,10 +778,22 @@ export class ServerStorageManager extends StorageManager {
       const pgsDetails = {};
 
       pgsList.forEach(pgs => {
-        const weightBuckets = typeof pgs.weight_buckets === 'string' ? JSON.parse(pgs.weight_buckets) : (pgs.weight_buckets || []);
-        const chromosomeCoverage = typeof pgs.chromosome_coverage === 'string' ? JSON.parse(pgs.chromosome_coverage) : (pgs.chromosome_coverage || {});
-        const topVariants = typeof pgs.top_variants === 'string' ? JSON.parse(pgs.top_variants) : (pgs.top_variants || []);
-        const chrTotals = typeof pgs.chr_totals === 'string' ? JSON.parse(pgs.chr_totals) : (pgs.chr_totals || {});
+        const weightBuckets =
+          typeof pgs.weight_buckets === 'string'
+            ? JSON.parse(pgs.weight_buckets)
+            : pgs.weight_buckets || [];
+        const chromosomeCoverage =
+          typeof pgs.chromosome_coverage === 'string'
+            ? JSON.parse(pgs.chromosome_coverage)
+            : pgs.chromosome_coverage || {};
+        const topVariants =
+          typeof pgs.top_variants === 'string'
+            ? JSON.parse(pgs.top_variants)
+            : pgs.top_variants || [];
+        const chrTotals =
+          typeof pgs.chr_totals === 'string'
+            ? JSON.parse(pgs.chr_totals)
+            : pgs.chr_totals || {};
         pgsBreakdown[pgs.pgs_id] = {
           positive: pgs.positive_variants,
           positiveSum: pgs.positive_sum,
@@ -693,7 +835,11 @@ export class ServerStorageManager extends StorageManager {
         value: result.value
       };
     } catch (error) {
-      Debug.log(1, 'ServerStorageManager', `Error in getCachedRiskScore: ${error.message}`);
+      Debug.log(
+        1,
+        'ServerStorageManager',
+        `Error in getCachedRiskScore: ${error.message}`
+      );
       throw error;
     }
   }
@@ -710,7 +856,10 @@ export class ServerStorageManager extends StorageManager {
     }
 
     const duckdb = await import('duckdb');
-    const readDb = new duckdb.default.Database(cacheFile, duckdb.default.OPEN_READONLY);
+    const readDb = new duckdb.default.Database(
+      cacheFile,
+      duckdb.default.OPEN_READONLY
+    );
     const readConn = readDb.connect();
 
     const rows = await new Promise((resolve, reject) => {
@@ -720,8 +869,7 @@ export class ServerStorageManager extends StorageManager {
         readDb.close();
         if (err) reject(err);
         else resolve(result || []);
-      }
-      );
+      });
     });
 
     return rows.map(row => ({
@@ -749,16 +897,22 @@ export class ServerStorageManager extends StorageManager {
     }
 
     const duckdb = await import('duckdb');
-    const readDb = new duckdb.default.Database(cacheFile, duckdb.default.OPEN_READONLY);
+    const readDb = new duckdb.default.Database(
+      cacheFile,
+      duckdb.default.OPEN_READONLY
+    );
     const readConn = readDb.connect();
 
     const rows = await new Promise((resolve, reject) => {
-      readConn.all('SELECT * FROM trait_results ORDER BY individual_id, calculated_at DESC', (err, result) => {
-        readConn.close();
-        readDb.close();
-        if (err) reject(err);
-        else resolve(result || []);
-      });
+      readConn.all(
+        'SELECT * FROM trait_results ORDER BY individual_id, calculated_at DESC',
+        (err, result) => {
+          readConn.close();
+          readDb.close();
+          if (err) reject(err);
+          else resolve(result || []);
+        }
+      );
     });
 
     return rows.map(row => ({
@@ -778,8 +932,12 @@ export class ServerStorageManager extends StorageManager {
     await this.initialize();
 
     // Delete from main DB tables
-    await this._runQuery('DELETE FROM individuals WHERE id = ?', [individualId]);
-    await this._runQuery('DELETE FROM variant_files WHERE individual_id = ?', [individualId]);
+    await this._runQuery('DELETE FROM individuals WHERE id = ?', [
+      individualId
+    ]);
+    await this._runQuery('DELETE FROM variant_files WHERE individual_id = ?', [
+      individualId
+    ]);
 
     // Delete from risk results DB
     const cacheFile = PATHS.RISK_SCORES_DB;
@@ -790,23 +948,30 @@ export class ServerStorageManager extends StorageManager {
       const writeConn = writeDb.connect();
 
       await new Promise((resolve, reject) => {
-        writeConn.exec(`
+        writeConn.exec(
+          `
           DELETE FROM trait_results WHERE individual_id = '${individualId}';
           DELETE FROM pgs_results WHERE individual_id = '${individualId}';
           DELETE FROM pgs_top_variants WHERE individual_id = '${individualId}';
-        `, (err) => {
-          writeConn.close();
-          writeDb.close();
-          if (err) reject(err);
-          else resolve();
-        });
+        `,
+          err => {
+            writeConn.close();
+            writeDb.close();
+            if (err) reject(err);
+            else resolve();
+          }
+        );
       });
     } catch (_error) {
       // Risk DB might not exist yet
     }
 
     // Delete variant file
-    const variantFile = path.join(this.dataDir, 'variants', `${individualId}.json`);
+    const variantFile = path.join(
+      this.dataDir,
+      'variants',
+      `${individualId}.json`
+    );
     try {
       await fs.unlink(variantFile);
     } catch (_error) {
@@ -824,16 +989,19 @@ export class ServerStorageManager extends StorageManager {
       const writeConn = writeDb.connect();
 
       await new Promise((resolve, reject) => {
-        writeConn.exec(`
+        writeConn.exec(
+          `
           DELETE FROM trait_results;
           DELETE FROM pgs_results;
           DELETE FROM pgs_top_variants;
-        `, (err) => {
-          writeConn.close();
-          writeDb.close();
-          if (err) reject(err);
-          else resolve();
-        });
+        `,
+          err => {
+            writeConn.close();
+            writeDb.close();
+            if (err) reject(err);
+            else resolve();
+          }
+        );
       });
     } catch (_error) {
       // DB might not exist yet
@@ -845,7 +1013,11 @@ export class ServerStorageManager extends StorageManager {
 
     try {
       await fs.access(cacheFile);
-      Debug.log(2, 'ServerStorageManager', 'Risk scores DB already exists, skipping initialization');
+      Debug.log(
+        2,
+        'ServerStorageManager',
+        'Risk scores DB already exists, skipping initialization'
+      );
       return;
     } catch {
       Debug.log(1, 'ServerStorageManager', 'Creating empty risk scores DB...');
@@ -856,7 +1028,8 @@ export class ServerStorageManager extends StorageManager {
     const conn = db.connect();
 
     await new Promise((resolve, reject) => {
-      conn.exec(`
+      conn.exec(
+        `
         CREATE TABLE trait_results (
           individual_id VARCHAR NOT NULL,
           trait_id VARCHAR NOT NULL,
@@ -899,17 +1072,22 @@ export class ServerStorageManager extends StorageManager {
           top_variants JSON,
           PRIMARY KEY (individual_id, trait_id, pgs_id)
         );
-      `, (err) => {
-        conn.close();
-        db.close();
-        if (err) reject(err);
-        else resolve();
-      });
+      `,
+        err => {
+          conn.close();
+          db.close();
+          if (err) reject(err);
+          else resolve();
+        }
+      );
     });
 
-    Debug.log(1, 'ServerStorageManager', 'Empty risk scores DB created successfully');
+    Debug.log(
+      1,
+      'ServerStorageManager',
+      'Empty risk scores DB created successfully'
+    );
   }
-
 
   async cleanup() {
     if (this.conn) {

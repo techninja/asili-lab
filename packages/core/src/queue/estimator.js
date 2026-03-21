@@ -12,24 +12,30 @@ export class TimeEstimator {
     }
 
     const record = this.history.get(traitId);
-    record.times.push({ duration, variantCount, totalRows, timestamp: Date.now() });
+    record.times.push({
+      duration,
+      variantCount,
+      totalRows,
+      timestamp: Date.now()
+    });
 
     // Update global performance metrics using total rows processed (more accurate)
     const processingMetric = totalRows || variantCount;
     if (processingMetric > 0) {
       const actualRate = processingMetric / (duration / 1000);
       this.performanceHistory.push(actualRate);
-      
+
       // Keep only last 20 measurements
       if (this.performanceHistory.length > 20) {
         this.performanceHistory.shift();
       }
-      
+
       // Update processing rate with weighted average (recent measurements weighted more)
-      this.variantsPerSecond = this.performanceHistory.reduce((sum, rate, i) => {
-        const weight = i + 1;
-        return sum + rate * weight;
-      }, 0) / this.performanceHistory.reduce((sum, _, i) => sum + i + 1, 0);
+      this.variantsPerSecond =
+        this.performanceHistory.reduce((sum, rate, i) => {
+          const weight = i + 1;
+          return sum + rate * weight;
+        }, 0) / this.performanceHistory.reduce((sum, _, i) => sum + i + 1, 0);
     }
 
     // Keep only last 10 records per trait
@@ -49,22 +55,22 @@ export class TimeEstimator {
 
   estimateTime(traitId, variantCount = 0) {
     const record = this.history.get(traitId);
-    
+
     // Estimate based on variant count but use more realistic baseline
     if (variantCount > 0) {
       // Use current performance rate (rows/second) with variant count as proxy
       const estimatedMs = (variantCount / this.variantsPerSecond) * 1000;
       const baseTime = Math.max(15000, estimatedMs); // 15 second minimum
-      
+
       // If we have historical data for this trait, blend with it
       if (record && record.times.length > 0) {
         const historicalTime = record.avgTime;
         return Math.round(baseTime * 0.6 + historicalTime * 0.4);
       }
-      
+
       return Math.round(baseTime);
     }
-    
+
     return record ? record.avgTime : this.baseEstimate;
   }
 
@@ -77,7 +83,7 @@ export class TimeEstimator {
       return total;
     }, 0);
   }
-  
+
   getCurrentPerformance() {
     return {
       variantsPerSecond: Math.round(this.variantsPerSecond),

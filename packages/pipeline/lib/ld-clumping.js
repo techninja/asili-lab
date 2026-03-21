@@ -16,13 +16,17 @@ const MIN_VARIANTS_AFTER_CLUMP = 8; // Minimum variants to keep for usefulness
  */
 export function generateLDClumpingSQL(tableName = 'pgs_staging', chromosome) {
   if (!LD_PARQUET_DIR || !existsSync(LD_PARQUET_DIR)) {
-    console.log('    ⚠️  gnomAD LD data not available, using distance-based clumping');
+    console.log(
+      '    ⚠️  gnomAD LD data not available, using distance-based clumping'
+    );
     return generateDistanceClumpingSQL(tableName);
   }
 
   const ldFile = path.join(LD_PARQUET_DIR, `chr${chromosome}_CEU_ld.parquet`);
   if (!existsSync(ldFile)) {
-    console.log(`    ⚠️  LD data not found for chr${chromosome}, using distance-based clumping`);
+    console.log(
+      `    ⚠️  LD data not found for chr${chromosome}, using distance-based clumping`
+    );
     return generateDistanceClumpingSQL(tableName);
   }
 

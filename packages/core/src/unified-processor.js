@@ -14,7 +14,13 @@ import { PATHS } from './constants/paths.js';
 // import { DuckDBCacheManager } from '../cache/duckdb-manager.js';
 
 export class UnifiedProcessor {
-  constructor(genomicProcessor, storage, progressTracker, queueManager, config = {}) {
+  constructor(
+    genomicProcessor,
+    storage,
+    progressTracker,
+    queueManager,
+    config = {}
+  ) {
     this.genomicProcessor = genomicProcessor;
     this.storage = storage;
     this.progressTracker = progressTracker;
@@ -34,50 +40,71 @@ export class UnifiedProcessor {
     if (this.storage.initialize) {
       await this.storage.initialize();
     }
-    
+
     // Initialize DuckDB cache manager (disabled for now)
     // this.cacheManager = new DuckDBCacheManager(this.genomicProcessor, {
     //   cacheDir: './cache',
     //   cacheUrl: '/cache'
     // });
     // await this.cacheManager.initialize();
-    
+
     // Load trait manifest
     await this.loadTraitManifest();
-    
+
     Debug.log(1, 'UnifiedProcessor', 'Initialized successfully');
   }
 
   async loadTraitManifest() {
     try {
       let manifestData;
-      
+
       if (typeof window !== 'undefined') {
         // Browser environment - load from JSON
         const response = await fetch('/data/trait_manifest.json');
         manifestData = await response.json();
-        
+
         // Cache bust based on generated_at timestamp
-        const cachedTimestamp = localStorage.getItem('trait_manifest_timestamp');
+        const cachedTimestamp = localStorage.getItem(
+          'trait_manifest_timestamp'
+        );
         if (cachedTimestamp !== manifestData.generated_at) {
-          Debug.log(2, 'UnifiedProcessor', `Manifest updated (${cachedTimestamp} -> ${manifestData.generated_at})`);
-          localStorage.setItem('trait_manifest_timestamp', manifestData.generated_at);
+          Debug.log(
+            2,
+            'UnifiedProcessor',
+            `Manifest updated (${cachedTimestamp} -> ${manifestData.generated_at})`
+          );
+          localStorage.setItem(
+            'trait_manifest_timestamp',
+            manifestData.generated_at
+          );
         }
       } else {
         // Server environment - load directly from database
-        Debug.log(2, 'UnifiedProcessor', 'Loading trait manifest from database');
+        Debug.log(
+          2,
+          'UnifiedProcessor',
+          'Loading trait manifest from database'
+        );
         manifestData = await this._loadManifestFromDB();
       }
-      
+
       this.traitManifest = manifestData;
-      Debug.log(2, 'UnifiedProcessor', `Loaded ${Object.keys(manifestData.traits).length} traits`);
-      
+      Debug.log(
+        2,
+        'UnifiedProcessor',
+        `Loaded ${Object.keys(manifestData.traits).length} traits`
+      );
+
       // Debug first trait in manifest
       const firstTraitId = Object.keys(manifestData.traits)[0];
       if (firstTraitId) {
-        Debug.log(2, 'UnifiedProcessor', `Sample manifest trait (${firstTraitId}):`, manifestData.traits[firstTraitId]);
+        Debug.log(
+          2,
+          'UnifiedProcessor',
+          `Sample manifest trait (${firstTraitId}):`,
+          manifestData.traits[firstTraitId]
+        );
       }
-      
     } catch (error) {
       Debug.log(1, 'UnifiedProcessor', 'Failed to load trait manifest:', error);
       this.traitManifest = { traits: {} };
@@ -86,15 +113,18 @@ export class UnifiedProcessor {
 
   async _loadManifestFromDB() {
     const duckdb = await import('duckdb');
-    
+
     const DB_PATH = PATHS.TRAIT_MANIFEST_DB;
     Debug.log(2, 'UnifiedProcessor', `Loading from database: ${DB_PATH}`);
-    
-    const db = new duckdb.default.Database(DB_PATH, { access_mode: 'READ_ONLY' });
+
+    const db = new duckdb.default.Database(DB_PATH, {
+      access_mode: 'READ_ONLY'
+    });
     const conn = db.connect();
-    
+
     const traits = await new Promise((resolve, reject) => {
-      conn.all(`
+      conn.all(
+        `
         SELECT 
           t.trait_id, t.name, t.description, t.categories,
           t.expected_variants, t.estimated_unique_variants,
@@ -102,28 +132,38 @@ export class UnifiedProcessor {
           t.trait_type, t.unit, t.phenotype_mean, t.phenotype_sd,
           t.reference_population
         FROM traits t
-      `, (err, rows) => err ? reject(err) : resolve(rows));
+      `,
+        (err, rows) => (err ? reject(err) : resolve(rows))
+      );
     });
-    
+
     const manifest = {
       version: '1.0',
       generated_at: new Date().toISOString(),
       traits: {}
     };
-    
+
     for (const trait of traits) {
       const pgsCount = await new Promise((resolve, reject) => {
-        conn.all('SELECT COUNT(*) as count FROM trait_pgs WHERE trait_id = ?', 
-          [trait.trait_id], (err, rows) => err ? reject(err) : resolve(rows[0].count));
+        conn.all(
+          'SELECT COUNT(*) as count FROM trait_pgs WHERE trait_id = ?',
+          [trait.trait_id],
+          (err, rows) => (err ? reject(err) : resolve(rows[0].count))
+        );
       });
-      
+
       let categories = [];
       try {
         categories = trait.categories ? JSON.parse(trait.categories) : [];
       } catch (_e) {
-        categories = trait.categories ? trait.categories.split(',').map(c => c.trim()).filter(Boolean) : [];
+        categories = trait.categories
+          ? trait.categories
+              .split(',')
+              .map(c => c.trim())
+              .filter(Boolean)
+          : [];
       }
-      
+
       manifest.traits[trait.trait_id] = {
         trait_id: trait.trait_id,
         name: trait.editorial_name || trait.name,
@@ -135,17 +175,25 @@ export class UnifiedProcessor {
         phenotype_sd: trait.phenotype_sd || null,
         reference_population: trait.reference_population || null,
         categories: categories,
-        expected_variants: trait.expected_variants ? Number(trait.expected_variants) : 0,
-        estimated_unique_variants: trait.estimated_unique_variants ? Number(trait.estimated_unique_variants) : 0,
+        expected_variants: trait.expected_variants
+          ? Number(trait.expected_variants)
+          : 0,
+        estimated_unique_variants: trait.estimated_unique_variants
+          ? Number(trait.estimated_unique_variants)
+          : 0,
         pgs_count: Number(pgsCount),
         file_path: `packs/${trait.trait_id.replace(/:/g, '_')}_hg38.parquet`
       };
     }
-    
+
     conn.close();
     db.close();
-    
-    Debug.log(2, 'UnifiedProcessor', `Loaded ${Object.keys(manifest.traits).length} traits from database`);
+
+    Debug.log(
+      2,
+      'UnifiedProcessor',
+      `Loaded ${Object.keys(manifest.traits).length} traits from database`
+    );
     return manifest;
   }
 
@@ -165,18 +213,37 @@ export class UnifiedProcessor {
   }
 
   // DNA import and processing
-  async importDNA(dnaFile, individualId, individualName, emoji = '👤', progressCallback) {
-    Debug.log(1, 'UnifiedProcessor', `Importing DNA for ${individualName} (${individualId})`);
-    
+  async importDNA(
+    dnaFile,
+    individualId,
+    individualName,
+    emoji = '👤',
+    progressCallback
+  ) {
+    Debug.log(
+      1,
+      'UnifiedProcessor',
+      `Importing DNA for ${individualName} (${individualId})`
+    );
+
     try {
       // Add individual if not exists
       if (individualId && individualName) {
-        await this.storage.addIndividual(individualId, individualName, 'self', emoji);
+        await this.storage.addIndividual(
+          individualId,
+          individualName,
+          'self',
+          emoji
+        );
       }
 
       // Parse DNA file
-      const dnaData = await this.parseDNAFile(dnaFile, individualId, progressCallback);
-      
+      const dnaData = await this.parseDNAFile(
+        dnaFile,
+        individualId,
+        progressCallback
+      );
+
       this.emit('dnaImported', {
         individualId,
         variantCount: dnaData.variants.length,
@@ -188,7 +255,6 @@ export class UnifiedProcessor {
         variantCount: dnaData.variants.length,
         metadata: dnaData.metadata
       };
-      
     } catch (error) {
       this.emit('dnaImportFailed', { individualId, error: error.message });
       throw error;
@@ -196,8 +262,12 @@ export class UnifiedProcessor {
   }
 
   async parseDNAFile(file, individualId, progressCallback) {
-    Debug.log(1, 'UnifiedProcessor', `Parsing DNA file: ${file.name || 'uploaded file'}`);
-    
+    Debug.log(
+      1,
+      'UnifiedProcessor',
+      `Parsing DNA file: ${file.name || 'uploaded file'}`
+    );
+
     let text;
     if (typeof file === 'string') {
       // Server: file is a path
@@ -213,7 +283,11 @@ export class UnifiedProcessor {
       line => line.trim() && !line.startsWith('#') && !line.startsWith('rsid')
     );
 
-    Debug.log(2, 'UnifiedProcessor', `Found ${dataLines.length} data lines from ${lines.length} total lines`);
+    Debug.log(
+      2,
+      'UnifiedProcessor',
+      `Found ${dataLines.length} data lines from ${lines.length} total lines`
+    );
 
     const variants = [];
 
@@ -246,16 +320,28 @@ export class UnifiedProcessor {
       }
     }
 
-    Debug.log(1, 'UnifiedProcessor', `Parsed ${variants.length} valid variants from DNA file`);
+    Debug.log(
+      1,
+      'UnifiedProcessor',
+      `Parsed ${variants.length} valid variants from DNA file`
+    );
 
     // Store variants
     if (individualId) {
-      Debug.log(2, 'UnifiedProcessor', `Storing variants for individual: ${individualId}`);
-      await this.storage.storeVariants(individualId, variants, (current, total) => {
-        const progress = Math.round((current / total) * 100);
-        const message = `Stored ${current}/${total} variants`;
-        progressCallback?.(message, progress);
-      });
+      Debug.log(
+        2,
+        'UnifiedProcessor',
+        `Storing variants for individual: ${individualId}`
+      );
+      await this.storage.storeVariants(
+        individualId,
+        variants,
+        (current, total) => {
+          const progress = Math.round((current / total) * 100);
+          const message = `Stored ${current}/${total} variants`;
+          progressCallback?.(message, progress);
+        }
+      );
     }
 
     return {
@@ -271,8 +357,17 @@ export class UnifiedProcessor {
   }
 
   // Risk calculation
-  async calculateTraitRisk(traitId, individualId, progressCallback, preloadedDNA = null) {
-    Debug.log(1, 'UnifiedProcessor', `Calculating risk for trait: ${traitId}, individual: ${individualId}`);
+  async calculateTraitRisk(
+    traitId,
+    individualId,
+    progressCallback,
+    preloadedDNA = null
+  ) {
+    Debug.log(
+      1,
+      'UnifiedProcessor',
+      `Calculating risk for trait: ${traitId}, individual: ${individualId}`
+    );
 
     if (!this.traitManifest) {
       throw new Error('Trait manifest not loaded');
@@ -285,7 +380,11 @@ export class UnifiedProcessor {
         throw new Error(`Trait ${traitId} not found`);
       }
 
-      Debug.log(2, 'UnifiedProcessor', `Found trait: ${trait.name} with ${trait.variant_count} variants`);
+      Debug.log(
+        2,
+        'UnifiedProcessor',
+        `Found trait: ${trait.name} with ${trait.variant_count} variants`
+      );
 
       if (!trait.file_path) {
         throw new Error(`No data file available for trait ${trait.name}`);
@@ -295,23 +394,39 @@ export class UnifiedProcessor {
       progressCallback?.('Loading user DNA...', 0);
       let userDNA;
       let _isHybridLookup = false;
-      
+
       if (preloadedDNA) {
         // Check if it's a HybridVariantLookup instance
-        if (preloadedDNA.constructor.name === 'HybridVariantLookup' || 
-            (preloadedDNA.genotypedMap && preloadedDNA.get && typeof preloadedDNA.get === 'function')) {
+        if (
+          preloadedDNA.constructor.name === 'HybridVariantLookup' ||
+          (preloadedDNA.genotypedMap &&
+            preloadedDNA.get &&
+            typeof preloadedDNA.get === 'function')
+        ) {
           // It's a HybridVariantLookup - pass it directly
           userDNA = preloadedDNA;
           _isHybridLookup = true;
-          Debug.log(2, 'UnifiedProcessor', `Using HybridVariantLookup with ${preloadedDNA.genotypedMap?.size || 0} genotyped variants`);
+          Debug.log(
+            2,
+            'UnifiedProcessor',
+            `Using HybridVariantLookup with ${preloadedDNA.genotypedMap?.size || 0} genotyped variants`
+          );
         } else if (preloadedDNA instanceof Map) {
           // Convert Map to array
           userDNA = Array.from(preloadedDNA.values());
-          Debug.log(2, 'UnifiedProcessor', `Using preloaded DNA Map: ${userDNA.length} variants`);
+          Debug.log(
+            2,
+            'UnifiedProcessor',
+            `Using preloaded DNA Map: ${userDNA.length} variants`
+          );
         } else {
           // Assume it's an array
           userDNA = preloadedDNA;
-          Debug.log(2, 'UnifiedProcessor', `Using preloaded DNA array: ${userDNA.length} variants`);
+          Debug.log(
+            2,
+            'UnifiedProcessor',
+            `Using preloaded DNA array: ${userDNA.length} variants`
+          );
         }
       } else {
         userDNA = this.dnaCache.get(individualId);
@@ -321,14 +436,16 @@ export class UnifiedProcessor {
             throw new Error('No DNA data found for individual');
           }
           this.dnaCache.set(individualId, userDNA);
-          console.log(`🧬 Loaded ${userDNA.length} DNA variants for processing`);
+          console.log(
+            `🧬 Loaded ${userDNA.length} DNA variants for processing`
+          );
         }
       }
 
       // Build trait URL/path
       progressCallback?.('Loading trait data...', 5);
       let traitSource;
-      
+
       if (typeof window !== 'undefined') {
         // Browser: use URL
         traitSource = PATHS.getWebTraitFile(traitId);
@@ -337,69 +454,93 @@ export class UnifiedProcessor {
         traitSource = PATHS.getTraitFile(traitId);
       }
 
-      Debug.log(2, 'UnifiedProcessor', `Using trait data source: ${traitSource}`);
+      Debug.log(
+        2,
+        'UnifiedProcessor',
+        `Using trait data source: ${traitSource}`
+      );
 
       // Fetch normalization parameters and performance weights from database
       const normalizationParams = {};
       const pgsMetadata = {};
       const pgsPerformanceMetrics = {};
-      
+
       if (typeof window === 'undefined') {
         // Server: fetch from database
         try {
-          const { getTraitPGS } = await import('../../pipeline/lib/trait-db.js');
-          const { getPGS, getPGSPerformance } = await import('../../pipeline/lib/pgs-db.js');
-          const { getConnection } = await import('../../pipeline/lib/shared-db.js');
-          
+          const { getTraitPGS } =
+            await import('../../pipeline/lib/trait-db.js');
+          const { getPGS, getPGSPerformance } =
+            await import('../../pipeline/lib/pgs-db.js');
+          const { getConnection } =
+            await import('../../pipeline/lib/shared-db.js');
+
           const pgsScores = await getTraitPGS(traitId);
-          
+
           // Load metadata for ALL PGS in pgs_scores table (not just registered ones)
           const conn = await getConnection();
           const allPgsRows = await new Promise((resolve, reject) => {
-            conn.all('SELECT pgs_id, weight_type, method_name, variants_number FROM pgs_scores', (err, rows) => {
-              if (err) reject(err);
-              else resolve(rows || []);
-            });
+            conn.all(
+              'SELECT pgs_id, weight_type, method_name, variants_number FROM pgs_scores',
+              (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows || []);
+              }
+            );
           });
-          
+
           for (const pgs of allPgsRows) {
             pgsMetadata[pgs.pgs_id] = {
               weight_type: pgs.weight_type,
               method: pgs.method_name,
-              variants_number: pgs.variants_number ? Number(pgs.variants_number) : null
+              variants_number: pgs.variants_number
+                ? Number(pgs.variants_number)
+                : null
             };
           }
-          
+
           // Load normalization params and performance metrics for registered PGS
           for (const { pgs_id } of pgsScores) {
             const pgs = await getPGS(pgs_id);
             if (pgs) {
               // Get best R² from pgs_performance table
               const perfMetrics = await getPGSPerformance(pgs_id);
-              const r2Metrics = perfMetrics.filter(m => 
-                m.metric_type === 'R²' || 
-                m.metric_type === 'PGS R2 (no covariates)'
+              const r2Metrics = perfMetrics.filter(
+                m =>
+                  m.metric_type === 'R²' ||
+                  m.metric_type === 'PGS R2 (no covariates)'
               );
               let bestR2 = 0.05; // default
               if (r2Metrics.length > 0) {
-                bestR2 = Math.max(...r2Metrics.map(m => {
-                  // Normalize: values > 1 are percentages
-                  return m.metric_value > 1 ? m.metric_value / 100 : m.metric_value;
-                }));
+                bestR2 = Math.max(
+                  ...r2Metrics.map(m => {
+                    // Normalize: values > 1 are percentages
+                    return m.metric_value > 1
+                      ? m.metric_value / 100
+                      : m.metric_value;
+                  })
+                );
               }
-              
+
               normalizationParams[pgs_id] = {
                 norm_mean: pgs.norm_mean,
                 norm_sd: pgs.norm_sd,
                 performance_weight: bestR2,
-                variants_number: pgs.variants_number ? Number(pgs.variants_number) : null
+                variants_number: pgs.variants_number
+                  ? Number(pgs.variants_number)
+                  : null
               };
-              
+
               pgsPerformanceMetrics[pgs_id] = { r2: bestR2 };
             }
           }
         } catch (dbError) {
-          Debug.log(1, 'UnifiedProcessor', 'Failed to fetch normalization params from DB:', dbError.message);
+          Debug.log(
+            1,
+            'UnifiedProcessor',
+            'Failed to fetch normalization params from DB:',
+            dbError.message
+          );
         }
       }
 
@@ -408,7 +549,11 @@ export class UnifiedProcessor {
         traitSource,
         userDNA,
         (message, percent) => {
-          Debug.log(3, 'UnifiedProcessor', `Risk calculation progress: ${message} (${percent}%)`);
+          Debug.log(
+            3,
+            'UnifiedProcessor',
+            `Risk calculation progress: ${message} (${percent}%)`
+          );
           progressCallback?.(message, percent);
         },
         pgsMetadata,
@@ -420,7 +565,11 @@ export class UnifiedProcessor {
         pgsPerformanceMetrics
       );
 
-      Debug.log(1, 'UnifiedProcessor', `Risk calculation complete. Score: ${result.riskScore}`);
+      Debug.log(
+        1,
+        'UnifiedProcessor',
+        `Risk calculation complete. Score: ${result.riskScore}`
+      );
 
       // Format and cache result
       const riskData = {
@@ -442,9 +591,13 @@ export class UnifiedProcessor {
         trait_type: trait.trait_type,
         unit: trait.unit
       };
-      
+
       // Add value for quantitative traits
-      if (trait.trait_type === 'quantitative' && trait.unit && result.value !== undefined) {
+      if (
+        trait.trait_type === 'quantitative' &&
+        trait.unit &&
+        result.value !== undefined
+      ) {
         riskData.value = result.value;
       }
 
@@ -459,9 +612,13 @@ export class UnifiedProcessor {
       });
 
       return riskData;
-
     } catch (error) {
-      Debug.log(1, 'UnifiedProcessor', `Risk calculation failed for ${traitId}:`, error.message);
+      Debug.log(
+        1,
+        'UnifiedProcessor',
+        `Risk calculation failed for ${traitId}:`,
+        error.message
+      );
       this.emit('traitFailed', { traitId, individualId, error: error.message });
       throw error;
     }
@@ -472,57 +629,69 @@ export class UnifiedProcessor {
     const traits = Object.keys(this.traitManifest.traits);
     const totalTraits = traits.length;
     const results = [];
-    
-    Debug.log(1, 'UnifiedProcessor', `Starting batch processing of ${totalTraits} traits for ${individualId}`);
-    
+
+    Debug.log(
+      1,
+      'UnifiedProcessor',
+      `Starting batch processing of ${totalTraits} traits for ${individualId}`
+    );
+
     this.emit('batchStarted', { individualId, totalTraits });
-    
+
     const batchSize = options.batchSize || 1;
     const yieldInterval = options.yieldInterval || 5;
-    
+
     for (let i = 0; i < traits.length; i += batchSize) {
       const batch = traits.slice(i, i + batchSize);
       const overallProgress = (i / totalTraits) * 100;
-      
+
       for (const traitId of batch) {
         const trait = this.traitManifest.traits[traitId];
-        
+
         this.emit('progress', {
           progress: overallProgress,
           processedTraits: i,
           totalTraits,
           currentTrait: trait
         });
-        
+
         try {
           const result = await this.calculateTraitRisk(
             traitId,
             individualId,
             (message, percent) => {
-              const _adjustedProgress = overallProgress + (percent / totalTraits);
+              const _adjustedProgress = overallProgress + percent / totalTraits;
               // Don't emit every progress update to avoid spam
             }
           );
-          
+
           results.push({ traitId, success: true, data: result });
-          
         } catch (error) {
-          Debug.log(2, 'UnifiedProcessor', `Failed to process trait ${traitId}:`, error.message);
+          Debug.log(
+            2,
+            'UnifiedProcessor',
+            `Failed to process trait ${traitId}:`,
+            error.message
+          );
           results.push({ traitId, success: false, error: error.message });
         }
       }
-      
+
       // Yield control periodically
       if (i % yieldInterval === 0) {
         await new Promise(resolve => setTimeout(resolve, 10));
       }
     }
-    
+
     const successCount = results.filter(r => r.success).length;
     const failedCount = results.filter(r => !r.success).length;
-    
-    Debug.log(1, 'UnifiedProcessor', `Batch processing complete: ${successCount} success, ${failedCount} failed`);
-    
+
+    Debug.log(
+      1,
+      'UnifiedProcessor',
+      `Batch processing complete: ${successCount} success, ${failedCount} failed`
+    );
+
     this.emit('batchCompleted', {
       individualId,
       totalTraits,
@@ -530,7 +699,7 @@ export class UnifiedProcessor {
       failedCount,
       results
     });
-    
+
     return results;
   }
 
@@ -540,10 +709,12 @@ export class UnifiedProcessor {
       throw new Error('Queue manager not available');
     }
 
-    const traits = Object.entries(this.traitManifest.traits).map(([id, trait]) => ({
-      id,
-      ...trait
-    }));
+    const traits = Object.entries(this.traitManifest.traits).map(
+      ([id, trait]) => ({
+        id,
+        ...trait
+      })
+    );
 
     return this.queueManager.addAllTraits(individualId, traits, priority);
   }
@@ -567,10 +738,15 @@ export class UnifiedProcessor {
       try {
         return await this.cacheManager.getCachedResults(individualId);
       } catch (error) {
-        Debug.log(2, 'UnifiedProcessor', 'DuckDB cache failed, falling back to storage:', error.message);
+        Debug.log(
+          2,
+          'UnifiedProcessor',
+          'DuckDB cache failed, falling back to storage:',
+          error.message
+        );
       }
     }
-    
+
     // Fallback to storage manager
     if (this.storage.getCachedResults) {
       return await this.storage.getCachedResults(individualId);
@@ -585,7 +761,9 @@ export class UnifiedProcessor {
       for (const key of resultKeys) {
         const data = await this.storage.retrieve(key);
         if (data) {
-          const traitId = key.replace('risk_', '').replace(`_${individualId}`, '');
+          const traitId = key
+            .replace('risk_', '')
+            .replace(`_${individualId}`, '');
           results.push({ traitId, ...data });
         }
       }
@@ -596,40 +774,56 @@ export class UnifiedProcessor {
   async getCachedResult(individualId, traitId) {
     if (this.cacheManager) {
       try {
-        const result = await this.cacheManager.getCachedResult(individualId, traitId);
+        const result = await this.cacheManager.getCachedResult(
+          individualId,
+          traitId
+        );
         if (result) return result;
       } catch (error) {
-        Debug.log(2, 'UnifiedProcessor', 'DuckDB cache failed, falling back to storage:', error.message);
+        Debug.log(
+          2,
+          'UnifiedProcessor',
+          'DuckDB cache failed, falling back to storage:',
+          error.message
+        );
       }
     }
-    
+
     return await this.storage.getCachedRiskScore(individualId, traitId);
   }
 
   // Utility methods
   getAllTraits() {
     if (!this.traitManifest) return [];
-    
-    const traits = Object.entries(this.traitManifest.traits).map(([id, trait]) => ({
-      id,
-      name: trait.name,
-      description: trait.description || `Polygenic risk score for ${trait.name}`,
-      categories: trait.categories || ['Other Conditions'],
-      emoji: trait.emoji || '',
-      trait_type: trait.trait_type || 'disease_risk',
-      unit: trait.unit || null,
-      file_path: trait.file_path,
-      pgs_metadata: trait.pgs_metadata || {},
-      variant_count: trait.expected_variants || 0,
-      pgs_count: trait.pgs_count || 0,
-      last_updated: trait.last_updated
-    }));
-    
+
+    const traits = Object.entries(this.traitManifest.traits).map(
+      ([id, trait]) => ({
+        id,
+        name: trait.name,
+        description:
+          trait.description || `Polygenic risk score for ${trait.name}`,
+        categories: trait.categories || ['Other Conditions'],
+        emoji: trait.emoji || '',
+        trait_type: trait.trait_type || 'disease_risk',
+        unit: trait.unit || null,
+        file_path: trait.file_path,
+        pgs_metadata: trait.pgs_metadata || {},
+        variant_count: trait.expected_variants || 0,
+        pgs_count: trait.pgs_count || 0,
+        last_updated: trait.last_updated
+      })
+    );
+
     // Debug first trait
     if (traits.length > 0) {
-      Debug.log(2, 'UnifiedProcessor', 'Sample getAllTraits output:', traits[0]);
+      Debug.log(
+        2,
+        'UnifiedProcessor',
+        'Sample getAllTraits output:',
+        traits[0]
+      );
     }
-    
+
     return traits;
   }
 
@@ -651,7 +845,9 @@ export class UnifiedProcessor {
   getStatus() {
     return {
       initialized: !!this.traitManifest,
-      traitCount: this.traitManifest ? Object.keys(this.traitManifest.traits).length : 0,
+      traitCount: this.traitManifest
+        ? Object.keys(this.traitManifest.traits).length
+        : 0,
       queueStatus: this.queueManager ? this.queueManager.getQueueState() : null,
       cacheEnabled: !!this.cacheManager
     };
@@ -662,7 +858,7 @@ export class UnifiedProcessor {
     if (this.cacheManager) {
       await this.cacheManager.clearCache(individualId);
     }
-    
+
     // Also clear traditional storage
     if (individualId) {
       if (this.storage.deleteIndividual) {
@@ -709,22 +905,47 @@ export class UnifiedProcessor {
 // Factory functions for different environments
 export async function createBrowserProcessor(config = {}) {
   const { ProgressTracker } = await import('./progress/index.js');
-  const { BrowserStorageManager } = await import('./storage-manager/browser.js');
+  const { BrowserStorageManager } =
+    await import('./storage-manager/browser.js');
   const { QueueManager } = await import('./queue/manager.js');
 
   const progressTracker = new ProgressTracker();
   const genomicProcessor = { initialize() {}, cleanup() {} };
   const storage = new BrowserStorageManager(config);
-  const queueManager = new QueueManager({ calculateTraitRisk: async (traitId, individualId, progressCallback) => {
-    const processor = new UnifiedProcessor(genomicProcessor, storage, progressTracker, null, config);
-    await processor.initialize();
-    return await processor.calculateTraitRisk(traitId, individualId, progressCallback);
-  }});
+  const queueManager = new QueueManager({
+    calculateTraitRisk: async (traitId, individualId, progressCallback) => {
+      const processor = new UnifiedProcessor(
+        genomicProcessor,
+        storage,
+        progressTracker,
+        null,
+        config
+      );
+      await processor.initialize();
+      return await processor.calculateTraitRisk(
+        traitId,
+        individualId,
+        progressCallback
+      );
+    }
+  });
 
-  const processor = new UnifiedProcessor(genomicProcessor, storage, progressTracker, queueManager, config);
+  const processor = new UnifiedProcessor(
+    genomicProcessor,
+    storage,
+    progressTracker,
+    queueManager,
+    config
+  );
   await processor.initialize();
 
-  return { processor, progressTracker, genomicProcessor, storage, queueManager };
+  return {
+    processor,
+    progressTracker,
+    genomicProcessor,
+    storage,
+    queueManager
+  };
 }
 
 export async function createServerProcessor(config = {}) {
@@ -737,16 +958,40 @@ export async function createServerProcessor(config = {}) {
   // This stub satisfies UnifiedProcessor's constructor without pulling in deleted code.
   const genomicProcessor = { initialize() {}, cleanup() {} };
   const storage = new ServerStorageManager(config);
-  const queueManager = new QueueManager({ calculateTraitRisk: async (traitId, individualId, progressCallback) => {
-    const processor = new UnifiedProcessor(genomicProcessor, storage, progressTracker, null, config);
-    await processor.initialize();
-    return await processor.calculateTraitRisk(traitId, individualId, progressCallback);
-  }});
+  const queueManager = new QueueManager({
+    calculateTraitRisk: async (traitId, individualId, progressCallback) => {
+      const processor = new UnifiedProcessor(
+        genomicProcessor,
+        storage,
+        progressTracker,
+        null,
+        config
+      );
+      await processor.initialize();
+      return await processor.calculateTraitRisk(
+        traitId,
+        individualId,
+        progressCallback
+      );
+    }
+  });
 
-  const processor = new UnifiedProcessor(genomicProcessor, storage, progressTracker, queueManager, config);
+  const processor = new UnifiedProcessor(
+    genomicProcessor,
+    storage,
+    progressTracker,
+    queueManager,
+    config
+  );
   await processor.initialize();
 
-  return { processor, progressTracker, genomicProcessor, storage, queueManager };
+  return {
+    processor,
+    progressTracker,
+    genomicProcessor,
+    storage,
+    queueManager
+  };
 }
 
 // Auto-detecting factory

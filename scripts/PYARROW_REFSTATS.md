@@ -7,6 +7,7 @@ Fast calculation of PGS reference statistics using DuckDB + PyArrow.
 **Achieved: 160,791 variants/sec** on 7.4M variant PGS (PGS002853)
 
 Tested on:
+
 - gnomAD v4.1 parquet (3.8GB, 759M variants)
 - BMI trait pack (1.3GB, 109M variants across 117 PGS)
 - Hardware: 8 threads, 32GB RAM
@@ -14,6 +15,7 @@ Tested on:
 ## Prerequisites
 
 1. **gnomAD Parquet**: Convert SQLite to Parquet format
+
    ```bash
    # One-time conversion (requires asili-calc-refs project)
    cd /path/to/asili-calc-refs
@@ -21,6 +23,7 @@ Tested on:
    ```
 
 2. **Trait Packs**: Generate parquet files via ETL
+
    ```bash
    pnpm etl
    ```
@@ -81,6 +84,7 @@ Press Ctrl+C to cancel processing at any time. The Python runner will be termina
 ## Benchmarking
 
 Test specific PGS:
+
 ```bash
 .venv/bin/python3 scripts/benchmark-pgs.py \
   /path/to/gnomad.parquet \

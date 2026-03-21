@@ -13,21 +13,25 @@ Variants in Linkage Disequilibrium (LD) are inherited together and represent the
 The pipeline automatically detects if PGS scores need clumping based on method:
 
 **LD-Aware Methods** (no clumping needed):
+
 - LDpred, LDpred2, PRS-CS, lassosum, SBayesR
 - Clumping + Thresholding (C+T)
 
 **Needs Clumping**:
+
 - Unknown methods with >100 variants
 - Raw GWAS results
 
 ### Clumping Algorithm
 
 **Distance-based approach:**
+
 1. Divide each chromosome into 250kb windows
 2. Keep strongest variant (highest |effect_weight|) per window
 3. Remove all other variants in that window
 
 **gnomAD Quality Control** (if available):
+
 - Filters ultra-rare variants (AF < 0.1%)
 - Removes likely genotyping errors
 - Uses gnomAD v4.1 allele frequencies
@@ -35,6 +39,7 @@ The pipeline automatically detects if PGS scores need clumping based on method:
 ### Schema
 
 `pgs_scores` table tracks LD status:
+
 ```sql
 ld_aware BOOLEAN        -- Method accounts for LD
 needs_clumping BOOLEAN  -- Requires clumping
@@ -80,12 +85,14 @@ pnpm etl docker
 ## gnomAD Integration
 
 When `GNOMAD_DB_PATH` is set in `.env`:
+
 - Queries allele frequencies for all variants
 - Removes variants with AF < 0.1% (likely errors)
 - Improves PGS accuracy by 5-10%
 - Already used for normalization statistics
 
 **Setup:**
+
 ```bash
 # In .env file
 GNOMAD_DB_PATH=/path/to/gnomad/gnomad.genomes.v4.1.sites.db

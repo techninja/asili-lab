@@ -35,14 +35,22 @@ export async function getTraitConfigs(catalog) {
 
     for (const [traitId, trait] of Object.entries(catalog.traits)) {
       const pgsScores = await new Promise((resolve, reject) => {
-        conn.all('SELECT pgs_id, performance_weight FROM trait_pgs WHERE trait_id = ?', [traitId], (err, rows) => err ? reject(err) : resolve(rows));
+        conn.all(
+          'SELECT pgs_id, performance_weight FROM trait_pgs WHERE trait_id = ?',
+          [traitId],
+          (err, rows) => (err ? reject(err) : resolve(rows))
+        );
       });
       const pgsIds = pgsScores.map(p => p.pgs_id);
-      
+
       const normalizationParams = {};
       for (const { pgs_id, performance_weight } of pgsScores) {
         const pgs = await new Promise((resolve, reject) => {
-          conn.all('SELECT * FROM pgs_scores WHERE pgs_id = ?', [pgs_id], (err, rows) => err ? reject(err) : resolve(rows[0]));
+          conn.all(
+            'SELECT * FROM pgs_scores WHERE pgs_id = ?',
+            [pgs_id],
+            (err, rows) => (err ? reject(err) : resolve(rows[0]))
+          );
         });
         if (pgs) {
           normalizationParams[pgs_id] = {
@@ -51,13 +59,15 @@ export async function getTraitConfigs(catalog) {
             weight_type: pgs.weight_type,
             method: pgs.method_name,
             performance_weight: performance_weight || 0.5,
-            variants_number: pgs.variants_number ? Number(pgs.variants_number) : null
+            variants_number: pgs.variants_number
+              ? Number(pgs.variants_number)
+              : null
           };
         }
       }
-      
+
       const traitInfo = traitMap[traitId];
-      
+
       configs[traitId] = {
         pgs_ids: pgsIds,
         normalization_params: normalizationParams,

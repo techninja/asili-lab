@@ -33,12 +33,15 @@ async function main() {
 
     // Filter to single trait if specified
     let sortedTraits = Object.entries(traitConfigs).sort(
-      ([, a], [, b]) => Number(b.expected_variants || 0) - Number(a.expected_variants || 0)
+      ([, a], [, b]) =>
+        Number(b.expected_variants || 0) - Number(a.expected_variants || 0)
     );
 
     if (process.env.SINGLE_TRAIT) {
-      sortedTraits = sortedTraits.filter(([traitName, config]) =>
-        traitName === process.env.SINGLE_TRAIT || config.trait_id === process.env.SINGLE_TRAIT
+      sortedTraits = sortedTraits.filter(
+        ([traitName, config]) =>
+          traitName === process.env.SINGLE_TRAIT ||
+          config.trait_id === process.env.SINGLE_TRAIT
       );
       if (sortedTraits.length === 0) {
         logger.error(`❌ Trait not found: ${process.env.SINGLE_TRAIT}`);

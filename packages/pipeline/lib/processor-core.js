@@ -10,19 +10,25 @@ import { shouldExcludePGS } from './pgs-filter.js';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(__dirname, '..', '..', '..', 'data_out');
+const OUTPUT_DIR =
+  process.env.OUTPUT_DIR || path.join(__dirname, '..', '..', '..', 'data_out');
 const PACKS_DIR = path.join(OUTPUT_DIR, 'packs');
 const PATHS = {
   DATA_OUT: OUTPUT_DIR,
   TRAIT_MANIFEST: path.join(OUTPUT_DIR, 'trait_manifest.json'),
-  getTraitFile: (traitId) => path.join(PACKS_DIR, `${traitId.replace(/:/g, '_')}_hg38.parquet`)
+  getTraitFile: traitId =>
+    path.join(PACKS_DIR, `${traitId.replace(/:/g, '_')}_hg38.parquet`)
 };
 const gunzipAsync = promisify(gunzip);
 
 // Global metadata cache to avoid duplicate API calls
 const globalMetadataCache = new Map();
 
-export async function collectPgsMetadata(pgsIds, existingMetadata = {}, _traitId = null) {
+export async function collectPgsMetadata(
+  pgsIds,
+  existingMetadata = {},
+  _traitId = null
+) {
   const metadata = {};
   const uncachedIds = [];
   const excludedIds = [];
@@ -60,7 +66,11 @@ export async function collectPgsMetadata(pgsIds, existingMetadata = {}, _traitId
       const scoreData = await pgsApiClient.getScore(pgsId);
 
       // Check if PGS should be excluded
-      const filterResult = await shouldExcludePGS(pgsId, scoreData, pgsApiClient);
+      const filterResult = await shouldExcludePGS(
+        pgsId,
+        scoreData,
+        pgsApiClient
+      );
       if (filterResult.exclude) {
         console.log(`      ⚠ Excluding ${pgsId}: ${filterResult.reason}`);
         excludedIds.push(pgsId);
@@ -96,7 +106,9 @@ export async function collectPgsMetadata(pgsIds, existingMetadata = {}, _traitId
   }
 
   if (excludedIds.length > 0) {
-    console.log(`    Excluded ${excludedIds.length} integrative PGS scores: ${excludedIds.join(', ')}`);
+    console.log(
+      `    Excluded ${excludedIds.length} integrative PGS scores: ${excludedIds.join(', ')}`
+    );
   }
 
   return metadata;
@@ -118,7 +130,9 @@ export async function needsUpdate(traitName, _config) {
       console.log('    File integrity verified, skipping generation');
       return false;
     } catch (error) {
-      console.log(`    File integrity check failed: ${error.message}, will regenerate`);
+      console.log(
+        `    File integrity check failed: ${error.message}, will regenerate`
+      );
       return true;
     }
   } catch {
@@ -174,7 +188,9 @@ export async function countVariantsInFile(filePath) {
       console.log(`    Corrupted file ${filePath}, removing from cache`);
       try {
         await fs.unlink(filePath);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       throw new Error(`Corrupted file removed: ${filePath}`);
     }
     console.log(
@@ -187,7 +203,8 @@ export async function countVariantsInFile(filePath) {
 export async function runDuckDBQuery(query, dbPath = null) {
   const duckdbCmd = process.env.DUCKDB_CLI || 'duckdb';
   const memoryLimit = process.env.DUCKDB_MEMORY_LIMIT || '8GB';
-  const threads = process.env.DUCKDB_THREADS || Math.max(4, Math.floor(os.cpus().length / 2));
+  const threads =
+    process.env.DUCKDB_THREADS || Math.max(4, Math.floor(os.cpus().length / 2));
   const tempDir = process.env.LARGE_TMP || '/tmp';
 
   return new Promise((resolve, reject) => {
@@ -201,7 +218,8 @@ export async function runDuckDBQuery(query, dbPath = null) {
       }
     });
 
-    const timeoutMinutes = query.includes('DISTINCT') && query.includes('ORDER BY') ? 30 : 10;
+    const timeoutMinutes =
+      query.includes('DISTINCT') && query.includes('ORDER BY') ? 30 : 10;
     const timeout = setTimeout(
       () => {
         duckdb.kill('SIGKILL');
@@ -267,7 +285,11 @@ export function createStandardSchema() {
     `;
 }
 
-export function createStandardizedExportQuery(tableName, outputPath, _normalizationParams = {}) {
+export function createStandardizedExportQuery(
+  tableName,
+  outputPath,
+  _normalizationParams = {}
+) {
   // Keep raw weights - normalization will be applied to final sum
   return `
         CREATE OR REPLACE TABLE ${tableName}_standardized AS

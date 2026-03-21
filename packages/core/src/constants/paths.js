@@ -4,8 +4,14 @@
 
 // Detect if running in Docker or local development
 const isNode = typeof process !== 'undefined';
-const isDocker = isNode && (process.env.NODE_ENV === 'production' || process.env.DOCKER === 'true');
-const baseDir = isNode ? (isDocker ? '/app' : process.cwd().replace(/\/apps\/[^/]+$/, '')) : '/app';
+const isDocker =
+  isNode &&
+  (process.env.NODE_ENV === 'production' || process.env.DOCKER === 'true');
+const baseDir = isNode
+  ? isDocker
+    ? '/app'
+    : process.cwd().replace(/\/apps\/[^/]+$/, '')
+  : '/app';
 
 export const PATHS = {
   // Data directories
@@ -27,6 +33,8 @@ export const PATHS = {
   WEB_TRAIT_MANIFEST_DB: '/data/trait_manifest.db',
 
   // Trait file pattern
-  getTraitFile: (traitId) => `${baseDir}/data_out/packs/${traitId.replace(/:/g, '_')}_hg38.parquet`,
-  getWebTraitFile: (traitId) => `/data/packs/${traitId.replace(/:/g, '_')}_hg38.parquet`
+  getTraitFile: traitId =>
+    `${baseDir}/data_out/packs/${traitId.replace(/:/g, '_')}_hg38.parquet`,
+  getWebTraitFile: traitId =>
+    `/data/packs/${traitId.replace(/:/g, '_')}_hg38.parquet`
 };
