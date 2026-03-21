@@ -2,8 +2,6 @@
 
 _Swahili for "Root"_ - Your personal family genomic risk assistant that never owns your data.
 
-<img src="assets/screenshot.png">
-
 ## Overview
 
 Asili is a privacy-first genomic risk analysis platform that processes DNA data entirely on your own hardware. Built on IndexedDB and DuckDB WASM architecture, it ensures your genetic information never leaves your control while providing comprehensive polygenic risk score (PGS) calculations.
@@ -29,12 +27,41 @@ Asili is a privacy-first genomic risk analysis platform that processes DNA data 
 - **Multi-format DNA Support**: 23andMe, AncestryDNA, MyHeritage, and more
 - **Family Genomics**: Manage multiple individuals with separate profiles
 - **Comprehensive Traits**: 100+ polygenic risk scores from PGS Catalog
+- **Genotype Imputation**: Beagle 5.4 imputation with TOPMed panel (60-80% coverage)
 - **Real-time Processing**: WebSocket-based progress tracking
 - **Hybrid Architecture**: Browser-only or server-assisted processing
 - **Cache Management**: Export/import results for backup and sharing
 - **Virtual Scrolling**: Smooth performance with large trait lists
 
 ## Deployment Options
+
+### ETL Pipeline
+
+```bash
+# Interactive menu
+pnpm etl
+
+# Run locally (faster)
+pnpm etl local
+
+# Run in Docker (uses gnomAD if GNOMAD_DB_PATH set in .env)
+pnpm etl docker
+```
+
+### Imputation Setup
+
+```bash
+# Setup Beagle + 1000 Genomes (9GB, 2.2% coverage)
+pnpm imputation setup
+
+# Upgrade to TOPMed (150GB, 60-80% coverage) - Recommended
+pnpm imputation setup-topmed
+
+# Impute user DNA
+pnpm imputation impute
+```
+
+See [docs/IMPUTATION.md](docs/IMPUTATION.md) for detailed imputation guide.
 
 ### Single Command Deployment
 
@@ -53,8 +80,6 @@ docker compose run --rm pipeline pnpm run etl
 # Or use the helper script
 pnpm run etl
 ```
-
-
 
 ## Contributing
 
@@ -86,6 +111,7 @@ asili/
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines and [PLAN.md](PLAN.md) for the project roadmap. benchmarks
+
 - **Security Tests**: Privacy compliance and vulnerability scanning
 - **Cross-Platform Tests**: Validation across browser, mobile, and server
 
@@ -94,12 +120,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines and [PLAN.md](
 AGPLv3 License - See [LICENSE](LICENSE) for details.
 
 **Why AGPLv3?**
+
 - Prevents proprietary forks - anyone who modifies Asili must share their changes
 - Network copyleft - if you run a modified version as a web service, you must provide source code
 - Protects the community - ensures improvements benefit everyone
 - Commercial use allowed - you can charge for services, but must keep code open source
 
 **What this means:**
+
 - ✅ Use Asili freely for personal or commercial purposes
 - ✅ Modify and improve the code
 - ✅ Run it as a service for others

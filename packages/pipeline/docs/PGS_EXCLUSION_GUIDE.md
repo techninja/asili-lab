@@ -13,6 +13,7 @@ The PGS Catalog contains thousands of scores, but not all are compatible with As
 **Problem**: PGS with `weight_type: "NR"` use undocumented or non-standard scoring scales that cannot be normalized with other scores.
 
 **Example**:
+
 ```json
 {
   "pgs_id": "PGS000021",
@@ -22,12 +23,14 @@ The PGS Catalog contains thousands of scores, but not all are compatible with As
 }
 ```
 
-**Why Excluded**: 
+**Why Excluded**:
+
 - Cannot calculate theoretical population distribution (mean/std)
 - Z-scores would be incomparable across PGS
 - Often legacy scores from early GWAS studies
 
 **Potential Solutions**:
+
 - **Empirical Calibration**: Use large reference populations (1000 Genomes, UK Biobank) to calculate empirical mean/std
 - **Separate Display**: Show NR scores in a separate "uncalibrated" section without z-scores
 - **Score Conversion**: Contact original authors for conversion formulas to standard scales
@@ -41,6 +44,7 @@ The PGS Catalog contains thousands of scores, but not all are compatible with As
 **Problem**: PGS with `|mean/std| > 20` use different units (e.g., age in months, raw counts) that create extreme z-scores.
 
 **Example**:
+
 ```json
 {
   "pgs_id": "PGS002480",
@@ -53,11 +57,13 @@ The PGS Catalog contains thousands of scores, but not all are compatible with As
 ```
 
 **Why Excluded**:
+
 - Creates z-scores in the hundreds or thousands
 - Dominates trait-level averages, making them meaningless
 - Often measures continuous traits (age, height) in raw units
 
 **Potential Solutions**:
+
 - **Unit Detection**: Automatically detect and convert units (months→years, cm→meters)
 - **Score Standardization**: Re-standardize to mean=0, std=1 before use
 - **Trait-Specific Handling**: For age/height traits, display raw predictions instead of z-scores
@@ -71,6 +77,7 @@ The PGS Catalog contains thousands of scores, but not all are compatible with As
 **Problem**: All variant weights are identical (variance < 0.001), indicating failed model training or data issues.
 
 **Example**:
+
 ```json
 {
   "pgs_id": "PGS001817",
@@ -81,11 +88,13 @@ The PGS Catalog contains thousands of scores, but not all are compatible with As
 ```
 
 **Why Excluded**:
+
 - Provides no discriminatory power (all individuals get same score)
 - Usually indicates model convergence failure
 - Cannot calculate meaningful z-scores
 
 **Potential Solutions**:
+
 - **Re-training**: Contact authors or re-train model with proper parameters
 - **Alternative Methods**: Use different PGS for same trait from same publication
 - **Data Validation**: Check if harmonized vs original scoring files differ
@@ -99,6 +108,7 @@ The PGS Catalog contains thousands of scores, but not all are compatible with As
 **Problem**: Meta-scores combining multiple PGS create circular dependencies and inflate correlations.
 
 **Example**:
+
 ```json
 {
   "pgs_id": "PGS004162",
@@ -109,11 +119,13 @@ The PGS Catalog contains thousands of scores, but not all are compatible with As
 ```
 
 **Why Excluded**:
+
 - Double-counts information if component PGS are also included
 - Optimized for specific populations (usually UK Biobank EUR)
 - Cannot decompose into individual variant contributions
 
 **Potential Solutions**:
+
 - **Exclusive Use**: Include ensemble OR components, never both
 - **Meta-Analysis Display**: Show ensemble as "combined score" with component breakdown
 - **Population Matching**: Only use if user's ancestry matches training population
@@ -157,16 +169,19 @@ Across the trait catalog:
 ## Future Enhancements
 
 ### Short Term
+
 1. **Empirical Calibration Pipeline**: Calculate mean/std from reference populations for NR scores
 2. **Unit Conversion**: Detect and convert common units (age, height, BMI)
 3. **Separate NR Display**: Show uncalibrated scores with raw values only
 
 ### Medium Term
+
 1. **Population-Specific Normalization**: Calculate mean/std per ancestry group
 2. **Score Re-standardization**: Transform all scores to common scale (mean=0, std=1)
 3. **Ensemble Decomposition**: Extract component PGS from meta-scores
 
 ### Long Term
+
 1. **Active Learning**: Re-train failed models with user data
 2. **Cross-Trait Calibration**: Use genetic correlations to calibrate across traits
 3. **Bayesian Integration**: Combine incompatible scores using hierarchical models

@@ -23,13 +23,26 @@ export class SettingsLoader {
       this.settings = await response.json();
       this.loaded = true;
 
-      Debug.log(1, 'SettingsLoader', `Loaded settings - Mode: ${this.settings.mode}`);
-      Debug.log(2, 'SettingsLoader', `Calculation server: ${this.settings.servers?.calculation}`);
+      Debug.log(
+        1,
+        'SettingsLoader',
+        `Loaded settings - Mode: ${this.settings.mode}`
+      );
+      Debug.log(
+        2,
+        'SettingsLoader',
+        `Calculation server: ${this.settings.servers?.calculation}`
+      );
 
       return this.settings;
     } catch (error) {
-      Debug.log(1, 'SettingsLoader', 'Failed to load settings, using defaults:', error.message);
-      
+      Debug.log(
+        1,
+        'SettingsLoader',
+        'Failed to load settings, using defaults:',
+        error.message
+      );
+
       // Fallback to local-only mode
       this.settings = this.getDefaultSettings();
       this.loaded = true;
@@ -133,7 +146,11 @@ export class SettingsLoader {
       });
       return response.ok;
     } catch (error) {
-      Debug.log(2, 'SettingsLoader', `Server connection test failed: ${error.message}`);
+      Debug.log(
+        2,
+        'SettingsLoader',
+        `Server connection test failed: ${error.message}`
+      );
       return false;
     }
   }
@@ -148,7 +165,11 @@ export class SettingsLoader {
         return await response.json();
       }
     } catch (error) {
-      Debug.log(2, 'SettingsLoader', `Failed to get server status: ${error.message}`);
+      Debug.log(
+        2,
+        'SettingsLoader',
+        `Failed to get server status: ${error.message}`
+      );
     }
     return null;
   }
@@ -187,7 +208,11 @@ export class SettingsLoader {
     }
 
     if (this.settings.mode === 'server' && !this.getCalculationServer()) {
-      Debug.log(1, 'SettingsLoader', 'Server mode requires calculation server URL');
+      Debug.log(
+        1,
+        'SettingsLoader',
+        'Server mode requires calculation server URL'
+      );
       return false;
     }
 

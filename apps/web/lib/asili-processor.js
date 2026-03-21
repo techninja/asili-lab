@@ -16,12 +16,13 @@ export class AsiliProcessor {
 
   async initialize() {
     // Create browser processor
-    const { processor, progressTracker, queueManager } = await createBrowserProcessor({
-      cacheSize: '256MB',
-      enableOptimizations: true,
-      dbName: 'asili-genomic-data',
-      version: 1
-    });
+    const { processor, progressTracker, queueManager } =
+      await createBrowserProcessor({
+        cacheSize: '256MB',
+        enableOptimizations: true,
+        dbName: 'asili-genomic-data',
+        version: 1
+      });
 
     this.unifiedProcessor = processor;
     this.progressTracker = progressTracker;
@@ -34,10 +35,15 @@ export class AsiliProcessor {
 
     // Subscribe to processor events
     this.unifiedProcessor.subscribe(event => {
-      Debug.log(3, 'AsiliProcessor', `Forwarding event: ${event.event}`, event.data);
+      Debug.log(
+        3,
+        'AsiliProcessor',
+        `Forwarding event: ${event.event}`,
+        event.data
+      );
       this.progressListeners.forEach(listener => listener(event));
     });
-    
+
     // NOW initialize the processor (will trigger streaming events)
     Debug.log(2, 'AsiliProcessor', 'Initializing unified processor');
     await this.unifiedProcessor.initialize();
@@ -60,10 +66,18 @@ export class AsiliProcessor {
 
   // Subscribe to progress updates
   onProgress(callback) {
-    Debug.log(3, 'AsiliProcessor', `Adding progress listener (total: ${this.progressListeners.size + 1})`);
+    Debug.log(
+      3,
+      'AsiliProcessor',
+      `Adding progress listener (total: ${this.progressListeners.size + 1})`
+    );
     this.progressListeners.add(callback);
     return () => {
-      Debug.log(3, 'AsiliProcessor', `Removing progress listener (remaining: ${this.progressListeners.size - 1})`);
+      Debug.log(
+        3,
+        'AsiliProcessor',
+        `Removing progress listener (remaining: ${this.progressListeners.size - 1})`
+      );
       this.progressListeners.delete(callback);
     };
   }
@@ -102,11 +116,9 @@ export class AsiliProcessor {
     );
   }
 
-
-
   // Get cached results
   async getCachedResults(individualId) {
-    return await this.unifiedProcessor?.getCachedResults(individualId) || [];
+    return (await this.unifiedProcessor?.getCachedResults(individualId)) || [];
   }
 
   // Get cached result for specific trait
@@ -133,7 +145,7 @@ export class AsiliProcessor {
   }
 
   // Process all traits for an individual
-  async processAllTraits(individualId, progressCallback) {
+  async processAllTraits(individualId, _progressCallback) {
     if (!this.unifiedProcessor) {
       throw new Error('Processor not initialized');
     }
@@ -162,7 +174,11 @@ export class AsiliProcessor {
   }
 
   async queueSingleTrait(traitId, individualId, priority = 3) {
-    return await this.unifiedProcessor?.queueSingleTrait(traitId, individualId, priority);
+    return await this.unifiedProcessor?.queueSingleTrait(
+      traitId,
+      individualId,
+      priority
+    );
   }
 }
 

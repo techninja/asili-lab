@@ -15,11 +15,6 @@
       "title": "APOE carrier status",
       "description": "quantification of the presence or absence of apolipoprotein E (APOE) in an individual"
     },
-    "HP_0003115": {
-      "trait_id": "HP_0003115",
-      "title": "Abnormal EKG",
-      "description": "Abnormal rhythm of the heart."
-    },
     "MONDO:0004975": {
       "trait_id": "MONDO:0004975",
       "title": "Alzheimer disease",
@@ -29,11 +24,6 @@
       "trait_id": "EFO_0007788",
       "title": "BMI-adjusted waist-hip ratio",
       "description": "waist-hip ratio that has been adjusted by subjects’ body mass index"
-    },
-    "MONDO:0015263": {
-      "trait_id": "MONDO:0015263",
-      "title": "Brugada syndrome",
-      "description": "A genetic heart condition that can cause dangerous irregular heartbeats."
     },
     "EFO_0004458": {
       "trait_id": "EFO_0004458",
@@ -225,11 +215,6 @@
       "title": "carbohydrate intake measurement",
       "description": "Quantification of the carbohydrate intake of an individual."
     },
-    "EFO_0005278": {
-      "trait_id": "EFO_0005278",
-      "title": "cardiovascular disease biomarker measurement",
-      "description": "cardiovascular disease biomarkers, such as ST2 cardiac biomarker and C-reactive protein, are used as indicators for cardiovascular disease and as predictors for therapeutic responses"
-    },
     "MONDO:0015129": {
       "trait_id": "MONDO:0015129",
       "title": "chronic primary adrenal insufficiency",
@@ -244,11 +229,6 @@
       "trait_id": "EFO_0003959",
       "title": "cleft lip",
       "description": "Congenital defect in the upper lip where the maxillary prominence fails to merge with the merged medial nasal prominences. It is thought to be caused by faulty migration of the mesoderm in the head region."
-    },
-    "EFO_0007710": {
-      "trait_id": "EFO_0007710",
-      "title": "cognitive decline measurement",
-      "description": "quantification of some aspect of cognitive decline such as the rate at which it occurs or its severity, for example in patients with dementia or Alzheimer's disease. Cognitive decline is ususally assessed using a structured-interview protocol covering a number of standardised areas."
     },
     "MONDO:0005575": {
       "trait_id": "MONDO:0005575",
@@ -329,11 +309,6 @@
       "trait_id": "PATO_0000383",
       "title": "female",
       "description": "A biological sex quality inhering in an individual or a population that only produces gametes that can be fertilised by male gametes."
-    },
-    "MONDO:0018906": {
-      "trait_id": "MONDO:0018906",
-      "title": "follicular lymphoma",
-      "description": "A slow-growing type of blood cancer that affects B-cells, a type of white blood cell."
     },
     "MONDO:0001056": {
       "trait_id": "MONDO:0001056",
@@ -464,16 +439,6 @@
       "trait_id": "EFO_0006925",
       "title": "lipoprotein A measurement",
       "description": "A measurement of a specific type of cholesterol particle that can increase heart disease risk when levels are high."
-    },
-    "EFO_0010821": {
-      "trait_id": "EFO_0010821",
-      "title": "liver fat measurement",
-      "description": "A quantification of the fat content of the liver such as liver fat fraction, typically assessed by MRI."
-    },
-    "EFO_0004611": {
-      "trait_id": "EFO_0004611",
-      "title": "low density lipoprotein cholesterol measurement",
-      "description": "The measurement of LDL cholesterol in blood used as a risk indicator for heart disease."
     },
     "MONDO:0021116": {
       "trait_id": "MONDO:0021116",
@@ -615,11 +580,6 @@
       "title": "reticulocyte count",
       "description": "The number of reticulocytes per unit volume of blood. Reticulocytes are immature red blood cells and typically compose aoubt 1% of red blood cells in the human body."
     },
-    "OBA_2050084": {
-      "trait_id": "OBA_2050084",
-      "title": "serum IgE amount",
-      "description": "The amount of a IgE immunoglobulin complex, circulating when measured in blood serum. [AUTO: patterns/patterns/entity_attribute_location]"
-    },
     "OBA_2050062": {
       "trait_id": "OBA_2050062",
       "title": "serum alanine aminotransferase amount",
@@ -634,11 +594,6 @@
       "trait_id": "EFO_0009282",
       "title": "sodium measurement",
       "description": "A quantitative measurement of the amount of sodium present in a sample."
-    },
-    "EFO_0010820": {
-      "trait_id": "EFO_0010820",
-      "title": "spontaneous coronary artery dissection",
-      "description": "A rare condition where the wall of a coronary artery tears spontaneously."
     },
     "OBA_2050024": {
       "trait_id": "OBA_2050024",
@@ -694,11 +649,6 @@
       "trait_id": "MONDO:0005147",
       "title": "type 1 diabetes mellitus",
       "description": "A lifelong condition where the pancreas produces little or no insulin, requiring daily insulin injections."
-    },
-    "MONDO:0005148": {
-      "trait_id": "MONDO:0005148",
-      "title": "type 2 diabetes mellitus",
-      "description": "The most common form of diabetes where the body doesn't use insulin properly, leading to high blood sugar. Often develops gradually and is linked to lifestyle and genetics."
     },
     "EFO_0004531": {
       "trait_id": "EFO_0004531",

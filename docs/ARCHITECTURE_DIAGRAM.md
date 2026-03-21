@@ -55,7 +55,7 @@ flowchart LR
     classDef storage fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,color:#000
     classDef output fill:#e8f5e9,stroke:#388e3c,stroke-width:3px,color:#000
     classDef frontend fill:#fce4ec,stroke:#c2185b,stroke-width:3px,color:#000
-    
+
     class PGS,GNOMAD,CATALOG source
     class MANAGE,FILTER,ENHANCE,ORCHESTRATOR,PROCESSOR,HARMONIZE,DUCKDB process
     class MANIFEST_DB,TRAITS_TABLE,PGS_TABLE,TRAIT_PGS,EXCLUDED,PERF,IDB,STORAGE storage
@@ -68,18 +68,21 @@ flowchart LR
 ### 1. Data Sources
 
 #### PGS Catalog API
+
 - **Source**: https://www.pgscatalog.org/rest/
 - **Content**: ~600 traits with associated PGS scores
 - **Caching**: `cache/www.pgscatalog.org/` (static cache to avoid API limits)
 - **Format**: JSON responses + gzipped scoring files
 
 #### GnomAD v4.1
+
 - **Purpose**: Empirical phenotype reference data for quantitative traits
 - **Format**: Hail table → SQLite (compressed indexes)
 - **Script**: External (needs to be integrated into codebase)
 - **Usage**: Provides population mean/SD for quantitative trait normalization
 
 #### trait_catalog.json
+
 - **Purpose**: Simplified canonical list of traits to process
 - **Location**: `packages/pipeline/trait_catalog.json`
 - **Content**: Trait IDs, names, descriptions only (PGS metadata in database)
@@ -88,6 +91,7 @@ flowchart LR
 ### 2. Trait Management Layer
 
 #### manage-traits.js
+
 - **Purpose**: Interactive CLI for adding/managing traits
 - **Features**:
   - Add traits by ID or search term
@@ -98,6 +102,7 @@ flowchart LR
 - **Output**: Updates trait_manifest.db
 
 #### pgs-filter.js
+
 - **Purpose**: Exclude low-quality PGS scores
 - **Filters**:
   - Integrative/meta-analysis scores (NR method)
@@ -107,11 +112,13 @@ flowchart LR
 - **Recovery**: pgs-nr-recovery.js can recover some NR scores with validation
 
 #### pgs-enhanced-filter.js
+
 - **Purpose**: Calculate performance weights for PGS scores
 - **Metrics**: R², AUC, C-index, HR, OR
 - **Output**: Performance weight (0.0-1.0) for weighted averaging
 
 #### trait_overrides.json
+
 - **Purpose**: Editorial metadata and corrections
 - **Content**:
   - Display names (editorial_name)
@@ -124,9 +131,11 @@ flowchart LR
 ### 3. Trait Manifest Database
 
 #### trait_manifest.db (SQLite)
+
 Central database containing all trait metadata:
 
 **Tables**:
+
 - `traits`: Core trait info (name, categories, expected variants)
 - `pgs_scores`: PGS metadata (weight_type, method, normalization params)
 - `trait_pgs`: Many-to-many relationship with performance weights
@@ -138,6 +147,7 @@ Central database containing all trait metadata:
 ### 4. ETL Pipeline
 
 #### etl_orchestrator.js
+
 - **Purpose**: Main pipeline controller
 - **Process**:
   1. Load trait catalog
@@ -147,6 +157,7 @@ Central database containing all trait metadata:
 - **Execution**: Docker container with DuckDB
 
 #### processor.js
+
 - **Purpose**: Generate trait pack parquet files
 - **Process**:
   1. Check if update needed (hash comparison)
@@ -158,6 +169,7 @@ Central database containing all trait metadata:
 - **Optimization**: Batched processing for large traits (>10 PGS or >1M variants)
 
 #### harmonization.js
+
 - **Purpose**: Detect and normalize PGS file formats
 - **Formats**:
   - Standard: rsID, effect_allele, effect_weight
@@ -166,6 +178,7 @@ Central database containing all trait metadata:
 - **Output**: Standardized SQL INSERT statements
 
 #### DuckDB Processing
+
 - **Purpose**: High-performance in-memory data processing
 - **Schema**: Standardized variant format
   - variant_id (rsID)
@@ -178,6 +191,7 @@ Central database containing all trait metadata:
 ### 5. Output Files
 
 #### Trait Packs (data_out/packs/)
+
 - **Format**: `TRAIT_ID_hg38.parquet`
 - **Content**: All variants for a trait across all PGS scores
 - **Compression**: ZSTD (high compression ratio)
@@ -185,12 +199,14 @@ Central database containing all trait metadata:
 - **Serving**: HTTP Range Requests for streaming
 
 #### trait_manifest.json
+
 - **Purpose**: Frontend-readable metadata
 - **Content**: Trait names, categories, PGS counts, variant counts
 - **Source**: Exported from trait_manifest.db
 - **Usage**: Loaded by web app for trait browsing
 
 #### Reference Statistics (refstats/)
+
 - **Purpose**: Population reference data for normalization
 - **Content**: Mean, SD, percentiles per PGS score
 - **Source**: Calculated from 1000 Genomes (optional)
@@ -198,6 +214,7 @@ Central database containing all trait metadata:
 ### 6. Frontend Architecture
 
 #### Web App (Browser-Only Mode)
+
 - **Framework**: Vanilla JS + Web Components
 - **DNA Storage**: IndexedDB (client-side)
 - **Processing**: DuckDB WASM
@@ -205,6 +222,7 @@ Central database containing all trait metadata:
 - **Privacy**: Zero server-side data storage
 
 #### DuckDB WASM
+
 - **Purpose**: Client-side SQL queries on parquet files
 - **Features**:
   - Streaming parquet reads
@@ -215,6 +233,7 @@ Central database containing all trait metadata:
 ### 7. Hybrid Mode (Optional)
 
 #### calc-server.js
+
 - **Purpose**: Server-assisted calculation for better performance
 - **Features**:
   - DNA upload and storage
@@ -224,6 +243,7 @@ Central database containing all trait metadata:
 - **Storage**: `server-data/risk_scores.db` (SQLite)
 
 #### @asili/core
+
 - **Purpose**: Shared calculation logic
 - **Usage**: Both browser and server
 - **Features**:
@@ -256,6 +276,7 @@ Central database containing all trait metadata:
 ### Calculating Risk Score
 
 #### Browser Mode:
+
 1. User uploads DNA → stored in IndexedDB
 2. User selects trait → loads `TRAIT_ID_hg38.parquet`
 3. DuckDB WASM joins DNA with trait variants
@@ -263,6 +284,7 @@ Central database containing all trait metadata:
 5. Displays result with percentile
 
 #### Hybrid Mode:
+
 1. User uploads DNA → sent to calc-server
 2. calc-server stores in `server-data/variants/`
 3. User selects trait → queued for calculation
@@ -273,24 +295,28 @@ Central database containing all trait metadata:
 ## Key Design Decisions
 
 ### Why SQLite for trait_manifest.db?
+
 - Single file, easy to version control
 - Fast queries for trait metadata
 - Supports complex relationships (many-to-many)
 - Can be exported to JSON for frontend
 
 ### Why DuckDB for ETL?
+
 - Excellent parquet support
 - Fast in-memory processing
 - SQL interface for complex transformations
 - WASM version available for browser
 
 ### Why Parquet for trait packs?
+
 - Columnar format (efficient for selective reads)
 - Built-in compression (ZSTD)
 - HTTP Range Request support (streaming)
 - DuckDB native support
 
 ### Why separate trait_overrides.json?
+
 - Human-editable metadata
 - Version controlled
 - Can be synced to database
@@ -299,15 +325,18 @@ Central database containing all trait metadata:
 ## Known Issues & TODOs
 
 ### Recent Cleanup (Completed):
+
 1. ✅ **Consolidated trait storage**: trait_manifest.db is now single source of truth
 2. ✅ **Removed old schemas**: Simplified trait_catalog.json no longer needs validation schemas
 3. ✅ **Unified refstats calculation**: calc-pgs-refstats.js handles both PGS and trait statistics
 4. ✅ **Single sync script**: sync-overrides-to-db.js is the canonical override sync tool
 
 ### Remaining Issues:
+
 1. **GnomAD script external**: Phenotype reference data script needs to be integrated
 
 ### Potential Improvements:
+
 1. **Integrate GnomAD script**: Move into packages/pipeline/lib/
 2. **Unified CLI**: Single entry point for all pipeline operations
 3. **Cache pruning**: Automatic cleanup of old PGS Catalog cache files

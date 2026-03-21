@@ -1,33 +1,41 @@
 import fs from 'fs/promises';
 import path from 'path';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { gunzip } from 'zlib';
 import { promisify } from 'util';
 import {
   initSync,
-  Compression,
-  Table,
-  writeParquet,
-  readParquet,
-  WriterPropertiesBuilder
+  Compression as _Compression,
+  Table as _Table,
+  writeParquet as _writeParquet,
+  readParquet as _readParquet,
+  WriterPropertiesBuilder as _WriterPropertiesBuilder
 } from 'parquet-wasm/esm';
 import pgsApiClient from '../pgs-api-client.js';
 import {
-  collectPgsMetadata,
+  collectPgsMetadata as _collectPgsMetadata,
   needsUpdate,
-  loadExistingManifest,
-  collectSourceHashes,
-  runDuckDBQuery,
-  createStandardSchema,
+  loadExistingManifest as _loadExistingManifest,
+  collectSourceHashes as _collectSourceHashes,
+  runDuckDBQuery as _runDuckDBQuery,
+  createStandardSchema as _createStandardSchema,
   createStandardizedExportQuery,
   validateParquetFile,
   prepareFileForProcessing
 } from './processor-core.js';
 import { shouldExcludePGS } from './pgs-filter.js';
 import { detectFormat, generateInsertSQL } from './harmonization.js';
+import { getLDStatus } from './ld-detector.js';
+import {
+  generateLDClumpingSQL,
+  generateClumpingSQL as _generateClumpingSQL,
+  shouldClumpPGS
+} from './ld-clumping.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const OUTPUT_DIR = '/output';
+const OUTPUT_DIR =
+  process.env.OUTPUT_DIR || path.join(__dirname, '..', '..', '..', 'data_out');
 const PACKS_DIR = path.join(OUTPUT_DIR, 'packs');
 const TEMP_SQL_DIR = path.join(OUTPUT_DIR, 'temp_sql');
 const gunzipAsync = promisify(gunzip);
@@ -42,7 +50,10 @@ async function streamProcessWithDuckDB(traitName, config) {
 
   const safeFileName = traitName.replace(':', '_');
   const outputPath = path.join(PACKS_DIR, `${safeFileName}_hg38.parquet`);
-  const dbPath = path.join(OUTPUT_DIR, `${safeFileName}.duckdb`);
+
+  // Use LARGE_TMP for database if available to avoid filling up main disk
+  const dbDir = process.env.LARGE_TMP || OUTPUT_DIR;
+  const dbPath = path.join(dbDir, `${safeFileName}.duckdb`);
   const { execSync } = await import('child_process');
 
   // Check if we can resume from existing database
@@ -91,12 +102,24 @@ async function streamProcessWithDuckDB(traitName, config) {
     // Clear and recreate temp SQL directory and ensure packs directory exists
     try {
       await fs.rm(TEMP_SQL_DIR, { recursive: true, force: true });
-    } catch {}
+    } catch {
+      /* ignore */
+    }
     await fs.mkdir(TEMP_SQL_DIR, { recursive: true });
     await fs.mkdir(PACKS_DIR, { recursive: true });
 
     // Initialize DuckDB with staging schema
+    const memoryLimit = process.env.DUCKDB_MEMORY_LIMIT || '8GB';
+    const threads =
+      process.env.DUCKDB_THREADS ||
+      Math.max(4, Math.floor(os.cpus().length / 2));
+    const tempDir = process.env.LARGE_TMP || '/tmp';
+
     const initSQL = `
+            PRAGMA memory_limit='${memoryLimit}';
+            PRAGMA threads=${threads};
+            PRAGMA temp_directory='${tempDir}';
+            
             DROP TABLE IF EXISTS pgs_staging;
             CREATE TABLE pgs_staging (
                 variant_id VARCHAR,
@@ -118,8 +141,9 @@ async function streamProcessWithDuckDB(traitName, config) {
     const initFile = path.join(OUTPUT_DIR, 'init.sql');
     await fs.writeFile(initFile, initSQL);
 
-    console.log('    Initializing DuckDB database...');
-    execSync(`duckdb ${dbPath} < ${initFile}`, {
+    console.log('    Initializing DuckDB database with optimized settings...');
+    const duckdbCmd = process.env.DUCKDB_CLI || 'duckdb';
+    execSync(`${duckdbCmd} ${dbPath} < ${initFile}`, {
       cwd: OUTPUT_DIR,
       stdio: 'pipe'
     });
@@ -133,21 +157,32 @@ async function streamProcessWithDuckDB(traitName, config) {
   try {
     let totalVariants = 0;
     const pgsIds = [];
+    const pgsMetadata = new Map();
 
     // Stream each PGS file directly into DuckDB
     for (const pgsId of config.pgs_ids) {
       // Check if this PGS should be excluded
       try {
         const scoreData = await pgsApiClient.getScore(pgsId);
-        const filterResult = await shouldExcludePGS(pgsId, scoreData, pgsApiClient);
+        const filterResult = await shouldExcludePGS(
+          pgsId,
+          scoreData,
+          pgsApiClient
+        );
         if (filterResult.exclude) {
           console.log(`        Excluding ${pgsId}: ${filterResult.reason}`);
           continue;
         }
+
+        // Store LD metadata
+        const ldStatus = getLDStatus(scoreData);
+        pgsMetadata.set(pgsId, { ...scoreData, ...ldStatus });
       } catch (error) {
-        console.log(`        Error checking ${pgsId} metadata: ${error.message}`);
+        console.log(
+          `        Error checking ${pgsId} metadata: ${error.message}`
+        );
       }
-      
+
       // Check if this PGS is already processed
       if (resuming) {
         console.log(`        Checking if ${pgsId} already processed...`);
@@ -237,11 +272,13 @@ async function streamProcessWithDuckDB(traitName, config) {
         await fs.writeFile(sqlFile, importSQL);
 
         console.log(`        Importing ${pgsId} data into DuckDB...`);
+        const duckdbCmd = process.env.DUCKDB_CLI || 'duckdb';
         try {
-          execSync(`duckdb ${dbPath} < ${sqlFile}`, {
+          execSync(`${duckdbCmd} ${dbPath} < ${sqlFile}`, {
             cwd: OUTPUT_DIR,
             stdio: 'pipe',
-            encoding: 'utf8'
+            encoding: 'utf8',
+            maxBuffer: 50 * 1024 * 1024 // 50MB buffer
           });
           console.log('        ✓ Import complete');
         } catch (error) {
@@ -255,7 +292,7 @@ async function streamProcessWithDuckDB(traitName, config) {
         const countFile = path.join(TEMP_SQL_DIR, `count_${pgsId}.sql`);
         await fs.writeFile(countFile, countSQL);
 
-        const result = execSync(`duckdb ${dbPath} < ${countFile}`, {
+        const result = execSync(`${duckdbCmd} ${dbPath} < ${countFile}`, {
           cwd: OUTPUT_DIR,
           stdio: 'pipe',
           encoding: 'utf8'
@@ -280,9 +317,111 @@ async function streamProcessWithDuckDB(traitName, config) {
       return { totalVariants: 0, fileName: null, pgsIds: [] };
     }
 
+    // Apply LD clumping if needed (per chromosome for LD data)
+    let clumpedCount = 0;
+    const chromosomes = [
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '6',
+      '7',
+      '8',
+      '9',
+      '10',
+      '11',
+      '12',
+      '13',
+      '14',
+      '15',
+      '16',
+      '17',
+      '18',
+      '19',
+      '20',
+      '21',
+      '22'
+    ];
+
+    for (const [pgsId, metadata] of pgsMetadata.entries()) {
+      if (shouldClumpPGS(metadata)) {
+        console.log(`    Applying LD clumping to ${pgsId}...`);
+
+        // Get count before clumping
+        const beforeSQL = `SELECT COUNT(*) as count FROM pgs_staging WHERE pgs_id = '${pgsId}';`;
+        const beforeFile = path.join(OUTPUT_DIR, `count_before_${pgsId}.sql`);
+        await fs.writeFile(beforeFile, beforeSQL);
+
+        const beforeResult = execSync(`duckdb ${dbPath} < ${beforeFile}`, {
+          cwd: OUTPUT_DIR,
+          stdio: 'pipe',
+          encoding: 'utf8'
+        });
+
+        const beforeCount = parseInt(
+          beforeResult.match(/│\s*(\d+)\s*│/)?.[1] || '0'
+        );
+        await fs.unlink(beforeFile);
+
+        for (const chr of chromosomes) {
+          const clumpSQL = generateLDClumpingSQL('pgs_staging', chr);
+          const clumpFile = path.join(
+            OUTPUT_DIR,
+            `clump_${pgsId}_chr${chr}.sql`
+          );
+          await fs.writeFile(clumpFile, clumpSQL);
+
+          try {
+            execSync(`duckdb ${dbPath} < ${clumpFile}`, {
+              cwd: OUTPUT_DIR,
+              stdio: 'pipe'
+            });
+            await fs.unlink(clumpFile);
+          } catch (error) {
+            console.log(
+              `    ⚠ Clumping failed for ${pgsId} chr${chr}: ${error.message}`
+            );
+            await fs.unlink(clumpFile).catch(() => {});
+          }
+        }
+
+        // Get new count after clumping all chromosomes
+        const countSQL = `SELECT COUNT(*) as count FROM pgs_staging WHERE pgs_id = '${pgsId}';`;
+        const countFile = path.join(OUTPUT_DIR, `count_clumped_${pgsId}.sql`);
+        await fs.writeFile(countFile, countSQL);
+
+        const result = execSync(`duckdb ${dbPath} < ${countFile}`, {
+          cwd: OUTPUT_DIR,
+          stdio: 'pipe',
+          encoding: 'utf8'
+        });
+
+        const afterCount = parseInt(result.match(/│\s*(\d+)\s*│/)?.[1] || '0');
+        const removed = beforeCount - afterCount;
+        console.log(
+          `    ✓ Clumped ${pgsId}: removed ${removed} variants (${afterCount} remaining)`
+        );
+        clumpedCount += removed;
+        totalVariants = totalVariants - beforeCount + afterCount;
+
+        await fs.unlink(countFile);
+      }
+    }
+
+    if (clumpedCount > 0) {
+      console.log(
+        `    ✓ Total variants removed by LD clumping: ${clumpedCount}`
+      );
+    }
+
     // Export to final parquet with ZSTD compression
     console.log('    Enforcing standard schema...');
-    const exportSQL = createStandardizedExportQuery('pgs_staging', outputPath, config.normalization_params);
+    const exportSQL = createStandardizedExportQuery(
+      'pgs_staging',
+      outputPath,
+      config.normalization_params
+    );
 
     const exportFile = path.join(OUTPUT_DIR, 'export.sql');
     await fs.writeFile(exportFile, exportSQL);
@@ -299,6 +438,8 @@ async function streamProcessWithDuckDB(traitName, config) {
       console.log(`    Export ERROR: ${error.message}`);
       throw error;
     }
+
+    // Also export to unified SQLite DB for fast refstats
 
     // Verify the parquet file was created
     try {
@@ -327,12 +468,16 @@ async function streamProcessWithDuckDB(traitName, config) {
           await fs.unlink(path.join(OUTPUT_DIR, file));
         }
       }
-    } catch {}
+    } catch {
+      /* ignore */
+    }
 
     // Only remove DB after successful completion
     try {
       await fs.unlink(dbPath);
-    } catch {}
+    } catch {
+      /* ignore */
+    }
 
     console.log(`  - Created unified file (${totalVariants} variants)`);
     return {
@@ -356,7 +501,9 @@ async function streamProcessWithDuckDB(traitName, config) {
           await fs.unlink(path.join(OUTPUT_DIR, file));
         }
       }
-    } catch {}
+    } catch {
+      /* ignore */
+    }
 
     throw error;
   }
@@ -366,7 +513,11 @@ export { shouldExcludePGS } from './pgs-filter.js';
 
 import { generateTraitPackBatched } from './batched-processor.js';
 
-export async function generateTraitPack(traitName, config, allMetadataCache = null) {
+export async function generateTraitPack(
+  traitName,
+  config,
+  allMetadataCache = null
+) {
   // Check if we should use batched processing for large datasets
   if (
     config.pgs_ids.length > 10 ||
@@ -382,7 +533,11 @@ export async function generateTraitPack(traitName, config, allMetadataCache = nu
   return await generateTraitPackOriginal(traitName, config, allMetadataCache);
 }
 
-async function generateTraitPackOriginal(traitName, config, allMetadataCache = null) {
+async function generateTraitPackOriginal(
+  traitName,
+  config,
+  _allMetadataCache = null
+) {
   const needsFileUpdate = await needsUpdate(traitName, config);
 
   if (!needsFileUpdate) {

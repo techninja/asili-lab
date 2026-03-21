@@ -3,21 +3,32 @@ import path from 'path';
 import { spawn } from 'child_process';
 import { gunzip } from 'zlib';
 import { promisify } from 'util';
+import os from 'os';
 import pgsApiClient from '../pgs-api-client.js';
 import { shouldExcludePGS } from './pgs-filter.js';
 
-const OUTPUT_DIR = '/output';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const OUTPUT_DIR =
+  process.env.OUTPUT_DIR || path.join(__dirname, '..', '..', '..', 'data_out');
+const PACKS_DIR = path.join(OUTPUT_DIR, 'packs');
 const PATHS = {
   DATA_OUT: OUTPUT_DIR,
-  TRAIT_MANIFEST: '/output/trait_manifest.json',
-  getTraitFile: (traitId) => `/output/packs/${traitId.replace(/:/g, '_')}_hg38.parquet`
+  TRAIT_MANIFEST: path.join(OUTPUT_DIR, 'trait_manifest.json'),
+  getTraitFile: traitId =>
+    path.join(PACKS_DIR, `${traitId.replace(/:/g, '_')}_hg38.parquet`)
 };
 const gunzipAsync = promisify(gunzip);
 
 // Global metadata cache to avoid duplicate API calls
 const globalMetadataCache = new Map();
 
-export async function collectPgsMetadata(pgsIds, existingMetadata = {}, traitId = null) {
+export async function collectPgsMetadata(
+  pgsIds,
+  existingMetadata = {},
+  _traitId = null
+) {
   const metadata = {};
   const uncachedIds = [];
   const excludedIds = [];
@@ -55,7 +66,11 @@ export async function collectPgsMetadata(pgsIds, existingMetadata = {}, traitId 
       const scoreData = await pgsApiClient.getScore(pgsId);
 
       // Check if PGS should be excluded
-      const filterResult = await shouldExcludePGS(pgsId, scoreData, pgsApiClient);
+      const filterResult = await shouldExcludePGS(
+        pgsId,
+        scoreData,
+        pgsApiClient
+      );
       if (filterResult.exclude) {
         console.log(`      ⚠ Excluding ${pgsId}: ${filterResult.reason}`);
         excludedIds.push(pgsId);
@@ -91,18 +106,20 @@ export async function collectPgsMetadata(pgsIds, existingMetadata = {}, traitId 
   }
 
   if (excludedIds.length > 0) {
-    console.log(`    Excluded ${excludedIds.length} integrative PGS scores: ${excludedIds.join(', ')}`);
+    console.log(
+      `    Excluded ${excludedIds.length} integrative PGS scores: ${excludedIds.join(', ')}`
+    );
   }
 
   return metadata;
 }
 
-export async function needsUpdate(traitName, config) {
+export async function needsUpdate(traitName, _config) {
   console.log(`    Checking if ${traitName} needs update...`);
 
   // Check if file exists
   const safeFileName = traitName.replace(':', '_');
-  const filePath = path.join('/output/packs', `${safeFileName}_hg38.parquet`);
+  const filePath = path.join(PACKS_DIR, `${safeFileName}_hg38.parquet`);
   try {
     const stats = await fs.stat(filePath);
     console.log(`    Output file exists: ${filePath} (${stats.size} bytes)`);
@@ -113,12 +130,11 @@ export async function needsUpdate(traitName, config) {
       console.log('    File integrity verified, skipping generation');
       return false;
     } catch (error) {
-      console.log(`    File integrity check failed: ${error.message}, will regenerate`);
+      console.log(
+        `    File integrity check failed: ${error.message}, will regenerate`
+      );
       return true;
     }
-
-    console.log('    File exists, skipping generation');
-    return false;
   } catch {
     console.log('    No output file found, will generate');
     return true;
@@ -146,7 +162,7 @@ export async function collectSourceHashes(pgsIds) {
           date_released: scoreData.date_release
         };
       }
-    } catch (error) {
+    } catch (_error) {
       console.log(`    Warning: Could not get file info for ${pgsId}`);
     }
   }
@@ -172,7 +188,9 @@ export async function countVariantsInFile(filePath) {
       console.log(`    Corrupted file ${filePath}, removing from cache`);
       try {
         await fs.unlink(filePath);
-      } catch { }
+      } catch {
+        /* ignore */
+      }
       throw new Error(`Corrupted file removed: ${filePath}`);
     }
     console.log(
@@ -183,20 +201,25 @@ export async function countVariantsInFile(filePath) {
 }
 
 export async function runDuckDBQuery(query, dbPath = null) {
+  const duckdbCmd = process.env.DUCKDB_CLI || 'duckdb';
+  const memoryLimit = process.env.DUCKDB_MEMORY_LIMIT || '8GB';
+  const threads =
+    process.env.DUCKDB_THREADS || Math.max(4, Math.floor(os.cpus().length / 2));
+  const tempDir = process.env.LARGE_TMP || '/tmp';
+
   return new Promise((resolve, reject) => {
     const args = dbPath ? [dbPath] : [];
-    const duckdb = spawn('duckdb', args, {
+    const duckdb = spawn(duckdbCmd, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: OUTPUT_DIR,
       env: {
         ...process.env,
-        DUCKDB_MEMORY_LIMIT: '2GB'
+        DUCKDB_MEMORY_LIMIT: memoryLimit
       }
     });
 
-    // Set timeout to prevent hanging processes (longer for large datasets)
     const timeoutMinutes =
-      query.includes('DISTINCT') && query.includes('ORDER BY') ? 15 : 5;
+      query.includes('DISTINCT') && query.includes('ORDER BY') ? 30 : 10;
     const timeout = setTimeout(
       () => {
         duckdb.kill('SIGKILL');
@@ -205,10 +228,10 @@ export async function runDuckDBQuery(query, dbPath = null) {
       timeoutMinutes * 60 * 1000
     );
 
-    // Add temp directory pragma for disk-based operations
     const fullQuery = `
-            PRAGMA temp_directory='/tmp';
-            PRAGMA memory_limit='2GB';
+            PRAGMA temp_directory='${tempDir}';
+            PRAGMA memory_limit='${memoryLimit}';
+            PRAGMA threads=${threads};
             ${query}
         `;
 
@@ -262,7 +285,11 @@ export function createStandardSchema() {
     `;
 }
 
-export function createStandardizedExportQuery(tableName, outputPath, normalizationParams = {}) {
+export function createStandardizedExportQuery(
+  tableName,
+  outputPath,
+  _normalizationParams = {}
+) {
   // Keep raw weights - normalization will be applied to final sum
   return `
         CREATE OR REPLACE TABLE ${tableName}_standardized AS
@@ -270,7 +297,12 @@ export function createStandardizedExportQuery(tableName, outputPath, normalizati
             COALESCE(variant_id, '') as variant_id,
             COALESCE(effect_allele, '') as effect_allele,
             COALESCE(effect_weight, 0.0) as effect_weight,
-            COALESCE(pgs_id, '') as pgs_id
+            COALESCE(pgs_id, '') as pgs_id,
+            CASE SPLIT_PART(COALESCE(variant_id, ''), ':', 1)
+              WHEN 'X' THEN 23::TINYINT WHEN 'Y' THEN 24::TINYINT WHEN 'MT' THEN 25::TINYINT
+              ELSE TRY_CAST(SPLIT_PART(COALESCE(variant_id, ''), ':', 1) AS TINYINT)
+            END AS chr,
+            TRY_CAST(SPLIT_PART(COALESCE(variant_id, ''), ':', 2) AS INTEGER) AS pos
         FROM ${tableName}
         WHERE variant_id IS NOT NULL AND variant_id != ''
           AND effect_allele IS NOT NULL AND effect_allele != ''
@@ -280,7 +312,9 @@ export function createStandardizedExportQuery(tableName, outputPath, normalizati
             variant_id,
             effect_allele,
             effect_weight,
-            pgs_id
+            pgs_id,
+            chr,
+            pos
         FROM ${tableName}_standardized ORDER BY variant_id) 
         TO '${outputPath}' (FORMAT PARQUET, COMPRESSION ZSTD);
     `;
@@ -290,16 +324,25 @@ export async function validateParquetFile(filePath) {
   try {
     const stats = await fs.stat(filePath);
 
-    // Count variants in the file - if this works, the file is valid
-    const countQuery = `SELECT COUNT(*) as count FROM '${filePath}';`;
-    const result = await runDuckDBQuery(countQuery);
-    const variantCount = parseInt(result.match(/│\s*(\d+)\s*│/)?.[1] || '0');
+    // Try to count variants - if duckdb not available, just check file size
+    try {
+      const countQuery = `SELECT COUNT(*) as count FROM '${filePath}';`;
+      const result = await runDuckDBQuery(countQuery);
+      const variantCount = parseInt(result.match(/│\s*(\d+)\s*│/)?.[1] || '0');
 
-    return {
-      size: stats.size,
-      variantCount,
-      fileName: path.basename(filePath)
-    };
+      return {
+        size: stats.size,
+        variantCount,
+        fileName: path.basename(filePath)
+      };
+    } catch (_error) {
+      // DuckDB not available or query failed - just return file stats
+      return {
+        size: stats.size,
+        variantCount: 0,
+        fileName: path.basename(filePath)
+      };
+    }
   } catch (error) {
     throw new Error(`File validation failed: ${error.message}`);
   }

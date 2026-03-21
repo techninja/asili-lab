@@ -1,6 +1,4 @@
 import puppeteer from 'puppeteer';
-import fs from 'fs/promises';
-import path from 'path';
 
 const TEST_DNA_FILE = './test-data/AncestryDNA.txt';
 const BASE_URL = 'http://localhost:4242';

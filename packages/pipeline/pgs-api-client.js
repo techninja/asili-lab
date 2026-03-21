@@ -4,14 +4,36 @@ import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CACHE_DIR = process.env.CACHE_DIR || path.resolve(__dirname, '../../cache');
+const CACHE_DIR =
+  process.env.CACHE_DIR || path.resolve(__dirname, '../../cache');
 const PGS_FILES_DIR = path.join(CACHE_DIR, 'pgs_files');
 const RATE_LIMIT = 30; // requests per minute
 const RATE_WINDOW = 60 * 1000; // 1 minute in ms
+const MIN_DELAY = 100; // minimum 100ms between requests
+
+const MAX_CONCURRENT_DOWNLOADS = 5;
 
 class PGSApiClient {
   constructor() {
     this.requestTimes = [];
+    this._downloadQueue = [];
+    this._activeDownloads = 0;
+  }
+
+  _acquireDownloadSlot() {
+    if (this._activeDownloads < MAX_CONCURRENT_DOWNLOADS) {
+      this._activeDownloads++;
+      return Promise.resolve();
+    }
+    return new Promise(resolve => this._downloadQueue.push(resolve));
+  }
+
+  _releaseDownloadSlot() {
+    if (this._downloadQueue.length > 0) {
+      this._downloadQueue.shift()();
+    } else {
+      this._activeDownloads--;
+    }
   }
 
   async ensureCacheDir() {
@@ -53,9 +75,11 @@ class PGSApiClient {
         // console.log(`        ✓ Cache HIT: ${url.split('/').pop()} (${ageInDays} days old)`);
         return cached.data;
       } else {
-        console.log(`        ⚠ Cache EXPIRED: ${url.split('/').pop()} (${ageInDays} days old) - ${filePath}`);
+        console.log(
+          `        ⚠ Cache EXPIRED: ${url.split('/').pop()} (${ageInDays} days old) - ${filePath}`
+        );
       }
-    } catch (err) {
+    } catch (_err) {
       // console.log(`        ✗ Cache MISS: ${url.split('/').pop()} (${err.code || err.message}) - ${filePath}`);
     }
     return null;
@@ -85,17 +109,30 @@ class PGSApiClient {
     // If we're at the limit, wait
     if (this.requestTimes.length >= RATE_LIMIT) {
       const oldestRequest = Math.min(...this.requestTimes);
-      const waitTime = RATE_WINDOW - (now - oldestRequest) + 100; // +100ms buffer
+      const waitTime = RATE_WINDOW - (now - oldestRequest) + 100;
 
       if (waitTime > 0) {
         console.log(
           `Rate limit reached, waiting ${Math.ceil(waitTime / 1000)}s...`
         );
         await new Promise(resolve => setTimeout(resolve, waitTime));
+        // Clear old requests after waiting
+        this.requestTimes = this.requestTimes.filter(
+          time => Date.now() - time < RATE_WINDOW
+        );
+      }
+    } else if (this.requestTimes.length > 0) {
+      // Add small delay between requests to avoid bursts
+      const lastRequest = Math.max(...this.requestTimes);
+      const timeSinceLastRequest = now - lastRequest;
+      if (timeSinceLastRequest < MIN_DELAY) {
+        await new Promise(resolve =>
+          setTimeout(resolve, MIN_DELAY - timeSinceLastRequest)
+        );
       }
     }
 
-    this.requestTimes.push(now);
+    this.requestTimes.push(Date.now());
   }
 
   async fetchWithCache(url, cacheKey, retries = 3) {
@@ -107,7 +144,7 @@ class PGSApiClient {
       return cachedData;
     }
 
-    // Rate limit before making request
+    // Rate limit ONLY for actual network requests
     await this.waitForRateLimit();
 
     for (let attempt = 1; attempt <= retries; attempt++) {
@@ -120,7 +157,9 @@ class PGSApiClient {
           let responseText = '';
           try {
             responseText = await response.text();
-          } catch {}
+          } catch {
+            /* ignore */
+          }
 
           console.log(
             `❌ HTTP ${response.status} ${response.statusText} - ${url}`
@@ -197,53 +236,116 @@ class PGSApiClient {
     return this.fetchWithCache(url);
   }
 
-  async downloadPGSFile(pgsId, downloadUrl) {
-    const fileName = `${pgsId}.txt.gz`;
-    const filePath = path.join(PGS_FILES_DIR, fileName);
+  getHarmonizedUrl(scoreData) {
+    return scoreData?.ftp_harmonized_scoring_files?.GRCh38?.positions || null;
+  }
 
-    // Ensure PGS files directory exists
+  async _downloadWithRetry(url, destPath, label, retries = 3) {
+    await this._acquireDownloadSlot();
+    try {
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          const buffer = await response.arrayBuffer();
+          await fs.writeFile(destPath, new Uint8Array(buffer));
+          return true;
+        } catch (err) {
+          const cause = err.cause?.code || err.cause?.message || err.message;
+          if (attempt === retries) {
+            throw new Error(`${label}: ${cause} (after ${retries} attempts)`);
+          }
+          const backoff = 2000 * attempt;
+          console.log(
+            `        ⚠ ${label}: ${cause}, retry ${attempt}/${retries} in ${backoff / 1000}s...`
+          );
+          await new Promise(r => setTimeout(r, backoff));
+        }
+      }
+    } finally {
+      this._releaseDownloadSlot();
+    }
+  }
+
+  async downloadPGSFile(pgsId, downloadUrl) {
+    const harmonizedPath = path.join(
+      PGS_FILES_DIR,
+      `${pgsId}_hmPOS_GRCh38.txt.gz`
+    );
+    const rawPath = path.join(PGS_FILES_DIR, `${pgsId}.txt.gz`);
     await fs.mkdir(PGS_FILES_DIR, { recursive: true });
 
-    // Check if file already exists
+    // 1. Check harmonized cache
     try {
-      await fs.access(filePath);
-      console.log(`        Using cached PGS file: ${fileName}`);
-      return filePath;
+      await fs.access(harmonizedPath);
+      console.log(
+        `        Using cached harmonized file: ${pgsId}_hmPOS_GRCh38.txt.gz`
+      );
+      return harmonizedPath;
     } catch {
-      // File doesn't exist, download it
+      /* ignore */
     }
 
-    console.log(`        Downloading PGS file: ${fileName}`);
-    await this.waitForRateLimit();
-
-    const response = await fetch(downloadUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to download ${downloadUrl}: ${response.status}`);
+    // 2. Try downloading harmonized if API provides one
+    let harmonizedUrl = null;
+    try {
+      const scoreData = await this.getScore(pgsId);
+      harmonizedUrl = this.getHarmonizedUrl(scoreData);
+    } catch {
+      /* ignore */
     }
 
-    const buffer = await response.arrayBuffer();
-    await fs.writeFile(filePath, new Uint8Array(buffer));
+    if (harmonizedUrl) {
+      try {
+        console.log(`        Downloading harmonized GRCh38: ${pgsId}`);
+        await this._downloadWithRetry(harmonizedUrl, harmonizedPath, pgsId);
+        return harmonizedPath;
+      } catch (err) {
+        console.log(`        ❌ ${err.message}`);
+      }
+    }
 
-    return filePath;
+    // 3. Fall back to raw cache
+    try {
+      await fs.access(rawPath);
+      console.log(`        Using cached PGS file: ${pgsId}.txt.gz`);
+      return rawPath;
+    } catch {
+      /* ignore */
+    }
+
+    // 4. Download raw
+    console.log(`        Downloading PGS file: ${pgsId}.txt.gz`);
+    await this._downloadWithRetry(downloadUrl, rawPath, pgsId);
+    return rawPath;
   }
 
   async getPGSFile(pgsId) {
-    const fileName = `${pgsId}.txt.gz`;
-    const filePath = path.join(PGS_FILES_DIR, fileName);
-    
+    // Check for harmonized file first
+    const harmonizedPath = path.join(
+      PGS_FILES_DIR,
+      `${pgsId}_hmPOS_GRCh38.txt.gz`
+    );
     try {
-      await fs.access(filePath);
+      await fs.access(harmonizedPath);
+      return harmonizedPath;
     } catch {
-      const scoreData = await this.getScore(pgsId);
-      const downloadUrl = scoreData.ftp_scoring_file;
-      await this.downloadPGSFile(pgsId, downloadUrl);
+      /* ignore */
     }
-    
-    // Use Node's zlib instead of execSync to avoid buffer limits
-    const { gunzipSync } = await import('zlib');
-    const compressed = await fs.readFile(filePath);
-    const decompressed = gunzipSync(compressed);
-    return decompressed.toString('utf-8');
+
+    const rawPath = path.join(PGS_FILES_DIR, `${pgsId}.txt.gz`);
+    try {
+      await fs.access(rawPath);
+      return rawPath;
+    } catch {
+      /* ignore */
+    }
+
+    // Download - downloadPGSFile will prefer harmonized
+    const scoreData = await this.getScore(pgsId);
+    return this.downloadPGSFile(pgsId, scoreData.ftp_scoring_file);
   }
 
   async getPerformanceMetrics(ppmIds) {

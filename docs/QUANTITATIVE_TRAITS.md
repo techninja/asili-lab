@@ -12,14 +12,16 @@ Asili now distinguishes between two types of traits:
 Traits are classified based on their categories in the PGS Catalog:
 
 **Quantitative traits** have measurement categories:
+
 - Body measurement
-- Cardiovascular measurement  
+- Cardiovascular measurement
 - Lipid or lipoprotein measurement
 - Hematological measurement
 - Inflammatory measurement
 - Other measurement
 
 **Disease traits** have disorder categories:
+
 - Cardiovascular Disorders
 - Neurological Disorders
 - Metabolic Disorders
@@ -32,6 +34,7 @@ Traits are classified based on their categories in the PGS Catalog:
 For quantitative traits, **the PGS score IS the predicted value** in the trait's natural units.
 
 Example: `PGS003903` for Basal Metabolic Rate
+
 - `norm_mean`: 797.66 kcal/day
 - `norm_sd`: 317.01 kcal/day
 - Your score: 1000.75 kcal/day
@@ -44,6 +47,7 @@ Example: `PGS003903` for Basal Metabolic Rate
 For disease traits, scores represent **relative genetic risk** compared to the population.
 
 Example: Type 2 Diabetes
+
 - Score: 207.52
 - Z-score: 2.1σ
 - Interpretation: "Higher genetic risk" (top 2% of population)
@@ -88,6 +92,7 @@ Run `node scripts/enrich-catalog.js` to add `trait_type` field:
 ### 2. Frontend Display Logic
 
 See `docs/quantitative-trait-units.js` for:
+
 - Unit mappings (kcal/day, mmHg, mg/dL, etc.)
 - Clinical reference ranges
 - Risk level interpretations

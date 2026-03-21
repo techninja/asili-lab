@@ -46,7 +46,7 @@ export class IndividualManager extends HTMLElement {
   setProcessor(processor) {
     this.processor = processor;
     Debug.log('IndividualManager', 'External processor set');
-    
+
     // Load individuals now that we have a processor
     setTimeout(() => this.loadIndividuals(), 100);
   }
@@ -78,23 +78,36 @@ export class IndividualManager extends HTMLElement {
       const individuals = await this.processor.storage.getIndividuals();
       const store = useAppStore.getState();
 
-      Debug.log(1, 'IndividualManager', `Loaded ${individuals.length} individuals:`, individuals.map(ind => `${ind.name} (${ind.status})`));
-      
+      Debug.log(
+        1,
+        'IndividualManager',
+        `Loaded ${individuals.length} individuals:`,
+        individuals.map(ind => `${ind.name} (${ind.status})`)
+      );
+
       store.setIndividuals(individuals);
 
       // Auto-select first ready individual if none selected and we have individuals
       const readyIndividuals = individuals.filter(
         ind => ind.status === 'ready' || ind.status === 'complete'
       );
-      
-      Debug.log(2, 'IndividualManager', `Found ${readyIndividuals.length} ready individuals`);
-      
+
+      Debug.log(
+        2,
+        'IndividualManager',
+        `Found ${readyIndividuals.length} ready individuals`
+      );
+
       if (
         readyIndividuals.length > 0 &&
         !store.selectedIndividual &&
         store.uploadState === 'idle'
       ) {
-        Debug.log(1, 'IndividualManager', `Auto-selecting individual: ${readyIndividuals[0].name}`);
+        Debug.log(
+          1,
+          'IndividualManager',
+          `Auto-selecting individual: ${readyIndividuals[0].name}`
+        );
         store.setSelectedIndividual(readyIndividuals[0].id);
       }
     } catch (error) {
@@ -103,7 +116,16 @@ export class IndividualManager extends HTMLElement {
   }
 
   updateUI(state) {
-    console.log('updateUI called, showingUpload:', this.showingUpload, 'selectedFile:', this.selectedFile?.name, 'individuals:', state.individuals.length, 'uploadState:', state.uploadState);
+    console.log(
+      'updateUI called, showingUpload:',
+      this.showingUpload,
+      'selectedFile:',
+      this.selectedFile?.name,
+      'individuals:',
+      state.individuals.length,
+      'uploadState:',
+      state.uploadState
+    );
     const container = this.shadowRoot.getElementById('container');
     if (!container) return;
 
@@ -249,7 +271,9 @@ export class IndividualManager extends HTMLElement {
       select.onchange = e => {
         const selectedId = e.target.value;
         const individual = state.individuals.find(i => i.id === selectedId);
-        const isReady = individual && (individual.status === 'ready' || individual.status === 'complete');
+        const isReady =
+          individual &&
+          (individual.status === 'ready' || individual.status === 'complete');
         useAppStore.getState().setSelectedIndividual(selectedId, isReady);
       };
 
@@ -268,7 +292,8 @@ export class IndividualManager extends HTMLElement {
                             ${state.individuals
                               .map(ind => {
                                 const status =
-                                  ind.status === 'complete' || ind.status === 'ready'
+                                  ind.status === 'complete' ||
+                                  ind.status === 'ready'
                                     ? ''
                                     : ' (Failed Import)';
                                 return `<option value="${ind.id}" ${ind.id === state.selectedIndividual ? 'selected' : ''}>
@@ -290,7 +315,9 @@ export class IndividualManager extends HTMLElement {
       select.onchange = e => {
         const selectedId = e.target.value;
         const individual = state.individuals.find(i => i.id === selectedId);
-        const isReady = individual && (individual.status === 'ready' || individual.status === 'complete');
+        const isReady =
+          individual &&
+          (individual.status === 'ready' || individual.status === 'complete');
         useAppStore.getState().setSelectedIndividual(selectedId, isReady);
       };
 
@@ -348,7 +375,7 @@ export class IndividualManager extends HTMLElement {
 
   setupEventListeners() {
     // Use event delegation since file input persists across renders
-    this.shadowRoot.addEventListener('change', (e) => {
+    this.shadowRoot.addEventListener('change', e => {
       console.log('change event:', e.target.id, e.target.files);
       if (e.target.id === 'fileInput') {
         const file = e.target.files[0];
@@ -429,7 +456,7 @@ export class IndividualManager extends HTMLElement {
 
     try {
       console.log('removeIndividual - processor:', this.processor);
-      
+
       if (!this.processor) {
         throw new Error('Processor not initialized');
       }
@@ -441,7 +468,9 @@ export class IndividualManager extends HTMLElement {
         if (!error.message?.includes('404')) {
           throw error;
         }
-        console.log('Individual not found on server, removing from local state only');
+        console.log(
+          'Individual not found on server, removing from local state only'
+        );
       }
 
       if (store.selectedIndividual === individualId) {
@@ -460,7 +489,7 @@ export class IndividualManager extends HTMLElement {
   async importIndividual() {
     const nameInput = this.shadowRoot.getElementById('nameInput');
     const selectedEmoji = this.shadowRoot.querySelector('.emoji-btn.selected');
-    const progressText = this.shadowRoot.getElementById('progressText');
+    const _progressText = this.shadowRoot.getElementById('progressText');
 
     const name = nameInput?.value.trim();
     const emoji = selectedEmoji?.dataset.emoji || '👤';
@@ -480,7 +509,9 @@ export class IndividualManager extends HTMLElement {
 
     // Don't select individual yet - wait until import completes
     console.log('Setting uploadState to importing');
-    useAppStore.getState().setUploadState('importing', 'Starting import...', { name, emoji });
+    useAppStore
+      .getState()
+      .setUploadState('importing', 'Starting import...', { name, emoji });
     console.log('uploadState after set:', useAppStore.getState().uploadState);
 
     // Hide upload form and show progress
@@ -515,10 +546,10 @@ export class IndividualManager extends HTMLElement {
       await this.processor.storage.updateIndividual(individualId, {
         status: 'complete'
       });
-      
+
       // Set state to idle before loading individuals
       store.setUploadState('idle');
-      
+
       // Then update store and select individual
       await this.loadIndividuals();
       store.setSelectedIndividual(individualId, true);

@@ -5,10 +5,18 @@ CREATE TABLE IF NOT EXISTS traits (
   trait_id VARCHAR PRIMARY KEY,
   name VARCHAR NOT NULL,
   description VARCHAR,
-  categories VARCHAR NOT NULL,
-  canonical_uri VARCHAR,
+  categories VARCHAR,
+  unit VARCHAR,
+  emoji VARCHAR,
+  trait_type VARCHAR,
+  editorial_name VARCHAR,
+  editorial_description VARCHAR,
+  phenotype_mean DOUBLE,
+  phenotype_sd DOUBLE,
+  reference_population VARCHAR,
   expected_variants BIGINT,
   estimated_unique_variants BIGINT,
+  metadata_hash VARCHAR,
   last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -19,8 +27,11 @@ CREATE TABLE IF NOT EXISTS pgs_scores (
   method_name VARCHAR,
   norm_mean DOUBLE,
   norm_sd DOUBLE,
-  variants_count BIGINT,
-  last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  variants_number BIGINT,  -- Raw variant count from PGS Catalog metadata
+  variants_in_parquet BIGINT,  -- Actual variant count in parquet files after LD clumping/filtering
+  ld_aware BOOLEAN DEFAULT false,
+  needs_clumping BOOLEAN DEFAULT false,
+  last_updated TIMESTAMP DEFAULT now()
 );
 
 -- Performance metrics (one row per metric)

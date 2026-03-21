@@ -13,22 +13,28 @@ export class ServerQueueManager {
   }
 
   setupWebSocketListeners() {
-    this.wsManager.on('queue-state', (data) => {
+    this.wsManager.on('queue-state', data => {
       this.queue = data.queue || [];
       this.listeners.forEach(callback => {
         try {
-          callback({ event: 'updated', data: null, queue: this.getQueueState() });
+          callback({
+            event: 'updated',
+            data: null,
+            queue: this.getQueueState()
+          });
         } catch (error) {
           console.error('Queue listener error:', error);
         }
       });
     });
 
-    this.wsManager.on('queue-updated', (data) => {
-      const existing = this.queue.find(item => 
-        item.traitId === data.traitId && item.individualId === data.individualId
+    this.wsManager.on('queue-updated', data => {
+      const existing = this.queue.find(
+        item =>
+          item.traitId === data.traitId &&
+          item.individualId === data.individualId
       );
-      
+
       if (!existing) {
         const newItem = {
           id: data.jobId,
@@ -42,33 +48,53 @@ export class ServerQueueManager {
       }
     });
 
-    this.wsManager.on('job-started', (data) => {
+    this.wsManager.on('job-started', data => {
       const item = this.queue.find(item => item.id === data.jobId);
       if (item) {
         item.status = QUEUE_STATUS.PROCESSING;
-        this.emit('processing', { traitId: data.traitId, individualId: data.individualId, id: data.jobId, status: 'processing', progress: 0 });
+        this.emit('processing', {
+          traitId: data.traitId,
+          individualId: data.individualId,
+          id: data.jobId,
+          status: 'processing',
+          progress: 0
+        });
       }
     });
 
-    this.wsManager.on('progress', (data) => {
-      const item = this.queue.find(item => 
-        item.traitId === data.traitId && item.individualId === data.individualId
+    this.wsManager.on('progress', data => {
+      const item = this.queue.find(
+        item =>
+          item.traitId === data.traitId &&
+          item.individualId === data.individualId
       );
       if (item) {
         item.progress = data.percent;
-        this.emit('progress', { traitId: data.traitId, individualId: data.individualId, message: data.message, percent: data.percent });
+        this.emit('progress', {
+          traitId: data.traitId,
+          individualId: data.individualId,
+          message: data.message,
+          percent: data.percent
+        });
       }
     });
 
-    this.wsManager.on('result', (data) => {
-      const item = this.queue.find(item => 
-        item.traitId === data.traitId && item.individualId === data.individualId
+    this.wsManager.on('result', data => {
+      const item = this.queue.find(
+        item =>
+          item.traitId === data.traitId &&
+          item.individualId === data.individualId
       );
       if (item) {
-        item.status = data.success ? QUEUE_STATUS.COMPLETED : QUEUE_STATUS.FAILED;
+        item.status = data.success
+          ? QUEUE_STATUS.COMPLETED
+          : QUEUE_STATUS.FAILED;
         item.progress = 100;
-        this.emit(data.success ? 'itemCompleted' : 'itemFailed', { item, result: data });
-        
+        this.emit(data.success ? 'itemCompleted' : 'itemFailed', {
+          item,
+          result: data
+        });
+
         // Remove completed items after a delay
         setTimeout(() => {
           const index = this.queue.indexOf(item);
@@ -96,7 +122,7 @@ export class ServerQueueManager {
     });
   }
 
-  add(traitId, individualId, priority = 3) {
+  add(traitId, individualId, _priority = 3) {
     this.wsManager.addToQueue(traitId, individualId);
     return `${traitId}_${individualId}_${Date.now()}`;
   }
@@ -106,10 +132,18 @@ export class ServerQueueManager {
   }
 
   getQueueState() {
-    const pending = this.queue.filter(item => item.status === QUEUE_STATUS.PENDING || !item.status);
-    const processing = this.queue.find(item => item.status === QUEUE_STATUS.PROCESSING);
-    const completed = this.queue.filter(item => item.status === QUEUE_STATUS.COMPLETED);
-    const failed = this.queue.filter(item => item.status === QUEUE_STATUS.FAILED);
+    const pending = this.queue.filter(
+      item => item.status === QUEUE_STATUS.PENDING || !item.status
+    );
+    const processing = this.queue.find(
+      item => item.status === QUEUE_STATUS.PROCESSING
+    );
+    const completed = this.queue.filter(
+      item => item.status === QUEUE_STATUS.COMPLETED
+    );
+    const failed = this.queue.filter(
+      item => item.status === QUEUE_STATUS.FAILED
+    );
 
     return {
       total: this.queue.length,
@@ -124,12 +158,12 @@ export class ServerQueueManager {
     };
   }
 
-  moveToNext(itemId) {
+  moveToNext(_itemId) {
     // Server handles prioritization
     return true;
   }
 
-  remove(itemId) {
+  remove(_itemId) {
     // Server handles removal
     return true;
   }

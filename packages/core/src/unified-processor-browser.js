@@ -1,6 +1,10 @@
 /**
  * Browser-only unified processor without Node.js imports
  * Provides a consistent API for browser environments only
+ *
+ * TODO: Migrate to v2 scorer + duckdb-browser adapter.
+ * This file still uses the old BrowserGenomicProcessor which was deleted.
+ * Browser-only mode is deprioritized until the hybrid server path is complete.
  */
 
 import { Debug } from './utils/debug.js';
@@ -23,7 +27,7 @@ export class UnifiedProcessor {
     if (this.storage.initialize) {
       await this.storage.initialize();
     }
-    
+
     await this.loadTraitManifest();
     Debug.log(1, 'UnifiedProcessor', 'Initialized successfully');
   }
@@ -33,13 +37,17 @@ export class UnifiedProcessor {
       Debug.log(2, 'UnifiedProcessor', 'Loading trait manifest from JSON...');
       const response = await fetch('/data/trait_manifest.json');
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      
+
       this.traitManifest = await response.json();
-      this.emit('traitsLoaded', { 
+      this.emit('traitsLoaded', {
         loaded: Object.keys(this.traitManifest.traits).length,
         traits: this.getAllTraits()
       });
-      Debug.log(2, 'UnifiedProcessor', `Loaded ${Object.keys(this.traitManifest.traits).length} traits`);
+      Debug.log(
+        2,
+        'UnifiedProcessor',
+        `Loaded ${Object.keys(this.traitManifest.traits).length} traits`
+      );
     } catch (error) {
       Debug.error('UnifiedProcessor', 'Failed to load trait manifest:', error);
       this.traitManifest = { traits: {} };
@@ -47,10 +55,18 @@ export class UnifiedProcessor {
   }
 
   subscribe(callback) {
-    Debug.log(3, 'UnifiedProcessor', `Adding listener (total: ${this.listeners.size + 1})`);
+    Debug.log(
+      3,
+      'UnifiedProcessor',
+      `Adding listener (total: ${this.listeners.size + 1})`
+    );
     this.listeners.add(callback);
     return () => {
-      Debug.log(3, 'UnifiedProcessor', `Removing listener (remaining: ${this.listeners.size - 1})`);
+      Debug.log(
+        3,
+        'UnifiedProcessor',
+        `Removing listener (remaining: ${this.listeners.size - 1})`
+      );
       this.listeners.delete(callback);
     };
   }
@@ -65,16 +81,35 @@ export class UnifiedProcessor {
     });
   }
 
-  async importDNA(dnaFile, individualId, individualName, emoji = '👤', progressCallback) {
-    Debug.log(1, 'UnifiedProcessor', `Importing DNA for ${individualName} (${individualId})`);
-    
+  async importDNA(
+    dnaFile,
+    individualId,
+    individualName,
+    emoji = '👤',
+    progressCallback
+  ) {
+    Debug.log(
+      1,
+      'UnifiedProcessor',
+      `Importing DNA for ${individualName} (${individualId})`
+    );
+
     try {
       if (individualId && individualName) {
-        await this.storage.addIndividual(individualId, individualName, 'self', emoji);
+        await this.storage.addIndividual(
+          individualId,
+          individualName,
+          'self',
+          emoji
+        );
       }
 
-      const dnaData = await this.parseDNAFile(dnaFile, individualId, progressCallback);
-      
+      const dnaData = await this.parseDNAFile(
+        dnaFile,
+        individualId,
+        progressCallback
+      );
+
       this.emit('dnaImported', {
         individualId,
         variantCount: dnaData.variants.length,
@@ -86,7 +121,6 @@ export class UnifiedProcessor {
         variantCount: dnaData.variants.length,
         metadata: dnaData.metadata
       };
-      
     } catch (error) {
       this.emit('dnaImportFailed', { individualId, error: error.message });
       throw error;
@@ -94,15 +128,23 @@ export class UnifiedProcessor {
   }
 
   async parseDNAFile(file, individualId, progressCallback) {
-    Debug.log(1, 'UnifiedProcessor', `Parsing DNA file: ${file.name || 'uploaded file'}`);
-    
+    Debug.log(
+      1,
+      'UnifiedProcessor',
+      `Parsing DNA file: ${file.name || 'uploaded file'}`
+    );
+
     const text = await file.text();
     const lines = text.split('\n');
     const dataLines = lines.filter(
       line => line.trim() && !line.startsWith('#') && !line.startsWith('rsid')
     );
 
-    Debug.log(2, 'UnifiedProcessor', `Found ${dataLines.length} data lines from ${lines.length} total lines`);
+    Debug.log(
+      2,
+      'UnifiedProcessor',
+      `Found ${dataLines.length} data lines from ${lines.length} total lines`
+    );
 
     const variants = [];
 
@@ -134,15 +176,27 @@ export class UnifiedProcessor {
       }
     }
 
-    Debug.log(1, 'UnifiedProcessor', `Parsed ${variants.length} valid variants from DNA file`);
+    Debug.log(
+      1,
+      'UnifiedProcessor',
+      `Parsed ${variants.length} valid variants from DNA file`
+    );
 
     if (individualId) {
-      Debug.log(2, 'UnifiedProcessor', `Storing variants for individual: ${individualId}`);
-      await this.storage.storeVariants(individualId, variants, (current, total) => {
-        const progress = Math.round((current / total) * 100);
-        const message = `Stored ${current}/${total} variants`;
-        progressCallback?.(message, progress);
-      });
+      Debug.log(
+        2,
+        'UnifiedProcessor',
+        `Storing variants for individual: ${individualId}`
+      );
+      await this.storage.storeVariants(
+        individualId,
+        variants,
+        (current, total) => {
+          const progress = Math.round((current / total) * 100);
+          const message = `Stored ${current}/${total} variants`;
+          progressCallback?.(message, progress);
+        }
+      );
     }
 
     return {
@@ -158,7 +212,11 @@ export class UnifiedProcessor {
   }
 
   async calculateTraitRisk(traitId, individualId, progressCallback) {
-    Debug.log(1, 'UnifiedProcessor', `Calculating risk for trait: ${traitId}, individual: ${individualId}`);
+    Debug.log(
+      1,
+      'UnifiedProcessor',
+      `Calculating risk for trait: ${traitId}, individual: ${individualId}`
+    );
 
     if (!this.traitManifest) {
       throw new Error('Trait manifest not loaded');
@@ -170,7 +228,11 @@ export class UnifiedProcessor {
         throw new Error(`Trait ${traitId} not found`);
       }
 
-      Debug.log(2, 'UnifiedProcessor', `Found trait: ${trait.name} with ${trait.variant_count} variants`);
+      Debug.log(
+        2,
+        'UnifiedProcessor',
+        `Found trait: ${trait.name} with ${trait.variant_count} variants`
+      );
 
       if (!trait.file_path) {
         throw new Error(`No data file available for trait ${trait.name}`);
@@ -182,12 +244,20 @@ export class UnifiedProcessor {
         throw new Error('No DNA data found for individual');
       }
 
-      Debug.log(2, 'UnifiedProcessor', `Loaded ${userDNA.length} DNA variants for processing`);
+      Debug.log(
+        2,
+        'UnifiedProcessor',
+        `Loaded ${userDNA.length} DNA variants for processing`
+      );
 
       progressCallback?.('Loading trait data...', 5);
       const traitSource = `/data/packs/${trait.file_path}`;
 
-      Debug.log(2, 'UnifiedProcessor', `Using trait data source: ${traitSource}`);
+      Debug.log(
+        2,
+        'UnifiedProcessor',
+        `Using trait data source: ${traitSource}`
+      );
 
       // Fetch full trait details with PGS metadata from API if available
       let normalizationParams = {};
@@ -199,27 +269,39 @@ export class UnifiedProcessor {
             normalizationParams[pgs.pgs_id] = {
               norm_mean: pgs.norm_mean || 0,
               norm_sd: pgs.norm_sd || null,
-              variants_number: pgs.variants_count || null,
+              variants_number: pgs.variants_number || null,
               name: pgs.method_name || pgs.pgs_id
             };
           });
         }
       } catch (error) {
-        Debug.log(2, 'UnifiedProcessor', `Failed to fetch trait details: ${error.message}`);
+        Debug.log(
+          2,
+          'UnifiedProcessor',
+          `Failed to fetch trait details: ${error.message}`
+        );
       }
 
       const result = await this.genomicProcessor.calculateRisk(
         traitSource,
         userDNA,
         (message, percent) => {
-          Debug.log(3, 'UnifiedProcessor', `Risk calculation progress: ${message} (${percent}%)`);
+          Debug.log(
+            3,
+            'UnifiedProcessor',
+            `Risk calculation progress: ${message} (${percent}%)`
+          );
           progressCallback?.(message, percent);
         },
         trait.pgs_metadata,
         normalizationParams
       );
 
-      Debug.log(1, 'UnifiedProcessor', `Risk calculation complete. Score: ${result.riskScore}`);
+      Debug.log(
+        1,
+        'UnifiedProcessor',
+        `Risk calculation complete. Score: ${result.riskScore}`
+      );
 
       const riskData = {
         riskScore: result.riskScore,
@@ -241,9 +323,13 @@ export class UnifiedProcessor {
       });
 
       return riskData;
-
     } catch (error) {
-      Debug.log(1, 'UnifiedProcessor', `Risk calculation failed for ${traitId}:`, error.message);
+      Debug.log(
+        1,
+        'UnifiedProcessor',
+        `Risk calculation failed for ${traitId}:`,
+        error.message
+      );
       this.emit('traitFailed', { traitId, individualId, error: error.message });
       throw error;
     }
@@ -253,55 +339,67 @@ export class UnifiedProcessor {
     const traits = Object.keys(this.traitManifest.traits);
     const totalTraits = traits.length;
     const results = [];
-    
-    Debug.log(1, 'UnifiedProcessor', `Starting batch processing of ${totalTraits} traits for ${individualId}`);
-    
+
+    Debug.log(
+      1,
+      'UnifiedProcessor',
+      `Starting batch processing of ${totalTraits} traits for ${individualId}`
+    );
+
     this.emit('batchStarted', { individualId, totalTraits });
-    
+
     const batchSize = options.batchSize || 1;
     const yieldInterval = options.yieldInterval || 5;
-    
+
     for (let i = 0; i < traits.length; i += batchSize) {
       const batch = traits.slice(i, i + batchSize);
       const overallProgress = (i / totalTraits) * 100;
-      
+
       for (const traitId of batch) {
         const trait = this.traitManifest.traits[traitId];
-        
+
         this.emit('progress', {
           progress: overallProgress,
           processedTraits: i,
           totalTraits,
           currentTrait: trait
         });
-        
+
         try {
           const result = await this.calculateTraitRisk(
             traitId,
             individualId,
             (message, percent) => {
-              const adjustedProgress = overallProgress + (percent / totalTraits);
+              const _adjustedProgress = overallProgress + percent / totalTraits;
             }
           );
-          
+
           results.push({ traitId, success: true, data: result });
-          
         } catch (error) {
-          Debug.log(2, 'UnifiedProcessor', `Failed to process trait ${traitId}:`, error.message);
+          Debug.log(
+            2,
+            'UnifiedProcessor',
+            `Failed to process trait ${traitId}:`,
+            error.message
+          );
           results.push({ traitId, success: false, error: error.message });
         }
       }
-      
+
       if (i % yieldInterval === 0) {
         await new Promise(resolve => setTimeout(resolve, 10));
       }
     }
-    
+
     const successCount = results.filter(r => r.success).length;
     const failedCount = results.filter(r => !r.success).length;
-    
-    Debug.log(1, 'UnifiedProcessor', `Batch processing complete: ${successCount} success, ${failedCount} failed`);
-    
+
+    Debug.log(
+      1,
+      'UnifiedProcessor',
+      `Batch processing complete: ${successCount} success, ${failedCount} failed`
+    );
+
     this.emit('batchCompleted', {
       individualId,
       totalTraits,
@@ -309,7 +407,7 @@ export class UnifiedProcessor {
       failedCount,
       results
     });
-    
+
     return results;
   }
 
@@ -318,10 +416,12 @@ export class UnifiedProcessor {
       throw new Error('Queue manager not available');
     }
 
-    const traits = Object.entries(this.traitManifest.traits).map(([id, trait]) => ({
-      id,
-      ...trait
-    }));
+    const traits = Object.entries(this.traitManifest.traits).map(
+      ([id, trait]) => ({
+        id,
+        ...trait
+      })
+    );
 
     return this.queueManager.addAllTraits(individualId, traits, priority);
   }
@@ -349,7 +449,9 @@ export class UnifiedProcessor {
     for (const key of resultKeys) {
       const data = await this.storage.retrieve(key);
       if (data) {
-        const traitId = key.replace('risk_', '').replace(`_${individualId}`, '');
+        const traitId = key
+          .replace('risk_', '')
+          .replace(`_${individualId}`, '');
         results.push({ traitId, ...data });
       }
     }
@@ -362,11 +464,12 @@ export class UnifiedProcessor {
 
   getAllTraits() {
     if (!this.traitManifest) return [];
-    
+
     return Object.entries(this.traitManifest.traits).map(([id, trait]) => ({
       id,
       name: trait.name,
-      description: trait.description || `Polygenic risk score for ${trait.name}`,
+      description:
+        trait.description || `Polygenic risk score for ${trait.name}`,
       categories: trait.categories || ['Other Conditions'],
       file_path: trait.file_path,
       pgs_count: trait.pgs_count || 0,
@@ -394,7 +497,9 @@ export class UnifiedProcessor {
   getStatus() {
     return {
       initialized: !!this.traitManifest,
-      traitCount: this.traitManifest ? Object.keys(this.traitManifest.traits).length : 0,
+      traitCount: this.traitManifest
+        ? Object.keys(this.traitManifest.traits).length
+        : 0,
       queueStatus: this.queueManager ? this.queueManager.getQueueState() : null,
       cacheEnabled: !!this.cacheManager
     };
@@ -428,23 +533,46 @@ export class UnifiedProcessor {
 // Browser-only factory function
 export async function createBrowserProcessor(config = {}) {
   const { ProgressTracker } = await import('./progress/index.js');
-  const { BrowserGenomicProcessor } = await import('./genomic-processor/browser.js');
-  const { BrowserStorageManager } = await import('./storage-manager/browser.js');
+  const { BrowserStorageManager } =
+    await import('./storage-manager/browser.js');
   const { QueueManager } = await import('./queue/manager.js');
 
   const progressTracker = new ProgressTracker();
-  const genomicProcessor = new BrowserGenomicProcessor(config, progressTracker);
+  // Scoring is handled by scorer.js + dna-source modules.
+  // This stub satisfies UnifiedProcessor's constructor without pulling in deleted code.
+  const genomicProcessor = { initialize() {}, cleanup() {} };
   const storage = new BrowserStorageManager(config);
-  const queueManager = new QueueManager({ calculateTraitRisk: async (traitId, individualId, progressCallback) => {
-    return await processor.calculateTraitRisk(traitId, individualId, progressCallback);
-  }});
+  const queueManager = new QueueManager({
+    calculateTraitRisk: async (traitId, individualId, progressCallback) => {
+      return await processor.calculateTraitRisk(
+        traitId,
+        individualId,
+        progressCallback
+      );
+    }
+  });
 
-  const processor = new UnifiedProcessor(genomicProcessor, storage, progressTracker, queueManager);
+  const processor = new UnifiedProcessor(
+    genomicProcessor,
+    storage,
+    progressTracker,
+    queueManager
+  );
   // DON'T initialize here - let caller set up subscriptions first
-  Debug.log(2, 'createBrowserProcessor', 'Processor created, NOT initialized yet');
+  Debug.log(
+    2,
+    'createBrowserProcessor',
+    'Processor created, NOT initialized yet'
+  );
 
   // Set processor reference in queueManager
   queueManager.processor = processor;
 
-  return { processor, progressTracker, genomicProcessor, storage, queueManager };
+  return {
+    processor,
+    progressTracker,
+    genomicProcessor,
+    storage,
+    queueManager
+  };
 }

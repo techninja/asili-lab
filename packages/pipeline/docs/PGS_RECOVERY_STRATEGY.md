@@ -3,6 +3,7 @@
 ## Problem
 
 You're filtering out 70%+ of PGS scores because:
+
 1. **NR (Not Reported) weight types** - incompatible scales
 2. **Zero variance weights** - all weights identical
 3. **Integrative methods** - meta-analyses combining multiple PGS
@@ -26,6 +27,7 @@ Every PGS in the catalog has **Performance Metrics** from validation studies:
 ```
 
 **Use cases:**
+
 - **Quality filter**: Only include PGS with C-index > 0.55 or R² > 0.05
 - **Performance weighting**: Weight each PGS by its validation performance
 - **Ancestry matching**: Prefer PGS validated in user's ancestry
@@ -39,6 +41,7 @@ weight_proxy = log(EAF / (1 - EAF))
 ```
 
 This works because:
+
 - Rare variants (low EAF) typically have larger effects
 - Common variants (high EAF) typically have smaller effects
 - Log-odds transformation creates a reasonable weight scale
@@ -46,6 +49,7 @@ This works because:
 ### 3. Evaluated Samples Metadata
 
 Use sample size and ancestry to:
+
 - **Prioritize well-powered studies** (larger N = more reliable)
 - **Match user ancestry** (European, African, East Asian, etc.)
 - **Detect population-specific effects**
@@ -62,6 +66,7 @@ node analyze-trait-quality.js MONDO:0005575  # colorectal cancer
 ```
 
 This shows:
+
 - How many PGS are currently excluded
 - How many can be recovered using EAF + performance metrics
 - Performance metrics for each PGS
@@ -87,9 +92,9 @@ if (filterResult.include) {
     norm_sd: stats.sd,
     weight_type: scoreData.weight_type,
     method: scoreData.method_name,
-    performance_weight: filterResult.performance_weight,  // NEW
-    weight_proxy: filterResult.weight_proxy,              // NEW (for NR)
-    validation: filterResult.performance_metrics          // NEW
+    performance_weight: filterResult.performance_weight, // NEW
+    weight_proxy: filterResult.weight_proxy, // NEW (for NR)
+    validation: filterResult.performance_metrics // NEW
   });
 }
 ```
@@ -98,22 +103,24 @@ if (filterResult.include) {
 
 Based on typical PGS Catalog distributions:
 
-| Category | Before | After | Gain |
-|----------|--------|-------|------|
-| Standard weights (beta, OR) | 20-30% | 20-30% | 0% |
-| NR with validation | 0% | 15-25% | +15-25% |
-| NR without validation | 0% | 5-10% | +5-10% |
-| **Total inclusion** | **20-30%** | **40-65%** | **+20-35%** |
+| Category                    | Before     | After      | Gain        |
+| --------------------------- | ---------- | ---------- | ----------- |
+| Standard weights (beta, OR) | 20-30%     | 20-30%     | 0%          |
+| NR with validation          | 0%         | 15-25%     | +15-25%     |
+| NR without validation       | 0%         | 5-10%      | +5-10%      |
+| **Total inclusion**         | **20-30%** | **40-65%** | **+20-35%** |
 
 ## Trade-offs
 
 ### Pros
+
 - 2-3x more PGS scores available per trait
 - Better coverage of genetic variants
 - Performance-weighted aggregation is more accurate
 - Can match user ancestry
 
 ### Cons
+
 - EAF-based weights are approximations (less accurate than true betas)
 - Requires fetching additional metadata (slower pipeline)
 - More complex normalization logic
@@ -130,6 +137,7 @@ Based on typical PGS Catalog distributions:
 ## Alternative: Variant-Level Aggregation
 
 If EAF proxy doesn't work well, consider:
+
 - **Ignore PGS-level scores entirely**
 - **Aggregate at variant level** using effect allele counts
 - **Use LD-pruned variant sets** to avoid double-counting

@@ -6,11 +6,11 @@ import { promisify } from 'util';
 import { spawn } from 'child_process';
 import pgsApiClient from '../pgs-api-client.js';
 import {
-  collectPgsMetadata,
+  collectPgsMetadata as _collectPgsMetadata,
   needsUpdate,
-  collectSourceHashes,
+  collectSourceHashes as _collectSourceHashes,
   countVariantsInFile,
-  runDuckDBQuery,
+  runDuckDBQuery as _runDuckDBQuery,
   validateParquetFile,
   prepareFileForProcessing
 } from './processor-core.js';
@@ -18,14 +18,21 @@ import {
   detectFormat,
   generateColumnExpressions,
   getColumnRef,
-  generateColumnDefinitions
+  generateColumnDefinitions,
+  FORMAT_TYPES
 } from './harmonization.js';
+import { shouldClumpPGS } from './ld-clumping.js';
+import { execSync } from 'child_process';
+import { createLogger } from '../../core/src/utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const OUTPUT_DIR = '/output';
+const OUTPUT_DIR =
+  process.env.OUTPUT_DIR || path.join(__dirname, '..', '..', '..', 'data_out');
 const BATCH_DIR = path.join(OUTPUT_DIR, 'batches');
 const PACKS_DIR = path.join(OUTPUT_DIR, 'packs');
-const gunzipAsync = promisify(gunzip);
+const _gunzipAsync = promisify(gunzip);
+
+import os from 'os';
 
 // Ensure batch directory exists
 await fs.mkdir(BATCH_DIR, { recursive: true });
@@ -34,16 +41,16 @@ await fs.mkdir(PACKS_DIR, { recursive: true });
 async function createBatches(pgsIds, maxVariantsPerBatch = null) {
   console.log(`📦 Analyzing ${pgsIds.length} PGS files for batching...`);
 
-  // Dynamically adjust batch size based on dataset size
+  // Larger batches for native execution with more memory
   if (!maxVariantsPerBatch) {
     if (pgsIds.length > 80) {
-      maxVariantsPerBatch = 10000; // Very small batches for huge datasets
+      maxVariantsPerBatch = 50000; // Larger batches for huge datasets
     } else if (pgsIds.length > 60) {
-      maxVariantsPerBatch = 12000; // Small batches for very large datasets
+      maxVariantsPerBatch = 75000;
     } else if (pgsIds.length > 40) {
-      maxVariantsPerBatch = 15000; // Medium batches for large datasets
+      maxVariantsPerBatch = 100000;
     } else {
-      maxVariantsPerBatch = 20000; // Default batch size
+      maxVariantsPerBatch = 150000; // Much larger default
     }
   }
 
@@ -51,63 +58,79 @@ async function createBatches(pgsIds, maxVariantsPerBatch = null) {
     `    Using batch size: ${maxVariantsPerBatch.toLocaleString()} variants per batch`
   );
 
-  // Get actual variant counts from cached files
+  // Get actual variant counts from cached files (parallel)
   const fileInfo = [];
+  const downloadPromises = [];
+
   for (const pgsId of pgsIds) {
-    try {
-      // Check if file is already cached
-      const cachedFilePath = path.join(
-        '/cache',
-        'pgs_files',
-        `${pgsId}.txt.gz`
-      );
+    const promise = (async () => {
       try {
-        await fs.access(cachedFilePath);
-        const variantCount = await countVariantsInFile(cachedFilePath);
+        // Always go through downloadPGSFile which handles harmonized preference + caching
+        const scoreData = await pgsApiClient.getScore(pgsId);
+        if (!scoreData.ftp_scoring_file) {
+          console.log(`    ${pgsId}: No scoring file, skipping`);
+          return null;
+        }
 
-        fileInfo.push({
-          pgs_id: pgsId,
-          file_path: cachedFilePath,
-          variants: variantCount
-        });
-
-        console.log(
-          `    ${pgsId}: ${variantCount.toLocaleString()} variants (cached)`
+        const filePath = await pgsApiClient.downloadPGSFile(
+          pgsId,
+          scoreData.ftp_scoring_file
         );
-        continue;
-      } catch {
-        // File not cached, need to download
+        if (!filePath) {
+          console.log(`    ${pgsId}: Download failed, skipping`);
+          return null;
+        }
+
+        const variantCount = await countVariantsInFile(filePath);
+
+        return {
+          pgs_id: pgsId,
+          file_path: filePath,
+          variants: variantCount,
+          url: scoreData.ftp_scoring_file
+        };
+      } catch (error) {
+        console.log(`    ${pgsId}: Error - ${error.message}`);
+        return null;
       }
+    })();
 
-      const scoreData = await pgsApiClient.getScore(pgsId);
-      if (!scoreData.ftp_scoring_file) {
-        console.log(`    ${pgsId}: No scoring file, skipping`);
-        continue;
-      }
-
-      const filePath = await pgsApiClient.downloadPGSFile(
-        pgsId,
-        scoreData.ftp_scoring_file
-      );
-      if (!filePath) {
-        console.log(`    ${pgsId}: Download failed, skipping`);
-        continue;
-      }
-
-      const variantCount = await countVariantsInFile(filePath);
-
-      fileInfo.push({
-        pgs_id: pgsId,
-        file_path: filePath,
-        variants: variantCount,
-        url: scoreData.ftp_scoring_file
-      });
-
-      console.log(`    ${pgsId}: ${variantCount.toLocaleString()} variants`);
-    } catch (error) {
-      console.log(`    ${pgsId}: Error - ${error.message}`);
-    }
+    downloadPromises.push(promise);
   }
+
+  // Process downloads in parallel batches to avoid overwhelming the API
+  const batchSize = 10;
+  console.log(`    Downloading and analyzing in batches of ${batchSize}...`);
+
+  for (let i = 0; i < downloadPromises.length; i += batchSize) {
+    const batch = downloadPromises.slice(i, i + batchSize);
+    const batchNum = Math.floor(i / batchSize) + 1;
+    const totalBatches = Math.ceil(downloadPromises.length / batchSize);
+
+    console.log(
+      `    Batch ${batchNum}/${totalBatches}: Processing ${batch.length} files...`
+    );
+    const results = await Promise.all(batch);
+
+    let successCount = 0;
+    for (const result of results) {
+      if (result) {
+        fileInfo.push(result);
+        successCount++;
+      }
+    }
+    console.log(
+      `    Batch ${batchNum}/${totalBatches}: ✓ ${successCount}/${batch.length} files ready`
+    );
+  }
+
+  console.log(
+    `    ✓ Total: ${fileInfo.length}/${pgsIds.length} files ready for processing`
+  );
+  console.log(
+    `    Total variants: ${fileInfo.reduce((sum, f) => sum + f.variants, 0).toLocaleString()}`
+  );
+  console.log('');
 
   // Create batches based on variant counts
   const batches = [];
@@ -140,9 +163,11 @@ async function processBatchWithDuckDB(
   batch,
   batchNum,
   traitName,
-  totalBatches
+  totalBatches,
+  pgsMetadata = new Map(),
+  logger = console
 ) {
-  console.log(
+  logger.log(
     `🦆 Processing batch ${batchNum}/${totalBatches}: ${batch.length} files, ${batch.reduce((sum, f) => sum + f.variants, 0).toLocaleString()} variants`
   );
 
@@ -160,7 +185,7 @@ async function processBatchWithDuckDB(
   const fileQueries = [];
   for (const file of batch) {
     if (!file.file_path || typeof file.file_path !== 'string') {
-      console.log(
+      logger.log(
         `    Warning: Invalid file path for ${file.pgs_id}: ${file.file_path}`
       );
       continue;
@@ -175,16 +200,63 @@ async function processBatchWithDuckDB(
       // Use harmonization logic to detect format and get proper column expressions
       const formatType = detectFormat(columns);
       if (!formatType) {
-        console.log(
+        logger.log(
           `    Warning: Unsupported format for ${file.pgs_id} - columns: ${columns.join(', ')}`
         );
         continue;
       }
 
+      logger.log(
+        `    ${file.pgs_id}: ${formatType} format (${columns.length} columns)`
+      );
+
       const expressions = generateColumnExpressions(formatType, columns);
       const columnDefs = generateColumnDefinitions(columns);
+      const weightCol =
+        formatType === FORMAT_TYPES.DOSAGE_WEIGHTS
+          ? getColumnRef(columns, 'dosage_1_weight')
+          : getColumnRef(columns, 'effect_weight');
 
-      fileQueries.push(`
+      const hasOtherAllele = columns.includes('other_allele');
+      const gnomadPath = process.env.GNOMAD_PARQUET_PATH;
+
+      // If other_allele is missing and gnomAD is available, look it up
+      if (
+        !hasOtherAllele &&
+        gnomadPath &&
+        (formatType === FORMAT_TYPES.STANDARD_SNP ||
+          formatType === FORMAT_TYPES.STANDARD_SNP_NO_RSID)
+      ) {
+        const chrNameCol = getColumnRef(columns, 'chr_name');
+        const chrPosCol = getColumnRef(columns, 'chr_position');
+        const effectAlleleCol = getColumnRef(columns, 'effect_allele');
+        const effectWeightCol = getColumnRef(columns, 'effect_weight');
+
+        fileQueries.push(`
+            -- Process ${file.pgs_id} (${formatType} format with gnomAD lookup)
+            INSERT INTO batch_variants
+            SELECT 
+                CASE 
+                    WHEN g.ref IS NOT NULL AND g.alt IS NOT NULL THEN
+                        CONCAT(REPLACE(csv.${chrNameCol}, 'chr', ''), ':', COALESCE(csv.${chrPosCol}::TEXT, ''), ':', g.ref, ':', g.alt)
+                    ELSE
+                        CONCAT(REPLACE(csv.${chrNameCol}, 'chr', ''), ':', COALESCE(csv.${chrPosCol}::TEXT, ''), ':', csv.${effectAlleleCol})
+                END as variant_id,
+                csv.${effectAlleleCol} as effect_allele,
+                TRY_CAST(csv.${effectWeightCol} AS DOUBLE) as effect_weight,
+                '${file.pgs_id}' as pgs_id
+            FROM read_csv('${dataOnlyPath}', delim='\t', header=false, columns={${columnDefs}}) csv
+            LEFT JOIN read_parquet('${gnomadPath}') g 
+                ON 'chr' || REPLACE(csv.${chrNameCol}, 'chr', '') = g.chr 
+                AND TRY_CAST(csv.${chrPosCol} AS BIGINT) = g.pos
+                AND csv.${effectAlleleCol} = g.alt
+            WHERE csv.${effectAlleleCol} IS NOT NULL 
+              AND csv.${effectAlleleCol} != ''
+              AND csv.${weightCol} IS NOT NULL
+              AND csv.${weightCol} != '';
+            `);
+      } else {
+        fileQueries.push(`
             -- Process ${file.pgs_id} (${formatType} format, ${columns.length} columns)
             INSERT INTO batch_variants
             SELECT 
@@ -195,17 +267,67 @@ async function processBatchWithDuckDB(
             FROM read_csv('${dataOnlyPath}', delim='\t', header=false, columns={${columnDefs}})
             WHERE ${expressions.effect_allele} IS NOT NULL 
               AND ${expressions.effect_allele} != ''
-              AND ${getColumnRef(columns, 'effect_weight')} IS NOT NULL
-              AND ${getColumnRef(columns, 'effect_weight')} != '';
+              AND ${weightCol} IS NOT NULL
+              AND ${weightCol} != '';
             `);
+      }
     } catch (error) {
-      console.log(
+      logger.log(
         `    Warning: Could not prepare ${file.pgs_id}: ${error.message}`
       );
     }
   }
 
   // Create DuckDB subprocess to avoid memory issues
+  const clumpingSQL = Array.from(pgsMetadata.entries())
+    .filter(
+      ([pgsId, meta]) =>
+        batch.some(f => f.pgs_id === pgsId) && shouldClumpPGS(meta)
+    )
+    .map(([pgsId]) => {
+      logger.log(`    🔧 Clumping ${pgsId} in batch ${batchNum}`);
+      return `
+        -- Clump ${pgsId}
+        DELETE FROM batch_variants 
+        WHERE (variant_id, pgs_id) IN (
+          SELECT variant_id, pgs_id FROM (
+            SELECT *, 
+              ROW_NUMBER() OVER (
+                PARTITION BY pgs_id, 
+                  CASE 
+                    WHEN variant_id LIKE '%:%:%:%' THEN SUBSTRING(variant_id, 1, POSITION(':' IN variant_id) - 1)
+                    ELSE 'unknown'
+                  END,
+                  CASE 
+                    WHEN variant_id LIKE '%:%:%:%' THEN 
+                      FLOOR(TRY_CAST(SUBSTRING(variant_id, POSITION(':' IN variant_id) + 1, 
+                        POSITION(':' IN SUBSTRING(variant_id, POSITION(':' IN variant_id) + 1)) - 1) AS BIGINT) / 250000)
+                    ELSE 0
+                  END
+                ORDER BY ABS(effect_weight) DESC
+              ) as rank_in_window
+            FROM batch_variants
+            WHERE pgs_id = '${pgsId}'
+          ) WHERE rank_in_window > 1
+        );`;
+    })
+    .join('\n');
+
+  const clumpCount = Array.from(pgsMetadata.entries()).filter(
+    ([pgsId, meta]) =>
+      batch.some(f => f.pgs_id === pgsId) && shouldClumpPGS(meta)
+  ).length;
+  if (clumpingSQL) {
+    logger.log(
+      `    📊 Applying LD clumping to ${clumpCount} PGS in this batch`
+    );
+    logger.log(
+      `    📝 Generated ${clumpingSQL.split('\n').filter(l => l.trim().startsWith('--')).length} clumping SQL statements`
+    );
+  } else {
+    logger.log(`    ⏭️  No LD clumping needed for this batch`);
+  }
+
   const duckdbScript = `
         DROP TABLE IF EXISTS batch_variants;
         
@@ -218,13 +340,21 @@ async function processBatchWithDuckDB(
         
         ${fileQueries.join('\n')}
         
-        -- Enforce standard schema
+        -- Apply LD clumping per PGS if needed
+        ${clumpingSQL}
+        
+        -- Enforce standard schema with chr/pos integer columns
         CREATE OR REPLACE TABLE batch_variants_standardized AS
         SELECT 
             COALESCE(variant_id, '') as variant_id,
             COALESCE(effect_allele, '') as effect_allele,
             COALESCE(effect_weight, 0.0) as effect_weight,
-            COALESCE(pgs_id, '') as pgs_id
+            COALESCE(pgs_id, '') as pgs_id,
+            CASE SPLIT_PART(COALESCE(variant_id, ''), ':', 1)
+              WHEN 'X' THEN 23::TINYINT WHEN 'Y' THEN 24::TINYINT WHEN 'MT' THEN 25::TINYINT
+              ELSE TRY_CAST(SPLIT_PART(COALESCE(variant_id, ''), ':', 1) AS TINYINT)
+            END AS chr,
+            TRY_CAST(SPLIT_PART(COALESCE(variant_id, ''), ':', 2) AS INTEGER) AS pos
         FROM batch_variants
         WHERE variant_id IS NOT NULL AND variant_id != ''
           AND effect_allele IS NOT NULL AND effect_allele != ''
@@ -236,7 +366,9 @@ async function processBatchWithDuckDB(
                 variant_id,
                 effect_allele,
                 effect_weight,
-                pgs_id
+                pgs_id,
+                chr,
+                pos
             FROM batch_variants_standardized 
             ORDER BY variant_id
         ) TO '${batchOutputPath}' (FORMAT PARQUET, COMPRESSION SNAPPY);
@@ -246,20 +378,35 @@ async function processBatchWithDuckDB(
   const scriptPath = path.join(BATCH_DIR, `batch_${batchNum}.sql`);
   await fs.writeFile(scriptPath, duckdbScript);
 
-  // Run DuckDB
+  // Run DuckDB with higher memory limits
   return new Promise((resolve, reject) => {
+    const memoryLimit = process.env.DUCKDB_MEMORY_LIMIT || '16GB';
+    const threads =
+      process.env.DUCKDB_THREADS ||
+      Math.max(4, Math.floor(os.cpus().length / 2));
+
     const duckdb = spawn('duckdb', [batchDbPath], {
       stdio: ['pipe', 'pipe', 'pipe'],
-      cwd: OUTPUT_DIR
+      cwd: OUTPUT_DIR,
+      env: {
+        ...process.env,
+        DUCKDB_MEMORY_LIMIT: memoryLimit
+      }
     });
 
-    duckdb.stdin.write(duckdbScript);
+    const pragmas = `
+      PRAGMA memory_limit='${memoryLimit}';
+      PRAGMA threads=${threads};
+      PRAGMA temp_directory='/tmp';
+    `;
+
+    duckdb.stdin.write(pragmas + duckdbScript);
     duckdb.stdin.end();
 
-    let stdout = '';
+    let _stdout = '';
     let stderr = '';
 
-    duckdb.stdout.on('data', data => {
+    duckdb.stdout.on('data', _data => {
       // Silent - no debug output
     });
 
@@ -278,9 +425,13 @@ async function processBatchWithDuckDB(
           const dataPath = file.file_path.replace('.gz', '_data.tsv');
           try {
             await fs.unlink(dataPath);
-          } catch {}
+          } catch {
+            /* ignore */
+          }
         }
-      } catch {}
+      } catch {
+        /* ignore */
+      }
 
       if (
         code === 0 &&
@@ -289,13 +440,13 @@ async function processBatchWithDuckDB(
           .then(() => true)
           .catch(() => false))
       ) {
-        console.log(`    ✅ Batch ${batchNum}/${totalBatches} complete`);
+        logger.log(`    ✅ Batch ${batchNum}/${totalBatches} complete`);
         resolve(batchOutputPath);
       } else {
-        console.log(
+        logger.log(
           `    ❌ Batch ${batchNum}/${totalBatches} failed (code ${code})`
         );
-        if (stderr) console.log(`    Error: ${stderr}`);
+        if (stderr) logger.log(`    Error: ${stderr}`);
         reject(new Error(`Batch ${batchNum}/${totalBatches} failed`));
       }
     });
@@ -372,7 +523,9 @@ async function hierarchicalMerge(batchFiles, finalOutputPath, safeFileName) {
       for (const filePath of group) {
         try {
           await fs.unlink(filePath);
-        } catch {}
+        } catch {
+          /* ignore */
+        }
       }
     }
 
@@ -385,12 +538,11 @@ async function hierarchicalMerge(batchFiles, finalOutputPath, safeFileName) {
   return await directAppend(currentFiles, finalOutputPath, safeFileName);
 }
 
-async function directAppend(batchFiles, outputPath, baseName) {
+async function directAppend(batchFiles, outputPath, _baseName) {
   console.log(
     `    Direct append: ${batchFiles.length} files -> ${path.basename(outputPath)}`
   );
 
-  // Use Python helper for all merges to avoid DuckDB memory issues
   const validFiles = [];
   for (const filePath of batchFiles) {
     try {
@@ -407,34 +559,60 @@ async function directAppend(batchFiles, outputPath, baseName) {
   }
 
   const { execSync } = await import('child_process');
-  const scriptPath = path.join(
+  const pythonCmd = process.env.PYTHON_CLI || 'python3';
+
+  // Try parallel merge first
+  const parallelScriptPath = path.join(
     path.dirname(fileURLToPath(import.meta.url)),
     '..',
-    'merge_parquet.py'
+    'merge_parquet_parallel.py'
   );
-  const cmd = `python3 ${scriptPath} ${validFiles.join(' ')} ${outputPath}`;
 
   try {
+    const cmd = `${pythonCmd} ${parallelScriptPath} ${validFiles.join(' ')} ${outputPath}`;
     execSync(cmd, { cwd: OUTPUT_DIR, stdio: 'inherit' });
+    console.log('    ✓ Parallel merge successful');
     return outputPath;
   } catch (error) {
-    throw new Error(`Python merge failed: ${error.message}`);
+    console.log(`    ⚠ Parallel merge failed: ${error.message}`);
+    console.log('    Falling back to sequential merge...');
+
+    // Fallback to sequential merge
+    const sequentialScriptPath = path.join(
+      path.dirname(fileURLToPath(import.meta.url)),
+      '..',
+      'merge_parquet.py'
+    );
+
+    try {
+      const cmd = `${pythonCmd} ${sequentialScriptPath} ${validFiles.join(' ')} ${outputPath}`;
+      execSync(cmd, { cwd: OUTPUT_DIR, stdio: 'inherit' });
+      console.log('    ✓ Sequential merge successful');
+      return outputPath;
+    } catch (fallbackError) {
+      throw new Error(`Both merge methods failed: ${fallbackError.message}`);
+    }
   }
 }
 
-
-export async function generateTraitPackBatched(traitName, config, allMetadataCache = null) {
+export async function generateTraitPackBatched(
+  traitName,
+  config,
+  _allMetadataCache = null
+) {
+  const logger = createLogger('batched-processor');
   const traitTitle = config.title || traitName;
-  console.log(`🧬 Starting batched processing for ${traitTitle} (${traitName})`);
-  console.log(`   Target: ${config.pgs_ids.length} PGS files`);
+  logger.log(`🧬 Starting batched processing for ${traitTitle} (${traitName})`);
+  logger.log(`   Target: ${config.pgs_ids.length} PGS files`);
 
   const safeFileName = traitName.replace(':', '_');
-  const finalOutputPath = path.join(PACKS_DIR, `${safeFileName}_hg38.parquet`);
+  const _finalOutputPath = path.join(PACKS_DIR, `${safeFileName}_hg38.parquet`);
 
   const needsFileUpdate = await needsUpdate(traitName, config);
 
   if (!needsFileUpdate) {
-    console.log('  - Files up to date, skipping...');
+    logger.log('  - Files up to date, skipping...');
+    logger.close();
     return {
       timestamp: new Date().toISOString(),
       variant_count: config.expected_variants || 0,
@@ -443,7 +621,9 @@ export async function generateTraitPackBatched(traitName, config, allMetadataCac
     };
   }
 
-  console.log(`  - Generating ${traitTitle} (${traitName}) using batched processing...`);
+  logger.log(
+    `  - Generating ${traitTitle} (${traitName}) using batched processing...`
+  );
 
   const progressFile = path.join(OUTPUT_DIR, `${safeFileName}_progress.json`);
 
@@ -452,62 +632,209 @@ export async function generateTraitPackBatched(traitName, config, allMetadataCac
     const progressData = await fs.readFile(progressFile, 'utf8');
     progress = JSON.parse(progressData);
     if (progress.completed_batches.length > 0) {
-      console.log(`📂 Resuming: ${progress.completed_batches.length} batches already completed`);
+      logger.log(
+        `📂 Resuming: ${progress.completed_batches.length} batches already completed`
+      );
     }
-  } catch {}
+  } catch {
+    /* ignore */
+  }
 
   const batches = await createBatches(config.pgs_ids);
+
+  // Collect LD metadata from database (already calculated during trait refresh)
+  logger.log('   Collecting LD metadata...');
+  const pgsMetadata = new Map();
+
+  // Import database access
+  const { getPGS } = await import('./pgs-db.js');
+
+  for (const pgsId of config.pgs_ids) {
+    try {
+      // Read from database instead of recalculating
+      const dbData = await getPGS(pgsId);
+      if (dbData) {
+        pgsMetadata.set(pgsId, {
+          needs_clumping: dbData.needs_clumping || false,
+          ld_aware: dbData.ld_aware || false
+        });
+        if (dbData.needs_clumping) {
+          logger.log(
+            `   📌 ${pgsId}: needs LD clumping (method=${dbData.method_name}, variants=${dbData.variants_number})`
+          );
+        }
+      }
+    } catch (_error) {
+      logger.log(`   ⚠️  Warning: Could not get LD status for ${pgsId}`);
+    }
+  }
+
+  const needsClumpingCount = Array.from(pgsMetadata.values()).filter(
+    m => m.needs_clumping
+  ).length;
+  logger.log(
+    `   📊 LD Status: ${needsClumpingCount}/${pgsMetadata.size} PGS need clumping`
+  );
+
+  // Process batches in parallel with proper Promise handling
+  const maxParallel =
+    parseInt(process.env.MAX_PARALLEL_BATCHES) ||
+    Math.max(2, Math.floor(os.cpus().length / 4));
+  logger.log(`   Processing batches with parallelism: ${maxParallel}`);
+
   const batchFiles = [];
+  const activeBatches = new Map(); // Track active batch promises
+
   for (let i = 0; i < batches.length; i++) {
     const batchNum = i + 1;
 
+    // Check if already completed
     if (progress.completed_batches.includes(batchNum)) {
-      const batchFile = path.join(BATCH_DIR, `${safeFileName}_batch_${batchNum}.parquet`);
-      if (await fs.access(batchFile).then(() => true).catch(() => false)) {
-        console.log(`   Batch ${batchNum}/${batches.length}: ✅ DONE`);
+      const batchFile = path.join(
+        BATCH_DIR,
+        `${safeFileName}_batch_${batchNum}.parquet`
+      );
+      if (
+        await fs
+          .access(batchFile)
+          .then(() => true)
+          .catch(() => false)
+      ) {
+        logger.log(`   Batch ${batchNum}/${batches.length}: ✅ DONE`);
         batchFiles.push(batchFile);
         continue;
       }
     }
 
-    try {
-      const batchFile = await processBatchWithDuckDB(batches[i], batchNum, traitName, batches.length);
-      batchFiles.push(batchFile);
-      progress.completed_batches.push(batchNum);
-      await fs.writeFile(progressFile, JSON.stringify(progress, null, 2));
-    } catch (error) {
-      console.log(`❌ Batch ${batchNum}/${batches.length} failed: ${error.message}`);
-      throw error;
+    // Wait if at max parallelism
+    while (activeBatches.size >= maxParallel) {
+      const completed = await Promise.race(Array.from(activeBatches.values()));
+      activeBatches.delete(completed.batchNum);
     }
+
+    // Start new batch
+    const batchPromise = processBatchWithDuckDB(
+      batches[i],
+      batchNum,
+      traitName,
+      batches.length,
+      pgsMetadata,
+      logger
+    )
+      .then(batchFile => {
+        batchFiles.push(batchFile);
+        progress.completed_batches.push(batchNum);
+        return fs
+          .writeFile(progressFile, JSON.stringify(progress, null, 2))
+          .then(() => ({ batchNum, batchFile }));
+      })
+      .catch(error => {
+        logger.log(
+          `❌ Batch ${batchNum}/${batches.length} failed: ${error.message}`
+        );
+        throw error;
+      });
+
+    activeBatches.set(batchNum, batchPromise);
   }
 
-  let finalFile;
-  try {
-    finalFile = await mergeBatchResults(batchFiles, traitName);
-  } catch (error) {
-    throw error;
+  // Wait for all remaining batches
+  if (activeBatches.size > 0) {
+    await Promise.all(Array.from(activeBatches.values()));
   }
+
+  const finalFile = await mergeBatchResults(batchFiles, traitName);
 
   for (const filePath of batchFiles) {
     try {
       await fs.unlink(filePath);
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   }
 
   const finalStats = await fs.stat(finalFile);
-  console.log(`✅ Merge complete: ${finalFile} (${(finalStats.size / 1024 / 1024).toFixed(1)}MB)`);
+  console.log(
+    `✅ Merge complete: ${finalFile} (${(finalStats.size / 1024 / 1024).toFixed(1)}MB)`
+  );
 
   try {
     await fs.unlink(progressFile);
-  } catch {}
+  } catch {
+    /* ignore */
+  }
 
   const validation = await validateParquetFile(finalFile);
-  const actualVariantCount = validation.variantCount;
+  let actualVariantCount = validation.variantCount;
 
-  console.log(`🎯 ${traitTitle} (${traitName}) processing complete!`);
-  console.log(`   File: ${validation.fileName}`);
-  console.log(`   Size: ${(validation.size / 1024 / 1024).toFixed(1)}MB`);
-  console.log(`   Variants: ${actualVariantCount.toLocaleString()}`);
+  // If validation failed to count, query directly
+  if (actualVariantCount === 0) {
+    try {
+      const duckdbCmd = process.env.DUCKDB_CLI || 'duckdb';
+      const result = execSync(
+        `${duckdbCmd} -c "SELECT COUNT(*) as count FROM '${finalFile}';"`,
+        { encoding: 'utf8' }
+      );
+      const match = result.match(/│\s*(\d+)\s*│/);
+      actualVariantCount = match ? parseInt(match[1]) : 0;
+    } catch {
+      actualVariantCount = 0;
+    }
+  }
+
+  // Calculate clumping stats
+  const clumpedPGS = Array.from(pgsMetadata.entries()).filter(([_, meta]) =>
+    shouldClumpPGS(meta)
+  );
+  let clumpingStats = '';
+  if (clumpedPGS.length > 0) {
+    const totalBefore = clumpedPGS.reduce((sum, [pgsId]) => {
+      const batch = batches.flat().find(f => f.pgs_id === pgsId);
+      return sum + (batch?.variants || 0);
+    }, 0);
+
+    try {
+      const duckdbCmd = process.env.DUCKDB_CLI || 'duckdb';
+      const pgsIdList = clumpedPGS.map(([id]) => `'${id}'`).join(',');
+      const result = execSync(
+        `${duckdbCmd} -c "SELECT COUNT(*) as total FROM '${finalFile}' WHERE pgs_id IN (${pgsIdList});"`,
+        { encoding: 'utf8' }
+      );
+      const match = result.match(/│\s*(\d+)\s*│/);
+      const totalAfter = match ? parseInt(match[1]) : 0;
+      const removed = totalBefore - totalAfter;
+
+      // Check if any PGS was completely removed
+      for (const [pgsId] of clumpedPGS) {
+        const countResult = execSync(
+          `${duckdbCmd} -c "SELECT COUNT(*) as cnt FROM '${finalFile}' WHERE pgs_id = '${pgsId}';"`,
+          { encoding: 'utf8' }
+        );
+        const countMatch = countResult.match(/│\s*(\d+)\s*│/);
+        const afterCount = countMatch ? parseInt(countMatch[1]) : 0;
+
+        if (afterCount === 0) {
+          throw new Error(
+            `LD clumping removed ALL variants from ${pgsId} - this indicates a bug in the clumping logic or data format issue`
+          );
+        }
+      }
+
+      clumpingStats = `\n   LD Clumping: ${clumpedPGS.length} PGS, ${totalBefore.toLocaleString()} → ${totalAfter.toLocaleString()} variants (removed ${removed.toLocaleString()})`;
+    } catch (error) {
+      if (error.message.includes('removed ALL variants')) {
+        throw error;
+      }
+    }
+  }
+
+  logger.log(`🎯 ${traitTitle} (${traitName}) processing complete!`);
+  logger.log(`   File: ${validation.fileName}`);
+  logger.log(`   Size: ${(validation.size / 1024 / 1024).toFixed(1)}MB`);
+  logger.log(
+    `   Variants: ${actualVariantCount.toLocaleString()}${clumpingStats}`
+  );
+  logger.close();
 
   return {
     timestamp: new Date().toISOString(),

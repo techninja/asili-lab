@@ -1,18 +1,21 @@
 #!/usr/bin/env node
 
-import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { loadTraitCatalog, getTraitConfigs } from './lib/catalog.js';
 import { generateTraitPack } from './lib/processor.js';
 import { closeManifestConnection } from './lib/trait-manifest.js';
 import { exportTraitManifestJSON } from './lib/export-manifest.js';
+import scanParquetPGS from './scan-parquet-pgs.js';
+import { createLogger } from '../core/src/utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 async function main() {
-  console.log('🧬 Asili ETL Pipeline Starting...');
-  console.log('=====================================');
+  const logger = createLogger('etl-orchestrator');
+
+  logger.log('🧬 Asili ETL Pipeline Starting...');
+  logger.log('=====================================');
 
   const startTime = Date.now();
   let processedCount = 0;
@@ -21,41 +24,57 @@ async function main() {
 
   try {
     // Load trait catalog
-    console.log('📋 Loading trait catalog...');
+    logger.log('📋 Loading trait catalog...');
     const catalog = await loadTraitCatalog();
     const traitConfigs = await getTraitConfigs(catalog);
 
-    console.log(`📊 Processing ${Object.keys(traitConfigs).length} traits`);
-    console.log('');
+    logger.log(`📊 Processing ${Object.keys(traitConfigs).length} traits`);
+    logger.log('');
 
-    // Process traits - sort by variant count (largest first)
-    const sortedTraits = Object.entries(traitConfigs).sort(
-      ([, a], [, b]) => Number(b.expected_variants || 0) - Number(a.expected_variants || 0)
+    // Filter to single trait if specified
+    let sortedTraits = Object.entries(traitConfigs).sort(
+      ([, a], [, b]) =>
+        Number(b.expected_variants || 0) - Number(a.expected_variants || 0)
     );
+
+    if (process.env.SINGLE_TRAIT) {
+      sortedTraits = sortedTraits.filter(
+        ([traitName, config]) =>
+          traitName === process.env.SINGLE_TRAIT ||
+          config.trait_id === process.env.SINGLE_TRAIT
+      );
+      if (sortedTraits.length === 0) {
+        logger.error(`❌ Trait not found: ${process.env.SINGLE_TRAIT}`);
+        logger.close();
+        process.exit(1);
+      }
+      logger.log(`🎯 Processing single trait: ${process.env.SINGLE_TRAIT}`);
+      logger.log('');
+    }
 
     for (const [traitName, config] of sortedTraits) {
       const displayName = `${config.name || config.title || traitName} (${config.trait_id || traitName})`;
       const traitStartTime = Date.now();
 
       try {
-        console.log(`🔄 Processing: ${displayName}`);
+        logger.log(`🔄 Processing: ${displayName}`);
         const result = await generateTraitPack(traitName, config, {});
-        
+
         if (!result.metadata_only) {
-          console.log(
+          logger.log(
             `   ✅ Generated ${displayName} (${result.variant_count} variants, ${Math.round((Date.now() - traitStartTime) / 1000)}s)`
           );
         } else {
-          console.log(
+          logger.log(
             `   ✅ Skipped ${displayName} - up to date (${Math.round((Date.now() - traitStartTime) / 1000)}s)`
           );
         }
 
         processedCount++;
-        console.log('');
+        logger.log('');
       } catch (error) {
         const traitDuration = Math.round((Date.now() - traitStartTime) / 1000);
-        console.error(
+        logger.error(
           `   ❌ Error processing ${displayName}: ${error.message} (${traitDuration}s)`
         );
         errors.push({
@@ -65,7 +84,7 @@ async function main() {
           duration: traitDuration
         });
         errorCount++;
-        console.log('');
+        logger.log('');
       }
     }
 
@@ -75,36 +94,47 @@ async function main() {
     const seconds = totalDuration % 60;
     const durationStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
 
-    console.log('=====================================');
-    console.log('🎉 ETL Pipeline Complete!');
-    console.log(`📈 Processed: ${processedCount} traits`);
-    console.log(`⚠️  Errors: ${errorCount} traits`);
-    console.log(`⏱️  Total Duration: ${durationStr}`);
+    logger.log('=====================================');
+    logger.log('🎉 ETL Pipeline Complete!');
+    logger.log(`📈 Processed: ${processedCount} traits`);
+    logger.log(`⚠️  Errors: ${errorCount} traits`);
+    logger.log(`⏱️  Total Duration: ${durationStr}`);
 
     // Export JSON manifest for frontend
-    console.log('');
-    console.log('📦 Exporting JSON manifest...');
+    logger.log('');
+    logger.log('📦 Exporting JSON manifest...');
     await exportTraitManifestJSON();
 
+    // Scan parquet files and populate pgs_scores
+    if (process.env.SINGLE_TRAIT) {
+      logger.log(`🔍 Scanning parquet file for ${process.env.SINGLE_TRAIT}...`);
+      await scanParquetPGS(process.env.SINGLE_TRAIT);
+    } else {
+      logger.log('🔍 Scanning parquet files for all PGS...');
+      await scanParquetPGS();
+    }
+
     if (errors.length > 0) {
-      console.log('');
-      console.log('❌ ERROR SUMMARY:');
-      console.log('==================');
+      logger.log('');
+      logger.log('❌ ERROR SUMMARY:');
+      logger.log('==================');
       for (const err of errors) {
-        console.log(
+        logger.log(
           `   ${err.trait_id} (${err.title}): ${err.error} (${err.duration}s)`
         );
       }
     }
 
-    console.log('🚀 Trait packs ready for serving');
+    logger.log('🚀 Trait packs ready for serving');
+    logger.close();
 
     if (errorCount > 0) {
       process.exit(1);
     }
   } catch (error) {
-    console.error('💥 Pipeline failed:', error.message);
-    console.error(error.stack);
+    logger.error('💥 Pipeline failed:', error.message);
+    logger.error(error.stack);
+    logger.close();
     process.exit(1);
   } finally {
     // Close database connection

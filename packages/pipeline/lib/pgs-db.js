@@ -1,7 +1,5 @@
-import duckdb from 'duckdb';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { getConnection } from './shared-db.js';
+import { runMigrations } from './migrate.js';
 
 class PGSMetadataDB {
   constructor() {
@@ -14,19 +12,9 @@ class PGSMetadataDB {
 
   async init() {
     if (this.initialized) return;
-    const conn = await this.getConnection();
-    await new Promise((resolve, reject) => {
-      conn.run(`CREATE TABLE IF NOT EXISTS pgs_scores (pgs_id VARCHAR PRIMARY KEY, weight_type VARCHAR, method_name VARCHAR, norm_mean DOUBLE, norm_sd DOUBLE, variants_count BIGINT, last_updated TIMESTAMP DEFAULT now())`, err => err ? reject(err) : resolve());
-    });
-    await new Promise((resolve, reject) => {
-      conn.run(`CREATE SEQUENCE IF NOT EXISTS pgs_performance_seq START 1`, err => err ? reject(err) : resolve());
-    });
-    await new Promise((resolve, reject) => {
-      conn.run(`CREATE TABLE IF NOT EXISTS pgs_performance (id INTEGER PRIMARY KEY DEFAULT nextval('pgs_performance_seq'), pgs_id VARCHAR NOT NULL, metric_type VARCHAR NOT NULL, metric_value DOUBLE NOT NULL, ci_lower DOUBLE, ci_upper DOUBLE, sample_size BIGINT, ancestry VARCHAR)`, err => err ? reject(err) : resolve());
-    });
-    await new Promise((resolve, reject) => {
-      conn.run(`CREATE INDEX IF NOT EXISTS idx_pgs_perf_id ON pgs_performance(pgs_id)`, err => err ? reject(err) : resolve());
-    });
+    console.log('[pgs-db] Initializing...');
+    await runMigrations();
+    console.log('[pgs-db] Migrations complete');
     this.initialized = true;
   }
 
@@ -35,15 +23,36 @@ class PGSMetadataDB {
     const conn = await this.getConnection();
     const now = new Date().toISOString();
     return new Promise((resolve, reject) => {
-      const stmt = conn.prepare(`INSERT INTO pgs_scores (pgs_id, weight_type, method_name, norm_mean, norm_sd, variants_count, last_updated)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (pgs_id) DO UPDATE SET weight_type=EXCLUDED.weight_type, method_name=EXCLUDED.method_name,
-        norm_mean=EXCLUDED.norm_mean, norm_sd=EXCLUDED.norm_sd, variants_count=EXCLUDED.variants_count, last_updated=EXCLUDED.last_updated`);
-      stmt.run(pgsId, data.weight_type ?? null, data.method ?? null, data.norm_mean ?? null, data.norm_sd ?? null, data.variants_count ?? null, now, err => {
-        stmt.finalize();
-        if (err) reject(err);
-        else resolve();
-      });
+      const stmt =
+        conn.prepare(`INSERT INTO pgs_scores (pgs_id, weight_type, method_name, norm_mean, norm_sd, variants_number, variants_in_parquet, ld_aware, needs_clumping, last_updated)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (pgs_id) DO UPDATE SET 
+        weight_type=COALESCE(EXCLUDED.weight_type, pgs_scores.weight_type), 
+        method_name=COALESCE(EXCLUDED.method_name, pgs_scores.method_name),
+        norm_mean=COALESCE(EXCLUDED.norm_mean, pgs_scores.norm_mean), 
+        norm_sd=COALESCE(EXCLUDED.norm_sd, pgs_scores.norm_sd), 
+        variants_number=COALESCE(EXCLUDED.variants_number, pgs_scores.variants_number), 
+        variants_in_parquet=COALESCE(EXCLUDED.variants_in_parquet, pgs_scores.variants_in_parquet), 
+        ld_aware=CASE WHEN EXCLUDED.ld_aware IS NOT NULL THEN EXCLUDED.ld_aware ELSE pgs_scores.ld_aware END, 
+        needs_clumping=CASE WHEN EXCLUDED.needs_clumping IS NOT NULL THEN EXCLUDED.needs_clumping ELSE pgs_scores.needs_clumping END, 
+        last_updated=EXCLUDED.last_updated`);
+      stmt.run(
+        pgsId,
+        data.weight_type ?? null,
+        data.method ?? null,
+        data.norm_mean ?? null,
+        data.norm_sd ?? null,
+        data.variants_number ?? null,
+        data.variants_in_parquet ?? null,
+        data.ld_aware ?? null,
+        data.needs_clumping ?? null,
+        now,
+        err => {
+          stmt.finalize();
+          if (err) reject(err);
+          else resolve();
+        }
+      );
     });
   }
 
@@ -60,11 +69,22 @@ class PGSMetadataDB {
     if (!metrics?.all_metrics?.length) return;
     for (const m of metrics.all_metrics) {
       await new Promise((resolve, reject) => {
-        const stmt = conn.prepare(`INSERT INTO pgs_performance (pgs_id, metric_type, metric_value, ci_lower, ci_upper, sample_size, ancestry) VALUES (?, ?, ?, ?, ?, ?, ?)`);
-        stmt.run(pgsId, m.type, m.value, m.ci_lower ?? null, m.ci_upper ?? null, m.sample_size ?? null, m.ancestry ?? null, err => {
-          stmt.finalize();
-          err ? reject(err) : resolve();
-        });
+        const stmt = conn.prepare(
+          `INSERT INTO pgs_performance (pgs_id, metric_type, metric_value, ci_lower, ci_upper, sample_size, ancestry) VALUES (?, ?, ?, ?, ?, ?, ?)`
+        );
+        stmt.run(
+          pgsId,
+          m.type,
+          m.value,
+          m.ci_lower ?? null,
+          m.ci_upper ?? null,
+          m.sample_size ?? null,
+          m.ancestry ?? null,
+          err => {
+            stmt.finalize();
+            err ? reject(err) : resolve();
+          }
+        );
       });
     }
   }
@@ -73,7 +93,11 @@ class PGSMetadataDB {
     await this.init();
     const conn = await this.getConnection();
     return new Promise((resolve, reject) => {
-      conn.all('SELECT * FROM pgs_scores WHERE pgs_id = ?', [pgsId], (err, rows) => err ? reject(err) : resolve(rows[0]));
+      conn.all(
+        'SELECT * FROM pgs_scores WHERE pgs_id = ?',
+        [pgsId],
+        (err, rows) => (err ? reject(err) : resolve(rows[0]))
+      );
     });
   }
 
@@ -81,13 +105,28 @@ class PGSMetadataDB {
     await this.init();
     const conn = await this.getConnection();
     const metrics = await new Promise((resolve, reject) => {
-      conn.all('SELECT * FROM pgs_performance WHERE pgs_id = ? ORDER BY metric_value DESC', [pgsId], (err, rows) => err ? reject(err) : resolve(rows));
+      conn.all(
+        'SELECT * FROM pgs_performance WHERE pgs_id = ? ORDER BY metric_value DESC',
+        [pgsId],
+        (err, rows) => (err ? reject(err) : resolve(rows))
+      );
     });
-    const hierarchy = { 'C-index': 4, 'R²': 3, 'AUROC': 3, 'AUC': 3, 'OR': 1, 'HR': 1, 'β': 1 };
+    const hierarchy = {
+      'C-index': 4,
+      'R²': 3,
+      AUROC: 3,
+      AUC: 3,
+      OR: 1,
+      HR: 1,
+      β: 1
+    };
     return metrics.reduce((best, m) => {
       const rank = hierarchy[m.metric_type] || 0;
       const bestRank = best ? hierarchy[best.metric_type] || 0 : 0;
-      return (rank > bestRank || (rank === bestRank && m.metric_value > (best?.metric_value || 0))) ? m : best;
+      return rank > bestRank ||
+        (rank === bestRank && m.metric_value > (best?.metric_value || 0))
+        ? m
+        : best;
     }, null);
   }
 
@@ -95,7 +134,11 @@ class PGSMetadataDB {
     await this.init();
     const conn = await this.getConnection();
     return new Promise((resolve, reject) => {
-      conn.all('SELECT * FROM pgs_performance WHERE pgs_id = ?', [pgsId], (err, rows) => err ? reject(err) : resolve(rows || []));
+      conn.all(
+        'SELECT * FROM pgs_performance WHERE pgs_id = ?',
+        [pgsId],
+        (err, rows) => (err ? reject(err) : resolve(rows || []))
+      );
     });
   }
 

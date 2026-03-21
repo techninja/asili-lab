@@ -1,8 +1,8 @@
 import { HybridProcessor } from '../lib/hybrid-processor.js';
-import { IndividualManager } from './individual-manager.js';
-import { RiskDashboard } from './risk-dashboard.js';
-import { ProgressBar } from './progress-bar.js';
-import { QueueControl } from './queue-control.js';
+import { IndividualManager as _IndividualManager } from './individual-manager.js';
+import { RiskDashboard as _RiskDashboard } from './risk-dashboard.js';
+import { ProgressBar as _ProgressBar } from './progress-bar.js';
+import { QueueControl as _QueueControl } from './queue-control.js';
 import { useAppStore } from '../lib/store.js';
 
 class AsiliApp extends HTMLElement {
@@ -23,7 +23,8 @@ class AsiliApp extends HTMLElement {
     // Set processor on components immediately after initialization
     const riskDashboard = this.shadowRoot.querySelector('risk-dashboard');
     const queueControl = this.shadowRoot.querySelector('queue-control');
-    const individualManager = this.shadowRoot.querySelector('individual-manager');
+    const individualManager =
+      this.shadowRoot.querySelector('individual-manager');
 
     if (riskDashboard) {
       riskDashboard.setProcessor(this.processor);
@@ -44,9 +45,11 @@ class AsiliApp extends HTMLElement {
 
     // Subscribe to store changes to show/hide analysis section
     this.storeUnsubscribe = useAppStore.subscribe(state => {
-      const analysisSection = this.shadowRoot.querySelector('.analysis-section');
+      const analysisSection =
+        this.shadowRoot.querySelector('.analysis-section');
       if (analysisSection) {
-        analysisSection.style.display = state.selectedIndividual && state.individualReady ? 'block' : 'none';
+        analysisSection.style.display =
+          state.selectedIndividual && state.individualReady ? 'block' : 'none';
       }
     });
   }

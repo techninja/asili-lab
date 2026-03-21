@@ -38,10 +38,10 @@ export class RiskDashboard extends HTMLElement {
     this.queueManager = processor.getQueueManager();
     this.traitDataService = new TraitDataService(processor, this.queueManager);
     this.traitDataService.subscribeToQueueEvents();
-    
+
     // Render immediately with empty state
     this.filterTraits();
-    
+
     // Load traits with subscription
     this.loadAvailableTraitsWithStreaming();
   }
@@ -52,32 +52,46 @@ export class RiskDashboard extends HTMLElement {
       Debug.log(1, 'RiskDashboard', 'No processor available');
       return;
     }
-    
+
     try {
       // Load traits directly from manifest
       Debug.log(1, 'RiskDashboard', 'Loading traits from manifest');
-      
+
       // Use generated_at timestamp for cache busting
       const cachedTimestamp = localStorage.getItem('trait_manifest_timestamp');
-      const url = cachedTimestamp 
+      const url = cachedTimestamp
         ? `/data/trait_manifest.json?t=${cachedTimestamp}`
         : '/data/trait_manifest.json';
-      
+
       const response = await fetch(url);
       const manifest = await response.json();
-      
+
       // Update cached timestamp if changed
       if (manifest.generated_at && manifest.generated_at !== cachedTimestamp) {
         localStorage.setItem('trait_manifest_timestamp', manifest.generated_at);
-        Debug.log(2, 'RiskDashboard', `Manifest updated: ${manifest.generated_at}`);
+        Debug.log(
+          2,
+          'RiskDashboard',
+          `Manifest updated: ${manifest.generated_at}`
+        );
       }
-      
+
       // Debug first trait from manifest
       const firstTraitId = Object.keys(manifest.traits)[0];
       const firstTrait = manifest.traits[firstTraitId];
-      Debug.log(2, 'RiskDashboard', `Sample manifest trait (${firstTraitId}):`, firstTrait);
-      Debug.log(2, 'RiskDashboard', `Categories in manifest:`, firstTrait.categories);
-      
+      Debug.log(
+        2,
+        'RiskDashboard',
+        `Sample manifest trait (${firstTraitId}):`,
+        firstTrait
+      );
+      Debug.log(
+        2,
+        'RiskDashboard',
+        `Categories in manifest:`,
+        firstTrait.categories
+      );
+
       this.availableTraits = Object.values(manifest.traits).map(trait => {
         const mapped = {
           id: trait.trait_id,
@@ -93,13 +107,27 @@ export class RiskDashboard extends HTMLElement {
         };
         return mapped;
       });
-      
-      Debug.log(1, 'RiskDashboard', `Loaded ${this.availableTraits.length} traits from manifest`);
-      Debug.log(2, 'RiskDashboard', `First mapped trait:`, this.availableTraits[0]);
-      Debug.log(2, 'RiskDashboard', `First mapped trait categories:`, this.availableTraits[0].categories);
+
+      Debug.log(
+        1,
+        'RiskDashboard',
+        `Loaded ${this.availableTraits.length} traits from manifest`
+      );
+      Debug.log(
+        2,
+        'RiskDashboard',
+        `First mapped trait:`,
+        this.availableTraits[0]
+      );
+      Debug.log(
+        2,
+        'RiskDashboard',
+        `First mapped trait categories:`,
+        this.availableTraits[0].categories
+      );
       this.populateCategoryFilter();
       this.filterTraits();
-      
+
       // Load risk results if individual is selected
       const state = useAppStore.getState();
       if (state.selectedIndividual) {
@@ -113,16 +141,24 @@ export class RiskDashboard extends HTMLElement {
 
   setupEventListeners() {
     // Filter controls
-    ['searchInput', 'categorySelect', 'sortSelect'].forEach(id => {
-      this.shadowRoot.getElementById(id)?.addEventListener('change', () => this.filterTraits());
-      this.shadowRoot.getElementById(id)?.addEventListener('input', () => this.filterTraits());
-    });
+    ['searchInput', 'categorySelect', 'sortSelect', 'typeSelect'].forEach(
+      id => {
+        this.shadowRoot
+          .getElementById(id)
+          ?.addEventListener('change', () => this.filterTraits());
+        this.shadowRoot
+          .getElementById(id)
+          ?.addEventListener('input', () => this.filterTraits());
+      }
+    );
 
     // Queue all button
-    this.shadowRoot.getElementById('queueAllBtn')?.addEventListener('click', () => this.queueAllTraits());
+    this.shadowRoot
+      .getElementById('queueAllBtn')
+      ?.addEventListener('click', () => this.queueAllTraits());
 
     // Trait card events
-    this.addEventListener('add-to-queue', (e) => {
+    this.addEventListener('add-to-queue', e => {
       const { traitId, individualId } = e.detail;
       const trait = this.availableTraits.find(t => t.id === traitId);
       this.traitDataService?.addToQueue(traitId, individualId, trait);
@@ -132,13 +168,21 @@ export class RiskDashboard extends HTMLElement {
   subscribeToStore() {
     this.unsubscribe = useAppStore.subscribe(state => {
       if (this.lastIndividual !== state.selectedIndividual) {
-        Debug.log(1, 'RiskDashboard', `Individual changed: ${this.lastIndividual} -> ${state.selectedIndividual}`);
+        Debug.log(
+          1,
+          'RiskDashboard',
+          `Individual changed: ${this.lastIndividual} -> ${state.selectedIndividual}`
+        );
         this.traitDataService?.clearAllTraitData();
         this.lastIndividual = state.selectedIndividual;
         this.cacheLoaded = false;
-        
+
         // Load risk results from IndexedDB when individual changes
-        Debug.log(1, 'RiskDashboard', `Checking cache load on individual change: traits=${this.availableTraits.length}`);
+        Debug.log(
+          1,
+          'RiskDashboard',
+          `Checking cache load on individual change: traits=${this.availableTraits.length}`
+        );
         if (state.selectedIndividual && this.availableTraits.length > 0) {
           this.loadCachedRiskDataFromIndexedDB(state.selectedIndividual);
           this.cacheLoaded = true;
@@ -153,9 +197,10 @@ export class RiskDashboard extends HTMLElement {
     if (!grid) return;
 
     if (!state.selectedIndividual || !state.individualReady) {
-      grid.innerHTML = state.individuals.length === 0 
-        ? '<div class="loading">Import DNA data to start analyzing genomic risk</div>'
-        : '<div class="loading">Select an individual to view genomic risk analysis</div>';
+      grid.innerHTML =
+        state.individuals.length === 0
+          ? '<div class="loading">Import DNA data to start analyzing genomic risk</div>'
+          : '<div class="loading">Select an individual to view genomic risk analysis</div>';
       return;
     }
 
@@ -204,18 +249,32 @@ export class RiskDashboard extends HTMLElement {
 
     const searchInput = this.shadowRoot.getElementById('searchInput');
     const categorySelect = this.shadowRoot.getElementById('categorySelect');
+    const typeSelect = this.shadowRoot.getElementById('typeSelect');
     const sortSelect = this.shadowRoot.getElementById('sortSelect');
     const filterStats = this.shadowRoot.getElementById('filterStats');
     const grid = this.shadowRoot.getElementById('traitsGrid');
 
-    if (!searchInput || !categorySelect || !sortSelect || !filterStats || !grid) return;
+    if (
+      !searchInput ||
+      !categorySelect ||
+      !typeSelect ||
+      !sortSelect ||
+      !filterStats ||
+      !grid
+    )
+      return;
 
     const searchTerm = searchInput.value.toLowerCase().trim();
     const selectedCategory = categorySelect.value;
+    const selectedType = typeSelect.value;
     const sortBy = sortSelect.value;
 
-    Debug.log(2, 'RiskDashboard', `Filtering ${this.availableTraits.length} traits`);
-    
+    Debug.log(
+      2,
+      'RiskDashboard',
+      `Filtering ${this.availableTraits.length} traits`
+    );
+
     // Debug: Check first trait structure
     if (this.availableTraits.length > 0) {
       Debug.log(2, 'RiskDashboard', 'Sample trait:', this.availableTraits[0]);
@@ -223,14 +282,17 @@ export class RiskDashboard extends HTMLElement {
 
     // Filter traits
     let filteredTraits = this.availableTraits.filter(trait => {
-      const matchesSearch = !searchTerm || 
+      const matchesSearch =
+        !searchTerm ||
         trait.name.toLowerCase().includes(searchTerm) ||
         trait.description?.toLowerCase().includes(searchTerm) ||
         trait.categories?.some(cat => cat.toLowerCase().includes(searchTerm));
-      
-      const matchesCategory = !selectedCategory || trait.categories?.includes(selectedCategory);
-      
-      return matchesSearch && matchesCategory;
+
+      const matchesCategory =
+        !selectedCategory || trait.categories?.includes(selectedCategory);
+      const matchesType = !selectedType || trait.trait_type === selectedType;
+
+      return matchesSearch && matchesCategory && matchesType;
     });
 
     // Sort traits
@@ -239,11 +301,11 @@ export class RiskDashboard extends HTMLElement {
         case 'risk-score': {
           const aState = useTraitStore.getState().getTraitState(a.id);
           const bState = useTraitStore.getState().getTraitState(b.id);
-          
+
           // Calculate z-scores from pgsDetails
           const aZScore = this.calculateZScore(aState.cached?.pgsDetails);
           const bZScore = this.calculateZScore(bState.cached?.pgsDetails);
-          
+
           // Calculated traits first (highest absolute z-score to lowest), then uncalculated
           if (aZScore !== null && bZScore !== null) {
             return Math.abs(bZScore) - Math.abs(aZScore);
@@ -252,80 +314,109 @@ export class RiskDashboard extends HTMLElement {
           if (bZScore !== null) return 1;
           return a.name.localeCompare(b.name);
         }
-        case 'name-desc': return b.name.localeCompare(a.name);
-        case 'variants': return (b.variant_count || 0) - (a.variant_count || 0);
-        case 'pgs-count': return Object.keys(b.pgs_metadata || {}).length - Object.keys(a.pgs_metadata || {}).length;
+        case 'name-desc':
+          return b.name.localeCompare(a.name);
+        case 'variants':
+          return (b.variant_count || 0) - (a.variant_count || 0);
+        case 'pgs-count':
+          return (
+            Object.keys(b.pgs_metadata || {}).length -
+            Object.keys(a.pgs_metadata || {}).length
+          );
         case 'category': {
           const aCat = a.categories?.[0] || 'Other';
           const bCat = b.categories?.[0] || 'Other';
           return aCat.localeCompare(bCat) || a.name.localeCompare(b.name);
         }
-        default: return a.name.localeCompare(b.name);
+        default:
+          return a.name.localeCompare(b.name);
       }
     });
 
-    Debug.log(1, 'RiskDashboard', `Rendering ${filteredTraits.length} filtered traits`);
+    Debug.log(
+      1,
+      'RiskDashboard',
+      `Rendering ${filteredTraits.length} filtered traits`
+    );
     filterStats.textContent = `Showing ${filteredTraits.length} of ${this.availableTraits.length} traits`;
     await this.renderTraits(filteredTraits, state.selectedIndividual);
   }
 
   calculateZScore(pgsDetails) {
     if (!pgsDetails) return null;
-    
+
     const zScores = Object.values(pgsDetails)
       .map(details => details.zScore)
       .filter(z => z !== null && z !== undefined && !isNaN(z));
-    
+
     if (zScores.length === 0) return null;
-    
+
     // Use median for robustness against outliers
     const sorted = zScores.slice().sort((a, b) => a - b);
     const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+    return sorted.length % 2 === 0
+      ? (sorted[mid - 1] + sorted[mid]) / 2
+      : sorted[mid];
   }
 
   async renderTraits(traits, individualId) {
     const grid = this.shadowRoot.getElementById('traitsGrid');
     const sortSelect = this.shadowRoot.getElementById('sortSelect');
     const sortBy = sortSelect?.value;
-    
+
     // Get individual emoji
     const state = useAppStore.getState();
     const individual = state.individuals.find(ind => ind.id === individualId);
     const individualEmoji = individual?.emoji || '👤';
-    
+
     if (traits.length === 0) {
       Debug.log(1, 'RiskDashboard', 'No traits to render');
-      grid.innerHTML = '<div class="loading">No traits match your filters</div>';
+      grid.innerHTML =
+        '<div class="loading">No traits match your filters</div>';
       return;
     }
 
-    Debug.log(1, 'RiskDashboard', `Rendering ${traits.length} traits for individual ${individualId}`);
+    Debug.log(
+      1,
+      'RiskDashboard',
+      `Rendering ${traits.length} traits for individual ${individualId}`
+    );
     grid.innerHTML = '';
 
     // Skip category grouping when sorting by risk score
     if (sortBy === 'risk-score') {
       const flatGrid = document.createElement('div');
       flatGrid.className = 'family-grid';
-      
+
       const windowEnd = Math.min(this.windowSize, traits.length);
-      Debug.log(2, 'RiskDashboard', `Rendering ${windowEnd} of ${traits.length} traits (flat view)`);
-      
+      Debug.log(
+        2,
+        'RiskDashboard',
+        `Rendering ${windowEnd} of ${traits.length} traits (flat view)`
+      );
+
       for (let i = 0; i < windowEnd; i++) {
         const trait = traits[i];
         const card = document.createElement('trait-card');
         card.setData(trait, individualId, individualEmoji);
         flatGrid.appendChild(card);
       }
-      
+
       if (traits.length > this.windowSize) {
         const loadMore = document.createElement('button');
         loadMore.className = 'load-more-btn';
         loadMore.textContent = `Load ${Math.min(this.windowSize, traits.length - windowEnd)} more traits...`;
-        loadMore.onclick = () => this.loadMoreTraitsFlat(flatGrid, traits, windowEnd, individualId, individualEmoji);
+        loadMore.onclick = () =>
+          this.loadMoreTraitsFlat(
+            flatGrid,
+            traits,
+            windowEnd,
+            individualId,
+            individualEmoji
+          );
         flatGrid.appendChild(loadMore);
       }
-      
+
       grid.appendChild(flatGrid);
       return;
     }
@@ -347,7 +438,11 @@ export class RiskDashboard extends HTMLElement {
       return a.localeCompare(b);
     });
 
-    Debug.log(2, 'RiskDashboard', `Rendering ${sortedCategories.length} categories`);
+    Debug.log(
+      2,
+      'RiskDashboard',
+      `Rendering ${sortedCategories.length} categories`
+    );
 
     // Render windowed view
     for (const categoryName of sortedCategories) {
@@ -366,8 +461,12 @@ export class RiskDashboard extends HTMLElement {
 
       // Render only first window of traits per category
       const windowEnd = Math.min(this.windowSize, categoryTraits.length);
-      Debug.log(2, 'RiskDashboard', `Rendering ${windowEnd} of ${categoryTraits.length} traits in ${categoryName}`);
-      
+      Debug.log(
+        2,
+        'RiskDashboard',
+        `Rendering ${windowEnd} of ${categoryTraits.length} traits in ${categoryName}`
+      );
+
       for (let i = 0; i < windowEnd; i++) {
         const trait = categoryTraits[i];
         const card = document.createElement('trait-card');
@@ -380,7 +479,14 @@ export class RiskDashboard extends HTMLElement {
         const loadMore = document.createElement('button');
         loadMore.className = 'load-more-btn';
         loadMore.textContent = `Load ${Math.min(this.windowSize, categoryTraits.length - windowEnd)} more traits...`;
-        loadMore.onclick = () => this.loadMoreTraits(categoryGrid, categoryTraits, windowEnd, individualId, individualEmoji);
+        loadMore.onclick = () =>
+          this.loadMoreTraits(
+            categoryGrid,
+            categoryTraits,
+            windowEnd,
+            individualId,
+            individualEmoji
+          );
         categoryGrid.appendChild(loadMore);
       }
 
@@ -389,51 +495,72 @@ export class RiskDashboard extends HTMLElement {
   }
 
   async loadCachedRiskDataFromIndexedDB(individualId) {
-    Debug.log(1, 'RiskDashboard', `Loading cached risk results for ${individualId}`);
-    
+    Debug.log(
+      1,
+      'RiskDashboard',
+      `Loading cached risk results for ${individualId}`
+    );
+
     if (!this.processor) return;
-    
+
     // Load in background without blocking UI
     this.loadCacheInBackground(individualId);
   }
-  
+
   async loadCacheInBackground(individualId) {
     try {
       if (!this.processor.localProcessor) {
         Debug.log(1, 'RiskDashboard', 'Initializing local processor');
-        this.processor.localProcessor = new (await import('../lib/asili-processor.js')).AsiliProcessor();
+        this.processor.localProcessor = new (
+          await import('../lib/asili-processor.js')
+        ).AsiliProcessor();
         await this.processor.localProcessor.initialize();
         Debug.log(1, 'RiskDashboard', 'Local processor initialized');
       }
-      
+
       const storage = this.processor.localProcessor.unifiedProcessor?.storage;
       if (!storage) {
         Debug.log(1, 'RiskDashboard', 'No storage available');
         return;
       }
-      
+
       Debug.log(1, 'RiskDashboard', 'Loading from IndexedDB');
-      
+
       const db = await storage._getDB();
       const transaction = db.transaction(['risk_scores'], 'readonly');
       const store = transaction.objectStore('risk_scores');
       const index = store.index('individualId');
       const request = index.getAll(individualId);
-      
+
       request.onsuccess = async () => {
         const results = request.result;
-        Debug.log(1, 'RiskDashboard', `Found ${results.length} results in IndexedDB`);
-        
+        Debug.log(
+          1,
+          'RiskDashboard',
+          `Found ${results.length} results in IndexedDB`
+        );
+
         if (results.length > 0) {
           useTraitStore.getState().setTraitCacheBatch(
-            results.map(result => ({ traitId: result.traitId, cached: result }))
+            results.map(result => ({
+              traitId: result.traitId,
+              cached: result
+            }))
           );
-          Debug.log(1, 'RiskDashboard', `Loaded ${results.length} cached risk results`);
+          Debug.log(
+            1,
+            'RiskDashboard',
+            `Loaded ${results.length} cached risk results`
+          );
         } else {
-          Debug.log(1, 'RiskDashboard', 'IndexedDB empty - trait cards will load results on-demand');
+          Debug.log(
+            1,
+            'RiskDashboard',
+            'IndexedDB empty - trait cards will load results on-demand'
+          );
         }
       };
-      
+
       request.onerror = () => {
         Debug.log(1, 'RiskDashboard', 'Failed to load from IndexedDB');
       };
@@ -444,26 +571,40 @@ export class RiskDashboard extends HTMLElement {
 
   async loadCachedRiskData(traits, individualId) {
     if (!this.processor) return;
-    
-    Debug.log(1, 'RiskDashboard', `Loading cached risk data for ${individualId}`);
-    
+
+    Debug.log(
+      1,
+      'RiskDashboard',
+      `Loading cached risk data for ${individualId}`
+    );
+
     // Ensure processor is initialized
     if (!this.processor.localProcessor) {
       await this.processor.getAllTraits();
       await this.processor.localProcessor.initialize();
     }
-    
+
     const storage = this.processor.localProcessor.unifiedProcessor.storage;
-    
+
     // First, sync from server risk_scores.db to IndexedDB
     if (this.processor.shouldUseServer?.()) {
-      Debug.log(1, 'RiskDashboard', 'Syncing risk results from server DB to IndexedDB');
+      Debug.log(
+        1,
+        'RiskDashboard',
+        'Syncing risk results from server DB to IndexedDB'
+      );
       await this.processor.getCachedResult(individualId, traits[0]?.id);
-      
+
       if (this.processor.cacheData) {
-        const individualCache = this.processor.cacheData.filter(r => r.individual_id === individualId);
-        Debug.log(1, 'RiskDashboard', `Syncing ${individualCache.length} results to IndexedDB`);
-        
+        const individualCache = this.processor.cacheData.filter(
+          r => r.individual_id === individualId
+        );
+        Debug.log(
+          1,
+          'RiskDashboard',
+          `Syncing ${individualCache.length} results to IndexedDB`
+        );
+
         for (const row of individualCache) {
           await storage.storeRiskScore(individualId, row.trait_id, {
             riskScore: row.risk_score,
@@ -476,17 +617,17 @@ export class RiskDashboard extends HTMLElement {
         }
       }
     }
-    
+
     // Now load from IndexedDB
     const db = await storage._getDB();
-    
-    return new Promise((resolve) => {
+
+    return new Promise(resolve => {
       const transaction = db.transaction(['risk_scores'], 'readonly');
       const store = transaction.objectStore('risk_scores');
       const request = store.openCursor();
-      
+
       const results = [];
-      request.onsuccess = (e) => {
+      request.onsuccess = e => {
         const cursor = e.target.result;
         if (cursor) {
           if (cursor.value.individualId === individualId) {
@@ -494,7 +635,11 @@ export class RiskDashboard extends HTMLElement {
           }
           cursor.continue();
         } else {
-          Debug.log(1, 'RiskDashboard', `Found ${results.length} cached results, updating trait store`);
+          Debug.log(
+            1,
+            'RiskDashboard',
+            `Found ${results.length} cached results, updating trait store`
+          );
           for (const row of results) {
             const cached = {
               riskScore: row.riskScore,
@@ -513,41 +658,73 @@ export class RiskDashboard extends HTMLElement {
     });
   }
 
-  loadMoreTraitsFlat(flatGrid, allTraits, currentIndex, individualId, individualEmoji) {
+  loadMoreTraitsFlat(
+    flatGrid,
+    allTraits,
+    currentIndex,
+    individualId,
+    individualEmoji
+  ) {
     const loadMoreBtn = flatGrid.querySelector('.load-more-btn');
-    const nextWindow = Math.min(currentIndex + this.windowSize, allTraits.length);
-    
+    const nextWindow = Math.min(
+      currentIndex + this.windowSize,
+      allTraits.length
+    );
+
     for (let i = currentIndex; i < nextWindow; i++) {
       const trait = allTraits[i];
       const card = document.createElement('trait-card');
       card.setData(trait, individualId, individualEmoji);
       flatGrid.insertBefore(card, loadMoreBtn);
     }
-    
+
     if (nextWindow >= allTraits.length) {
       loadMoreBtn.remove();
     } else {
       loadMoreBtn.textContent = `Load ${Math.min(this.windowSize, allTraits.length - nextWindow)} more traits...`;
-      loadMoreBtn.onclick = () => this.loadMoreTraitsFlat(flatGrid, allTraits, nextWindow, individualId, individualEmoji);
+      loadMoreBtn.onclick = () =>
+        this.loadMoreTraitsFlat(
+          flatGrid,
+          allTraits,
+          nextWindow,
+          individualId,
+          individualEmoji
+        );
     }
   }
 
-  loadMoreTraits(categoryGrid, categoryTraits, currentIndex, individualId, individualEmoji) {
+  loadMoreTraits(
+    categoryGrid,
+    categoryTraits,
+    currentIndex,
+    individualId,
+    individualEmoji
+  ) {
     const loadMoreBtn = categoryGrid.querySelector('.load-more-btn');
-    const nextWindow = Math.min(currentIndex + this.windowSize, categoryTraits.length);
-    
+    const nextWindow = Math.min(
+      currentIndex + this.windowSize,
+      categoryTraits.length
+    );
+
     for (let i = currentIndex; i < nextWindow; i++) {
       const trait = categoryTraits[i];
       const card = document.createElement('trait-card');
       card.setData(trait, individualId, individualEmoji);
       categoryGrid.insertBefore(card, loadMoreBtn);
     }
-    
+
     if (nextWindow >= categoryTraits.length) {
       loadMoreBtn.remove();
     } else {
       loadMoreBtn.textContent = `Load ${Math.min(this.windowSize, categoryTraits.length - nextWindow)} more traits...`;
-      loadMoreBtn.onclick = () => this.loadMoreTraits(categoryGrid, categoryTraits, nextWindow, individualId, individualEmoji);
+      loadMoreBtn.onclick = () =>
+        this.loadMoreTraits(
+          categoryGrid,
+          categoryTraits,
+          nextWindow,
+          individualId,
+          individualEmoji
+        );
     }
   }
 
@@ -560,19 +737,21 @@ export class RiskDashboard extends HTMLElement {
     try {
       const response = await fetch('/status');
       const data = await response.json();
-      const cachedCount = data.progress?.cachedByIndividual?.[state.selectedIndividual] || 0;
-      
+      const cachedCount =
+        data.progress?.cachedByIndividual?.[state.selectedIndividual] || 0;
+
       if (cachedCount > 0) {
         // Get actual cached trait IDs from IndexedDB
-        const storage = this.processor.localProcessor?.unifiedProcessor?.storage;
+        const storage =
+          this.processor.localProcessor?.unifiedProcessor?.storage;
         if (storage) {
           const db = await storage._getDB();
           const transaction = db.transaction(['risk_scores'], 'readonly');
           const store = transaction.objectStore('risk_scores');
           const request = store.openCursor();
-          
-          await new Promise((resolve) => {
-            request.onsuccess = (e) => {
+
+          await new Promise(resolve => {
+            request.onsuccess = e => {
               const cursor = e.target.result;
               if (cursor) {
                 if (cursor.value.individualId === state.selectedIndividual) {
@@ -600,20 +779,26 @@ export class RiskDashboard extends HTMLElement {
     });
 
     // Queue traits in background with delays to avoid blocking UI
-    const traitsToQueue = this.availableTraits.filter(trait => 
-      !completedTraitIds.has(trait.id) && !queuedTraitIds.has(trait.id)
+    const traitsToQueue = this.availableTraits.filter(
+      trait => !completedTraitIds.has(trait.id) && !queuedTraitIds.has(trait.id)
     );
-    
-    console.log(`Queueing ${traitsToQueue.length} traits (${completedTraitIds.size} already completed, ${queuedTraitIds.size} already queued)`);
-    
+
+    console.log(
+      `Queueing ${traitsToQueue.length} traits (${completedTraitIds.size} already completed, ${queuedTraitIds.size} already queued)`
+    );
+
     // Add traits in batches with delays
     const batchSize = 10;
     for (let i = 0; i < traitsToQueue.length; i += batchSize) {
       const batch = traitsToQueue.slice(i, i + batchSize);
       batch.forEach(trait => {
-        this.traitDataService.addToQueue(trait.id, state.selectedIndividual, trait);
+        this.traitDataService.addToQueue(
+          trait.id,
+          state.selectedIndividual,
+          trait
+        );
       });
-      
+
       // Yield to UI every batch
       if (i + batchSize < traitsToQueue.length) {
         await new Promise(resolve => setTimeout(resolve, 10));
@@ -645,14 +830,14 @@ export class RiskDashboard extends HTMLElement {
           font-weight: 500;
           color: #495057;
         }
-        .search-input, .category-select, .sort-select {
+        .search-input, .category-select, .sort-select, .type-select {
           padding: 6px 12px;
           border: 1px solid #ced4da;
           border-radius: 4px;
           font-size: 14px;
         }
         .search-input { width: 200px; }
-        .category-select { min-width: 150px; }
+        .category-select, .type-select { min-width: 150px; }
         .filter-stats {
           margin-left: auto;
           font-size: 12px;
@@ -709,6 +894,14 @@ export class RiskDashboard extends HTMLElement {
           <label>Category:</label>
           <select class="category-select" id="categorySelect">
             <option value="">All Categories</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Type:</label>
+          <select class="type-select" id="typeSelect">
+            <option value="">All Traits</option>
+            <option value="quantitative">Quantitative</option>
+            <option value="disease_risk">Disease Risk</option>
           </select>
         </div>
         <div class="filter-group">

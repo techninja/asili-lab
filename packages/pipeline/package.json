@@ -7,7 +7,13 @@
   "scripts": {
     "etl": "node etl_orchestrator.js",
     "manage-traits": "node manage-traits.js",
-    "phenotype-refs": "node populate-phenotype-refs.js"
+    "phenotype-refs": "node populate-phenotype-refs.js",
+    "imputation": "node imputation-menu.js",
+    "imputation:test": "node test-imputation-components.js",
+    "imputation:build": "node build-comprehensive-imputation.js",
+    "imputation:validate": "node validate-imputation-system.js",
+    "imputation:panels": "node build-array-specific-panels.js",
+    "imputation:db": "node build-unified-imputation-db.js"
   },
   "dependencies": {
     "ajv": "^8.12.0",

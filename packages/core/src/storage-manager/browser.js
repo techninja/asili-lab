@@ -55,7 +55,9 @@ export class BrowserStorageManager extends StorageManager {
           const riskStore = db.createObjectStore('risk_scores', {
             keyPath: ['traitId', 'individualId']
           });
-          riskStore.createIndex('individualId', 'individualId', { unique: false });
+          riskStore.createIndex('individualId', 'individualId', {
+            unique: false
+          });
         }
       };
     });

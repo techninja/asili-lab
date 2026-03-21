@@ -1,7 +1,12 @@
 import { useTraitStore } from '../lib/trait-store.js';
 import './risk-distribution.js';
 import './quantitative-display.js';
-import { hasConversions, getAvailableUnits, convertValue, getDefaultUnit } from '../lib/unit-converter.js';
+import {
+  hasConversions,
+  getAvailableUnits,
+  convertValue,
+  getDefaultUnit
+} from '../lib/unit-converter.js';
 import './pgs-breakdown.js';
 
 export class TraitCard extends HTMLElement {
@@ -25,15 +30,18 @@ export class TraitCard extends HTMLElement {
 
   setupIntersectionObserver() {
     // Only load cached result when card becomes visible
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting && !this.hasLoadedCache) {
-          this.hasLoadedCache = true;
-          this.loadCachedResult();
-          observer.unobserve(this);
-        }
-      });
-    }, { rootMargin: '50px' });
+    const observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && !this.hasLoadedCache) {
+            this.hasLoadedCache = true;
+            this.loadCachedResult();
+            observer.unobserve(this);
+          }
+        });
+      },
+      { rootMargin: '50px' }
+    );
 
     observer.observe(this);
   }
@@ -67,8 +75,10 @@ export class TraitCard extends HTMLElement {
     const queueManager = processor.getQueueManager();
     if (queueManager) {
       const queue = queueManager.getQueue();
-      const queueItem = queue.find(item =>
-        item.traitId === this.trait.id && item.individualId === this.individualId
+      const queueItem = queue.find(
+        item =>
+          item.traitId === this.trait.id &&
+          item.individualId === this.individualId
       );
       if (queueItem) {
         useTraitStore.getState().setTraitQueue(this.trait.id, queueItem);
@@ -82,7 +92,10 @@ export class TraitCard extends HTMLElement {
     useTraitStore.getState().setTraitLoading(this.trait.id, true);
 
     try {
-      const cached = await processor.getCachedResult(this.individualId, this.trait.id);
+      const cached = await processor.getCachedResult(
+        this.individualId,
+        this.trait.id
+      );
       if (cached) {
         // Load other individuals' results for comparison if not already present
         if (!cached.otherIndividuals || cached.otherIndividuals.length === 0) {
@@ -90,7 +103,7 @@ export class TraitCard extends HTMLElement {
         }
         useTraitStore.getState().setTraitCache(this.trait.id, cached);
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently fail - card will show "Add to Queue" button
     } finally {
       useTraitStore.getState().setTraitLoading(this.trait.id, false);
@@ -105,8 +118,10 @@ export class TraitCard extends HTMLElement {
       const { useAppStore } = await import('../lib/store.js');
       const appState = useAppStore.getState();
       const allIndividuals = appState.individuals || [];
-      const otherIndividuals = allIndividuals.filter(ind => 
-        ind.id !== this.individualId && (ind.status === 'ready' || ind.status === 'complete')
+      const otherIndividuals = allIndividuals.filter(
+        ind =>
+          ind.id !== this.individualId &&
+          (ind.status === 'ready' || ind.status === 'complete')
       );
 
       const storage = processor.localProcessor.unifiedProcessor.storage;
@@ -114,7 +129,10 @@ export class TraitCard extends HTMLElement {
 
       for (const individual of otherIndividuals) {
         try {
-          const cached = await storage.getCachedRiskScore(individual.id, this.trait.id);
+          const cached = await storage.getCachedRiskScore(
+            individual.id,
+            this.trait.id
+          );
           if (cached && cached.value !== null && cached.value !== undefined) {
             results.push({
               name: individual.name,
@@ -125,7 +143,7 @@ export class TraitCard extends HTMLElement {
               marginOfError: this.calculateMarginOfErrorForIndividual(cached)
             });
           }
-        } catch (error) {
+        } catch (_error) {
           // Skip individuals without cached results
         }
       }
@@ -147,7 +165,7 @@ export class TraitCard extends HTMLElement {
   }
 
   setupEventListeners() {
-    this.shadowRoot.addEventListener('click', (e) => {
+    this.shadowRoot.addEventListener('click', e => {
       const pgsItem = e.target.closest('.pgs-item');
       if (pgsItem?.dataset.pgsId) {
         this.selectPgs(pgsItem.dataset.pgsId);
@@ -169,7 +187,9 @@ export class TraitCard extends HTMLElement {
     let previousState = null;
     this.unsubscribe = useTraitStore.subscribe(() => {
       if (!this.trait) return;
-      const currentState = useTraitStore.getState().getTraitState(this.trait.id);
+      const currentState = useTraitStore
+        .getState()
+        .getTraitState(this.trait.id);
       // Only update if THIS trait's state changed (reference equality check)
       if (currentState !== previousState) {
         previousState = currentState;
@@ -192,8 +212,11 @@ export class TraitCard extends HTMLElement {
         <h3>${this.trait.name}</h3>
         <span class="category">${this.trait.categories?.[0] || 'Other'}</span>
       </div>
-      ${this.trait.description ?
-        `<div class="description">${this.trait.description}</div>` : ''}
+      ${
+        this.trait.description
+          ? `<div class="description">${this.trait.description}</div>`
+          : ''
+      }
       <div class="stats">${this.trait.pgs_count || 0} PGS | ${this.trait.variant_count?.toLocaleString() || '?'} variants</div>
       ${this.renderContent(state)}
     `;
@@ -220,20 +243,84 @@ export class TraitCard extends HTMLElement {
   }
 
   renderResults(cached) {
-    const isQuantitative = this.trait.trait_type === 'quantitative' && this.trait.unit;
-    
+    const isQuantitative =
+      this.trait.trait_type === 'quantitative' && this.trait.unit;
+    const isBinary = this.trait.unit === 'binary';
+
+    // Check if all PGS have insufficient data
+    const allPGSInsufficient =
+      cached.pgsDetails &&
+      Object.values(cached.pgsDetails).every(d => d.insufficientData);
+    const _bestPGSInsufficient =
+      cached.pgsDetails &&
+      cached.bestPGS &&
+      cached.pgsDetails[cached.bestPGS]?.insufficientData;
+
+    if (allPGSInsufficient || cached.matchedVariants === 0) {
+      return `
+        <div class="results">
+          <div class="insufficient-warning">
+            <div class="warning-icon">⚠️</div>
+            <div class="warning-title">Insufficient Genetic Data</div>
+            <div class="warning-message">
+              ${
+                cached.matchedVariants === 0
+                  ? 'No genetic variants matched for this trait. Your DNA data may not include the variants needed for this analysis.'
+                  : 'All polygenic scores have fewer than 8 matched variants. Results are not reliable for risk assessment.'
+              }
+            </div>
+          </div>
+          ${
+            cached.otherIndividuals?.length > 0
+              ? `
+            <div class="other-results-note">Other individuals' results shown below (if available)</div>
+            ${
+              isQuantitative
+                ? `
+              <quantitative-display 
+                value="" 
+                unit="${this.getDisplayUnit()}" 
+                emoji="${this.individualEmoji}" 
+                show-user="false"
+                other-individuals='${JSON.stringify(this.convertOtherIndividuals(cached.otherIndividuals || [], cached))}'>
+              </quantitative-display>
+            `
+                : `
+              <risk-distribution score="0" emoji="${this.individualEmoji}" show-user="false" other-individuals='${JSON.stringify(cached.otherIndividuals || [])}'></risk-distribution>
+            `
+            }
+          `
+              : ''
+          }
+          <div class="stats">
+            ${this.formatNumber(cached.matchedVariants)} of ${this.formatNumber(cached.totalVariants)} variants matched<br>
+            <div style="text-align: left; margin-top: 5px;">Calculated ${new Date(cached.calculatedAt).toLocaleDateString()}</div>
+          </div>
+          ${this.renderPgsList(cached.pgsBreakdown, cached.pgsDetails, cached.bestPGS)}
+        </div>
+      `;
+    }
+
     // Use z-score and confidence from backend calculation
-    const overallZScore = cached.zScore ?? this.calculateOverallZScore(cached.pgsDetails);
-    const percentile = Math.round(cached.percentile ?? this.zScoreToPercentile(overallZScore));
-    const confidence = cached.confidence || 'medium';
-    const level = percentile >= 70 ? 'high' : percentile <= 30 ? 'low' : 'medium';
-    
+    const overallZScore =
+      cached.zScore ?? this.calculateOverallZScore(cached.pgsDetails);
+    const percentile = Math.round(
+      cached.percentile ?? this.zScoreToPercentile(overallZScore)
+    );
+    const _confidence = cached.confidence || 'medium';
+    const level =
+      percentile >= 70 ? 'high' : percentile <= 30 ? 'low' : 'medium';
+
     let bestPGS = cached.bestPGS;
     let bestPGSPerformance = cached.bestPGSPerformance;
     if (!bestPGS && cached.pgsDetails) {
       let maxPerf = 0;
       Object.entries(cached.pgsDetails).forEach(([pgsId, details]) => {
-        if (details.performanceMetric && details.performanceMetric > maxPerf && !details.insufficientData) {
+        if (
+          details.performanceMetric &&
+          details.performanceMetric > maxPerf &&
+          !details.insufficientData
+        ) {
           maxPerf = details.performanceMetric;
           bestPGS = pgsId;
           bestPGSPerformance = maxPerf;
@@ -243,21 +330,36 @@ export class TraitCard extends HTMLElement {
 
     return `
       <div class="results">
-        ${isQuantitative ? `
+        ${
+          isQuantitative && !isBinary
+            ? `
           <div class="score">${this.getDisplayValue(cached.value, this.trait.unit)} ${this.getDisplayUnit()}</div>
           <div class="percentile">${this.formatPercentile(percentile)}</div>
           ${this.renderUnitSwitcher()}
-        ` : `
+        `
+            : isBinary
+              ? `
+          <div class="score">${percentile >= 50 ? 'Likely' : 'Unlikely'}</div>
+          <div class="percentile">${this.formatPercentile(percentile)} likelihood</div>
+        `
+              : `
           <div class="score">${this.formatZScore(overallZScore)}</div>
           <div class="percentile">${this.formatPercentile(percentile)}</div>
           <div class="level ${level}">${level} risk</div>
-        `}
-        <div class="confidence confidence-${confidence}">${this.formatConfidence(confidence)}</div>
-        ${bestPGS && bestPGSPerformance ? `
+        `
+        }
+        ${this.renderQualityLabel(cached)}
+        ${
+          bestPGS && bestPGSPerformance
+            ? `
           <div class="best-pgs">Based on ${bestPGS} (R²: ${(bestPGSPerformance * 100).toFixed(1)}%)</div>
-        ` : ''}
+        `
+            : ''
+        }
         
-        ${isQuantitative ? `
+        ${
+          isQuantitative
+            ? `
           <quantitative-display 
             value="${this.getDisplayValue(cached.value, this.trait.unit)}" 
             unit="${this.getDisplayUnit()}" 
@@ -268,12 +370,14 @@ export class TraitCard extends HTMLElement {
             reference-population="${cached.reference_population || this.trait.reference_population || ''}" 
             other-individuals='${JSON.stringify(this.convertOtherIndividuals(cached.otherIndividuals || [], cached))}'>
           </quantitative-display>
-        ` : `
+        `
+            : `
           <risk-distribution score="${overallZScore}" emoji="${this.individualEmoji}" other-individuals='${JSON.stringify(cached.otherIndividuals || [])}'></risk-distribution>
-        `}
+        `
+        }
         
         <div class="stats">
-          ${this.formatNumber(cached.matchedVariants)} of ${this.formatNumber(cached.totalVariants)} variants matched (${((cached.matchedVariants / cached.totalVariants) * 100).toFixed(1)}%)<br>
+          ${this.formatNumber(cached.matchedVariants)} of ${this.formatNumber(cached.totalVariants)} variants matched ${cached.totalVariants > 0 ? `(${((cached.matchedVariants / cached.totalVariants) * 100).toFixed(1)}%)` : ''}<br>
           <div style="text-align: left; margin-top: 5px;">Calculated ${new Date(cached.calculatedAt).toLocaleDateString()}</div>
         </div>
         ${this.renderPgsList(cached.pgsBreakdown, cached.pgsDetails, bestPGS)}
@@ -284,16 +388,23 @@ export class TraitCard extends HTMLElement {
   renderQueue(queueItem) {
     const isProcessing = queueItem.status === 'processing';
     const progress = queueItem.progress || queueItem.percent || 0;
-    const statusMessage = queueItem.statusMessage || queueItem.message || (isProcessing ? 'Processing' : 'Queued');
+    const statusMessage =
+      queueItem.statusMessage ||
+      queueItem.message ||
+      (isProcessing ? 'Processing' : 'Queued');
     return `
       <div class="queue-status">
         <div class="queue-label">${isProcessing ? '⚡' : '⏳'} ${statusMessage}</div>
-        ${isProcessing && progress > 0 ? `
+        ${
+          isProcessing && progress > 0
+            ? `
           <div class="progress-bar">
             <div class="progress-fill" style="width: ${progress}%"></div>
           </div>
           <div class="progress-text">${Math.round(progress)}%</div>
-        ` : ''}
+        `
+            : ''
+        }
       </div>
     `;
   }
@@ -301,46 +412,63 @@ export class TraitCard extends HTMLElement {
   renderPgsList(pgsBreakdown, pgsDetails, bestPGS) {
     if (!pgsBreakdown) return '';
 
-    // Sort by sort_order from backend (stored in pgsDetails metadata)
+    // Sort by quality score (highest first)
     const entries = Object.entries(pgsBreakdown)
-      .filter(([_, data]) => Math.abs(data.positiveSum + data.negativeSum) >= 0.005)
+      .filter(
+        ([_, data]) => Math.abs(data.positiveSum + data.negativeSum) >= 0.005
+      )
       .sort((a, b) => {
-        const orderA = pgsDetails?.[a[0]]?.sortOrder ?? 999;
-        const orderB = pgsDetails?.[b[0]]?.sortOrder ?? 999;
-        return orderA - orderB;
+        const scoreA = pgsDetails?.[a[0]]?.qualityScore ?? 0;
+        const scoreB = pgsDetails?.[b[0]]?.qualityScore ?? 0;
+        return scoreB - scoreA; // Descending order
       });
 
     return `
       <div class="pgs-list">
-        ${entries.map(([pgsId, data]) => {
-      const score = data.positiveSum + data.negativeSum;
-      const details = pgsDetails?.[pgsId];
-      const name = details?.metadata?.name || this.trait?.pgs_metadata?.[pgsId]?.name || pgsId;
-      const performance = details?.performanceMetric;
-      const confidence = details?.confidence || 'medium';
-      const confidenceTooltip = this.getConfidenceTooltip(confidence, details?.matchedVariants, details?.totalVariants);
-      const isBest = pgsId === bestPGS && !details?.insufficientData;
-      const absPositive = Math.abs(data.positiveSum);
-      const absNegative = Math.abs(data.negativeSum);
-      const total = absPositive + absNegative;
-      const negPct = total > 0 ? (absNegative / total) * 100 : 0;
-      const posPct = total > 0 ? (absPositive / total) * 100 : 0;
-      const scoreColor = score >= 0 ? '#721c24' : '#155724';
+        ${entries
+          .map(([pgsId, data]) => {
+            const score = data.positiveSum + data.negativeSum;
+            const details = pgsDetails?.[pgsId];
+            const name =
+              details?.metadata?.name ||
+              this.trait?.pgs_metadata?.[pgsId]?.name ||
+              pgsId;
+            const _performance = details?.performanceMetric;
+            const confidence = details?.confidence || 'medium';
+            const confidenceTooltip = this.getConfidenceTooltip(
+              confidence,
+              details?.matchedVariants,
+              details?.totalVariants
+            );
+            const isBest = pgsId === bestPGS && !details?.insufficientData;
+            const absPositive = Math.abs(data.positiveSum);
+            const absNegative = Math.abs(data.negativeSum);
+            const total = absPositive + absNegative;
+            const negPct = total > 0 ? (absNegative / total) * 100 : 0;
+            const posPct = total > 0 ? (absPositive / total) * 100 : 0;
+            const scoreColor = score >= 0 ? '#721c24' : '#155724';
 
-      return `<div class="pgs-item ${isBest ? 'best-pgs-item' : ''} ${details?.insufficientData ? 'insufficient-data' : ''}" data-pgs-id="${pgsId}">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px;">
-              <span style="display: flex; align-items: center; gap: 4px;">
+            return `<div class="pgs-item ${isBest ? 'best-pgs-item' : ''} ${details?.insufficientData ? 'insufficient-data' : ''}" data-pgs-id="${pgsId}">
+            <div class="pgs-header">
+              <span class="pgs-name">
                 ${isBest ? '<span title="Best performing score with sufficient data (≥8 variants matched)">⭐</span>' : ''}
                 ${name}
-                ${performance ? `<span class="performance-badge" title="R² performance metric: ${(performance * 100).toFixed(1)}% - measures how well this score predicts the trait">${(performance * 100).toFixed(0)}%</span>` : ''}
+                ${details?.qualityScore ? `<span class="quality-badge" title="Quality Score: ${details.qualityScore.toFixed(1)}/100 (combines R² performance, variant coverage, and confidence)">${details.qualityScore.toFixed(0)}</span>` : ''}
                 <span class="confidence-badge confidence-${confidence}" title="${confidenceTooltip}">${confidence}</span>
               </span>
               <span class="score" style="color: ${scoreColor}">${(() => {
                 // For quantitative traits with value, show the actual value instead of z-score
-                if (this.trait?.trait_type === 'quantitative' && details?.value !== null && details?.value !== undefined) {
+                if (
+                  this.trait?.trait_type === 'quantitative' &&
+                  details?.value !== null &&
+                  details?.value !== undefined
+                ) {
                   const unit = this.trait?.unit || '';
                   return `${details.value.toFixed(2)}${unit ? ' ' + unit : ''}`;
-                } else if (details?.zScore !== null && details?.zScore !== undefined) {
+                } else if (
+                  details?.zScore !== null &&
+                  details?.zScore !== undefined
+                ) {
                   return this.formatZScore(details.zScore);
                 } else {
                   return this.formatScore(score);
@@ -352,7 +480,8 @@ export class TraitCard extends HTMLElement {
               <div style="background: #f8d7da !important; height: 100%; width: ${posPct}%; float: left;" title="${data.positive} variants: ${this.formatScore(data.positiveSum)}"></div>
             </div>
           </div>`;
-    }).join('')}
+          })
+          .join('')}
       </div>
     `;
   }
@@ -361,10 +490,16 @@ export class TraitCard extends HTMLElement {
     const state = useTraitStore.getState().getTraitState(this.trait.id);
     if (!state.cached?.pgsBreakdown) return;
 
-    // Use same sorting as renderPgsList
+    // Sort by quality score (same as renderPgsList)
     const sortedPgsIds = Object.entries(state.cached.pgsBreakdown)
-      .filter(([_, data]) => Math.abs(data.positiveSum + data.negativeSum) >= 0.005)
-      .sort(([_, a], [__, b]) => Math.abs(b.positiveSum + b.negativeSum) - Math.abs(a.positiveSum + a.negativeSum))
+      .filter(
+        ([_, data]) => Math.abs(data.positiveSum + data.negativeSum) >= 0.005
+      )
+      .sort((a, b) => {
+        const scoreA = state.cached.pgsDetails?.[a[0]]?.qualityScore ?? 0;
+        const scoreB = state.cached.pgsDetails?.[b[0]]?.qualityScore ?? 0;
+        return scoreB - scoreA;
+      })
       .map(([pgsId]) => pgsId);
 
     const navigation = {
@@ -375,36 +510,36 @@ export class TraitCard extends HTMLElement {
     useTraitStore.getState().setSelectedPgs(this.trait.id, pgsId, navigation);
   }
 
-addToQueue() {
+  addToQueue() {
     const state = useTraitStore.getState().getTraitState(this.trait.id);
     if (state.loading) return; // Don't add to queue while checking cache
 
-    this.dispatchEvent(new CustomEvent('add-to-queue', {
-      detail: { traitId: this.trait.id, individualId: this.individualId },
-      bubbles: true,
-      composed: true  // Allow event to cross shadow DOM boundary
-    }));
+    this.dispatchEvent(
+      new CustomEvent('add-to-queue', {
+        detail: { traitId: this.trait.id, individualId: this.individualId },
+        bubbles: true,
+        composed: true // Allow event to cross shadow DOM boundary
+      })
+    );
   }
-
-
 
   calculateOverallZScore(pgsDetails) {
     if (!pgsDetails) return 0;
-    
+
     // Calculate mean of individual PGS z-scores (simple average)
     const zScores = Object.values(pgsDetails)
       .map(details => details.zScore)
       .filter(z => z !== null && z !== undefined && !isNaN(z));
-    
+
     if (zScores.length === 0) return 0;
-    
+
     const mean = zScores.reduce((sum, z) => sum + z, 0) / zScores.length;
     return mean;
   }
 
   zScoreToPercentile(zScore) {
     // Use error function approximation for normal CDF
-    const erf = (x) => {
+    const erf = x => {
       const sign = x >= 0 ? 1 : -1;
       x = Math.abs(x);
       const a1 = 0.254829592;
@@ -414,32 +549,47 @@ addToQueue() {
       const a5 = 1.061405429;
       const p = 0.3275911;
       const t = 1.0 / (1.0 + p * x);
-      const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+      const y =
+        1.0 -
+        ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
       return sign * y;
     };
-    
+
     const percentile = 0.5 * (1 + erf(zScore / Math.sqrt(2))) * 100;
     return Math.round(Math.max(1, Math.min(99, percentile)));
   }
 
   formatZScore(zScore) {
-    const abs = Math.abs(zScore);
+    if (zScore == null) return 'N/A';
     const sign = zScore >= 0 ? '+' : '';
     return `${sign}${zScore.toFixed(2)}σ`;
   }
 
   formatScore(score) {
+    if (score == null) return 'N/A';
     const abs = Math.abs(score);
     const sign = score >= 0 ? '+' : '';
-    return abs >= 10 ? `${sign}${score.toFixed(2)}` : `${sign}${score.toFixed(3)}`;
+    return abs >= 10
+      ? `${sign}${score.toFixed(2)}`
+      : `${sign}${score.toFixed(3)}`;
   }
 
   formatPercentile(percentile) {
-    const suffix = percentile % 10 === 1 && percentile !== 11 ? 'st' : percentile % 10 === 2 && percentile !== 12 ? 'nd' : percentile % 10 === 3 && percentile !== 13 ? 'rd' : 'th';
+    const suffix =
+      percentile % 10 === 1 && percentile !== 11
+        ? 'st'
+        : percentile % 10 === 2 && percentile !== 12
+          ? 'nd'
+          : percentile % 10 === 3 && percentile !== 13
+            ? 'rd'
+            : 'th';
     return `${percentile}${suffix} percentile`;
   }
 
   getDisplayUnit() {
+    // Don't show unit for binary traits
+    if (this.trait?.unit === 'binary') return '';
+
     if (!this.selectedUnit && this.trait?.unit) {
       // Initialize with locale default on first access
       this.selectedUnit = getDefaultUnit(this.trait.unit);
@@ -449,6 +599,12 @@ addToQueue() {
 
   getDisplayValue(value, originalUnit) {
     if (value === undefined || value === null) return '—';
+
+    // Handle binary traits
+    if (originalUnit === 'binary') {
+      return value >= 0 ? 'Yes' : 'No';
+    }
+
     const displayUnit = this.getDisplayUnit();
     const converted = convertValue(value, originalUnit, displayUnit);
     return converted.toFixed(2);
@@ -458,12 +614,13 @@ addToQueue() {
     const displayUnit = this.getDisplayUnit();
     const phenotypeSd = this.trait.phenotype_sd || 0;
     const r2 = cached?.bestPGSPerformance || 0.05;
-    
+
     return others.map(ind => {
       // Calculate per-individual margin based on their matched variants
-      const coverage = (ind.matchedVariants || 0) / (cached?.totalVariants || 1);
+      const coverage =
+        (ind.matchedVariants || 0) / (cached?.totalVariants || 1);
       const margin = phenotypeSd * Math.sqrt(1 - r2) * Math.sqrt(1 - coverage);
-      
+
       return {
         ...ind,
         value: convertValue(ind.value, this.trait.unit, displayUnit),
@@ -479,7 +636,7 @@ addToQueue() {
     const matchedVariants = cached.matchedVariants || 0;
     const totalVariants = cached.totalVariants || 1;
     const coverage = matchedVariants / totalVariants;
-    
+
     // Margin = phenotype_sd × √(1 - R²) × √(1 - coverage)
     // Lower coverage = higher uncertainty
     const margin = phenotypeSd * Math.sqrt(1 - r2) * Math.sqrt(1 - coverage);
@@ -487,18 +644,54 @@ addToQueue() {
   }
 
   renderUnitSwitcher() {
-    if (!this.trait?.unit || !hasConversions(this.trait.unit)) return '';
-    
+    if (
+      !this.trait?.unit ||
+      this.trait.unit === 'binary' ||
+      !hasConversions(this.trait.unit)
+    )
+      return '';
+
     const availableUnits = getAvailableUnits(this.trait.unit);
     const currentUnit = this.getDisplayUnit();
-    
+
     return `
       <div class="unit-switcher">
-        ${availableUnits.map(unit => `
+        ${availableUnits
+          .map(
+            unit => `
           <button class="unit-btn ${unit === currentUnit ? 'active' : ''}" data-unit="${unit}">${unit}</button>
-        `).join('')}
+        `
+          )
+          .join('')}
       </div>
     `;
+  }
+
+  renderQualityLabel(cached) {
+    const bestPGS = cached.bestPGS;
+    if (!bestPGS || !cached.pgsDetails?.[bestPGS]) return '';
+
+    const qualityScore =
+      cached.bestPGSQualityScore ??
+      cached.pgsDetails[bestPGS].qualityScore ??
+      0;
+
+    let label, cssClass;
+    if (qualityScore >= 70) {
+      label = '✓ Excellent predictive power';
+      cssClass = 'quality-excellent';
+    } else if (qualityScore >= 50) {
+      label = 'Good reliability';
+      cssClass = 'quality-good';
+    } else if (qualityScore >= 30) {
+      label = '⚠️ Moderate predictive value';
+      cssClass = 'quality-moderate';
+    } else {
+      label = '⚠️ Limited predictive value';
+      cssClass = 'quality-limited';
+    }
+
+    return `<div class="quality-label ${cssClass}" title="Quality Score: ${qualityScore.toFixed(1)}/100">${label}</div>`;
   }
 
   formatConfidence(confidence) {
@@ -513,8 +706,13 @@ addToQueue() {
   }
 
   getConfidenceTooltip(confidence, matchedVariants, totalVariants) {
-    const matchRate = matchedVariants && totalVariants ? `${((matchedVariants / totalVariants) * 100).toFixed(0)}%` : 'unknown';
-    const variantInfo = matchedVariants ? `${matchedVariants} variants matched` : 'no variants matched';
+    const matchRate =
+      matchedVariants && totalVariants
+        ? `${((matchedVariants / totalVariants) * 100).toFixed(0)}%`
+        : 'unknown';
+    const variantInfo = matchedVariants
+      ? `${matchedVariants} variants matched`
+      : 'no variants matched';
     const tooltips = {
       none: 'No genetic data matched for this score',
       insufficient: `Insufficient data: Only ${matchedVariants || 0} variants matched (minimum 8 required). This score should not be used for risk assessment.`,
@@ -562,8 +760,14 @@ addToQueue() {
         .confidence-low { background: #fff3cd; color: #856404; }
         .confidence-medium { background: #e7f3ff; color: #004085; }
         .confidence-high { background: #d4edda; color: #155724; }
+        .quality-label { font-size: 11px; margin: 5px 0; padding: 3px 6px; border-radius: 3px; }
+        .quality-excellent { background: #d4edda; color: #155724; }
+        .quality-good { background: #e7f3ff; color: #004085; }
+        .quality-moderate { background: #fff3cd; color: #856404; }
+        .quality-limited { background: #f8d7da; color: #721c24; font-weight: 600; }
         .best-pgs { font-size: 11px; color: #666; margin: 5px 0; font-style: italic; }
         .best-pgs-item { border-left: 3px solid #ffc107; padding-left: 5px; }
+        .quality-badge { font-size: 10px; background: #28a745; color: white !important; padding: 2px 5px; border-radius: 3px; font-weight: 600; }
         .performance-badge { font-size: 9px; background: #007acc; color: white !important; padding: 1px 4px; border-radius: 2px; }
         .confidence-badge { font-size: 9px; padding: 1px 4px; border-radius: 2px; }
         .confidence-badge.confidence-none { background: #f8d7da; color: #721c24; }
@@ -575,8 +779,10 @@ addToQueue() {
         .pgs-item { margin-bottom: 8px; cursor: pointer; }
         .pgs-item:hover { background: #f8f9fa; }
         .pgs-item.insufficient-data { opacity: 0.6; background: #fff5f5; border-left: 2px solid #f8d7da; padding-left: 3px; }
-        .pgs-item span:first-child { font-size: 11px; color: #007acc; font-weight: 500; max-width: 85%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .pgs-item .score { font-size: 11px; font-weight: bold; }
+        .pgs-header { display: flex; justify-content: space-between; align-items: center; padding: 5px; gap: 8px; }
+        .pgs-name { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #007acc; font-weight: 500; min-width: 0; flex: 1; }
+        .pgs-name > span:first-child { flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pgs-item .score { font-size: 11px; font-weight: bold; flex-shrink: 0; white-space: nowrap; }
         .queue-status { text-align: center; padding: 10px; background: #fff3cd; border-radius: 4px; }
         .queue-label { font-weight: 500; margin-bottom: 8px; }
         .progress-bar { width: 100%; height: 20px; background: #e9ecef; border-radius: 10px; overflow: hidden; margin: 8px 0; }
@@ -589,6 +795,11 @@ addToQueue() {
         .unit-btn { padding: 4px 12px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 11px; transition: all 0.2s; }
         .unit-btn:hover { background: #e0e0e0; }
         .unit-btn.active { background: #007acc; color: white; border-color: #007acc; }
+        .insufficient-warning { background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 15px; margin: 10px 0; text-align: center; }
+        .warning-icon { font-size: 32px; margin-bottom: 8px; }
+        .warning-title { font-size: 16px; font-weight: 600; color: #856404; margin-bottom: 8px; }
+        .warning-message { font-size: 13px; color: #856404; line-height: 1.4; }
+        .other-results-note { font-size: 12px; color: #666; font-style: italic; margin: 10px 0; }
       </style>
       <div class="content"></div>
     `;

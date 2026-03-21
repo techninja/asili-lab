@@ -53,7 +53,9 @@ python3 cuda_pgs.py ../../data_out/1000genomes/chr22 test_weights.txt
 To use in empirical calculator, replace `calculatePGSWithPlink()` with:
 
 ```javascript
-execSync(`python3 cuda_pgs.py ${plinkPrefix} ${scoreFile} > ${outPrefix}.scores`);
+execSync(
+  `python3 cuda_pgs.py ${plinkPrefix} ${scoreFile} > ${outPrefix}.scores`
+);
 ```
 
 ## Limitations

@@ -24,7 +24,7 @@ export class ServerStorageManager extends StorageManager {
     try {
       // Dynamic import for DuckDB
       const duckdb = await import('duckdb');
-      
+
       // Ensure data directory exists
       await fs.mkdir(this.dataDir, { recursive: true });
       await fs.mkdir(path.join(this.dataDir, 'variants'), { recursive: true });
@@ -37,9 +37,12 @@ export class ServerStorageManager extends StorageManager {
 
       // Create tables (will be ignored if they already exist)
       await this._createTables();
-      
-      Debug.log(1, 'ServerStorageManager', `Initialized with data directory: ${this.dataDir}`);
-      
+
+      Debug.log(
+        1,
+        'ServerStorageManager',
+        `Initialized with data directory: ${this.dataDir}`
+      );
     } catch (error) {
       throw new Error(`Failed to initialize server storage: ${error.message}`);
     }
@@ -53,7 +56,7 @@ export class ServerStorageManager extends StorageManager {
         data TEXT,
         timestamp INTEGER
       )`,
-      
+
       // Individual management
       `CREATE TABLE IF NOT EXISTS individuals (
         id TEXT PRIMARY KEY,
@@ -64,7 +67,7 @@ export class ServerStorageManager extends StorageManager {
         created_at BIGINT,
         updated_at BIGINT
       )`,
-      
+
       // DNA variants metadata (actual variants stored as files)
       `CREATE TABLE IF NOT EXISTS variant_files (
         individual_id TEXT PRIMARY KEY,
@@ -73,7 +76,7 @@ export class ServerStorageManager extends StorageManager {
         file_size INTEGER,
         created_at BIGINT
       )`,
-      
+
       // Indexes for performance
       `CREATE INDEX IF NOT EXISTS idx_individuals_status ON individuals(status)`
     ];
@@ -87,21 +90,27 @@ export class ServerStorageManager extends StorageManager {
     // DuckDB doesn't handle prepared statements the same way, use direct SQL
     let finalSql = sql;
     if (params.length > 0) {
-      params.forEach((param, index) => {
-        const value = typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
+      params.forEach((param, _index) => {
+        const value =
+          typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
         finalSql = finalSql.replace('?', value);
       });
     }
-    
+
     Debug.log(3, 'ServerStorageManager', 'Executing SQL:', finalSql);
-    
+
     return new Promise((resolve, reject) => {
       this.conn.exec(finalSql, (err, result) => {
         if (err) {
           Debug.log(1, 'ServerStorageManager', 'SQL Error:', err.message);
           reject(err);
         } else {
-          Debug.log(3, 'ServerStorageManager', 'SQL Success, result type:', typeof result);
+          Debug.log(
+            3,
+            'ServerStorageManager',
+            'SQL Success, result type:',
+            typeof result
+          );
           resolve(result);
         }
       });
@@ -111,14 +120,15 @@ export class ServerStorageManager extends StorageManager {
   async _getQuery(sql, params = []) {
     let finalSql = sql;
     if (params.length > 0) {
-      params.forEach((param, index) => {
-        const value = typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
+      params.forEach((param, _index) => {
+        const value =
+          typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
         finalSql = finalSql.replace('?', value);
       });
     }
-    
+
     Debug.log(3, 'ServerStorageManager', 'Executing GET query:', finalSql);
-    
+
     return new Promise((resolve, reject) => {
       this.conn.all(finalSql, (err, result) => {
         if (err) {
@@ -127,8 +137,20 @@ export class ServerStorageManager extends StorageManager {
         } else {
           const row = result?.[0] || null;
           if (row) {
-            Debug.log(3, 'ServerStorageManager', 'GET Query result row keys:', Object.keys(row));
-            Debug.log(3, 'ServerStorageManager', 'GET Query result row types:', Object.entries(row).map(([k, v]) => `${k}: ${typeof v}`).join(', '));
+            Debug.log(
+              3,
+              'ServerStorageManager',
+              'GET Query result row keys:',
+              Object.keys(row)
+            );
+            Debug.log(
+              3,
+              'ServerStorageManager',
+              'GET Query result row types:',
+              Object.entries(row)
+                .map(([k, v]) => `${k}: ${typeof v}`)
+                .join(', ')
+            );
           }
           resolve(row);
         }
@@ -139,14 +161,15 @@ export class ServerStorageManager extends StorageManager {
   async _allQuery(sql, params = []) {
     let finalSql = sql;
     if (params.length > 0) {
-      params.forEach((param, index) => {
-        const value = typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
+      params.forEach((param, _index) => {
+        const value =
+          typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
         finalSql = finalSql.replace('?', value);
       });
     }
-    
+
     Debug.log(3, 'ServerStorageManager', 'Executing ALL query:', finalSql);
-    
+
     return new Promise((resolve, reject) => {
       this.conn.all(finalSql, (err, result) => {
         if (err) {
@@ -154,8 +177,19 @@ export class ServerStorageManager extends StorageManager {
           reject(err);
         } else {
           if (result && result.length > 0) {
-            Debug.log(3, 'ServerStorageManager', `ALL Query returned ${result.length} rows`);
-            Debug.log(3, 'ServerStorageManager', 'First row types:', Object.entries(result[0]).map(([k, v]) => `${k}: ${typeof v}`).join(', '));
+            Debug.log(
+              3,
+              'ServerStorageManager',
+              `ALL Query returned ${result.length} rows`
+            );
+            Debug.log(
+              3,
+              'ServerStorageManager',
+              'First row types:',
+              Object.entries(result[0])
+                .map(([k, v]) => `${k}: ${typeof v}`)
+                .join(', ')
+            );
           }
           resolve(result || []);
         }
@@ -166,7 +200,7 @@ export class ServerStorageManager extends StorageManager {
   // Core storage interface
   async store(key, data) {
     await this.initialize();
-    
+
     const serialized = JSON.stringify(data);
     await this._runQuery(
       'INSERT OR REPLACE INTO data (key, data, timestamp) VALUES (?, ?, ?)',
@@ -176,38 +210,37 @@ export class ServerStorageManager extends StorageManager {
 
   async retrieve(key) {
     await this.initialize();
-    
-    const row = await this._getQuery(
-      'SELECT data FROM data WHERE key = ?',
-      [key]
-    );
-    
+
+    const row = await this._getQuery('SELECT data FROM data WHERE key = ?', [
+      key
+    ]);
+
     return row ? JSON.parse(row.data) : null;
   }
 
   async list() {
     await this.initialize();
-    
+
     const rows = await this._allQuery('SELECT key FROM data');
     return rows.map(row => row.key);
   }
 
   async delete(key) {
     await this.initialize();
-    
+
     await this._runQuery('DELETE FROM data WHERE key = ?', [key]);
   }
 
   async clear() {
     await this.initialize();
-    
+
     await this._runQuery('DELETE FROM data');
   }
 
   // Individual management
   async addIndividual(id, name, relationship = 'self', emoji = '👤') {
     await this.initialize();
-    
+
     const now = Date.now();
     await this._runQuery(
       `INSERT OR REPLACE INTO individuals 
@@ -216,36 +249,43 @@ export class ServerStorageManager extends StorageManager {
       [id, name, relationship, emoji, now, now]
     );
 
-    return { id, name, relationship, emoji, status: 'importing', createdAt: now };
+    return {
+      id,
+      name,
+      relationship,
+      emoji,
+      status: 'importing',
+      createdAt: now
+    };
   }
 
   async updateIndividual(id, updates) {
     await this.initialize();
-    
+
     const current = await this._getQuery(
       'SELECT * FROM individuals WHERE id = ?',
       [id]
     );
-    
+
     if (!current) {
       throw new Error('Individual not found');
     }
 
     const fields = [];
     const values = [];
-    
+
     Object.entries(updates).forEach(([key, value]) => {
       if (key !== 'id') {
         fields.push(`${key} = ?`);
         values.push(value);
       }
     });
-    
+
     if (fields.length > 0) {
       fields.push('updated_at = ?');
       values.push(Date.now());
       values.push(id);
-      
+
       await this._runQuery(
         `UPDATE individuals SET ${fields.join(', ')} WHERE id = ?`,
         values
@@ -257,24 +297,34 @@ export class ServerStorageManager extends StorageManager {
 
   async getIndividuals() {
     await this.initialize();
-    
-    return await this._allQuery('SELECT * FROM individuals ORDER BY created_at DESC');
+
+    return await this._allQuery(
+      'SELECT * FROM individuals ORDER BY created_at DESC'
+    );
   }
 
   async getIndividual(id) {
     await this.initialize();
-    
+
     return await this._getQuery('SELECT * FROM individuals WHERE id = ?', [id]);
   }
 
   // DNA variant storage (file-based for efficiency)
   async storeVariants(individualId, variants, progressCallback) {
     await this.initialize();
-    
-    Debug.log(1, 'ServerStorageManager', `Storing ${variants.length} variants for individual: ${individualId}`);
-    
-    const variantFile = path.join(this.dataDir, 'variants', `${individualId}.json`);
-    
+
+    Debug.log(
+      1,
+      'ServerStorageManager',
+      `Storing ${variants.length} variants for individual: ${individualId}`
+    );
+
+    const variantFile = path.join(
+      this.dataDir,
+      'variants',
+      `${individualId}.json`
+    );
+
     // Store variants as JSON file for efficient access
     const variantData = {
       individualId,
@@ -284,9 +334,9 @@ export class ServerStorageManager extends StorageManager {
         storedAt: Date.now()
       }
     };
-    
+
     await fs.writeFile(variantFile, JSON.stringify(variantData));
-    
+
     // Update metadata in database
     await this._runQuery(
       `INSERT OR REPLACE INTO variant_files 
@@ -302,73 +352,259 @@ export class ServerStorageManager extends StorageManager {
     );
 
     progressCallback?.(variants.length, variants.length);
-    
-    Debug.log(1, 'ServerStorageManager', `Successfully stored ${variants.length} variants for ${individualId}`);
+
+    Debug.log(
+      1,
+      'ServerStorageManager',
+      `Successfully stored ${variants.length} variants for ${individualId}`
+    );
     return variants.length;
   }
 
   async getVariants(individualId) {
     await this.initialize();
-    
-    Debug.log(2, 'ServerStorageManager', `Loading variants for individual: ${individualId}`);
-    
+
+    Debug.log(
+      2,
+      'ServerStorageManager',
+      `Loading variants for individual: ${individualId}`
+    );
+
     const metadata = await this._getQuery(
       'SELECT file_path FROM variant_files WHERE individual_id = ?',
       [individualId]
     );
-    
+
     if (!metadata) {
-      Debug.log(2, 'ServerStorageManager', `No variants found for individual: ${individualId}`);
+      Debug.log(
+        2,
+        'ServerStorageManager',
+        `No variants found for individual: ${individualId}`
+      );
       return [];
     }
 
     try {
       const fileContent = await fs.readFile(metadata.file_path, 'utf8');
       const variantData = JSON.parse(fileContent);
-      
+
       // Convert to format expected by genomic processor
       const variants = variantData.variants.map(variant => ({
         rsid: variant.rsid,
         chromosome: variant.chromosome,
         position: variant.position,
         allele1: variant.allele1,
-        allele2: variant.allele2
+        allele2: variant.allele2,
+        imputed: false
       }));
-      
-      Debug.log(2, 'ServerStorageManager', `Loaded ${variants.length} variants for ${individualId}`);
+
+      Debug.log(
+        2,
+        'ServerStorageManager',
+        `Loaded ${variants.length} variants for ${individualId}`
+      );
       return variants;
-      
     } catch (error) {
-      Debug.log(1, 'ServerStorageManager', `Failed to load variants for ${individualId}:`, error.message);
+      Debug.log(
+        1,
+        'ServerStorageManager',
+        `Failed to load variants for ${individualId}:`,
+        error.message
+      );
       return [];
     }
+  }
+
+  async queryImputedVariant(individualId, variantId) {
+    await this.initialize();
+
+    const imputedFile = path.join(
+      this.dataDir,
+      'imputed',
+      `${individualId}_imputed.parquet`
+    );
+
+    try {
+      await fs.access(imputedFile);
+
+      // Use DuckDB to query single variant
+      const duckdb = await import('duckdb');
+      const db = new duckdb.default.Database(':memory:');
+      const conn = db.connect();
+
+      const result = await new Promise((resolve, reject) => {
+        conn.all(
+          `SELECT variant_id, genotype_dosage 
+           FROM read_parquet('${imputedFile}')
+           WHERE variant_id = '${variantId.replace(/'/g, "''")}'
+           LIMIT 1`,
+          (err, rows) => {
+            conn.close();
+            db.close();
+            if (err) reject(err);
+            else resolve(rows?.[0] || null);
+          }
+        );
+      });
+
+      if (!result) return null;
+
+      // Convert to genomic processor format
+      const [chr, pos, ref, alt] = result.variant_id.split(':');
+      return {
+        rsid: result.variant_id,
+        chromosome: chr,
+        position: parseInt(pos),
+        allele1: ref,
+        allele2: alt,
+        imputed: true,
+        dosage: result.genotype_dosage,
+        quality: 1.0
+      };
+    } catch (_error) {
+      Debug.log(
+        3,
+        'ServerStorageManager',
+        `No imputed variant ${variantId} for ${individualId}`
+      );
+      return null;
+    }
+  }
+
+  async getImputedVariants(individualId) {
+    await this.initialize();
+
+    const imputedFile = path.join(
+      this.dataDir,
+      'imputed',
+      `${individualId}_imputed.parquet`
+    );
+
+    console.log(`🔍 Looking for imputed file at: ${imputedFile}`);
+
+    try {
+      await fs.access(imputedFile);
+      console.log(`✅ Found imputed file for ${individualId}`);
+      Debug.log(
+        2,
+        'ServerStorageManager',
+        `Loading imputed variants for ${individualId}`
+      );
+
+      // Use DuckDB to read Parquet
+      const duckdb = await import('duckdb');
+      const db = new duckdb.default.Database(':memory:');
+      const conn = db.connect();
+
+      const variants = await new Promise((resolve, reject) => {
+        conn.all(
+          `SELECT variant_id, genotype_dosage FROM read_parquet('${imputedFile}')`,
+          (err, rows) => {
+            conn.close();
+            db.close();
+            if (err) reject(err);
+            else resolve(rows || []);
+          }
+        );
+      });
+
+      // Convert to genomic processor format
+      const formatted = variants.map(v => {
+        const [chr, pos, ref, alt] = v.variant_id.split(':');
+        return {
+          rsid: v.variant_id,
+          chromosome: chr,
+          position: parseInt(pos),
+          allele1: ref,
+          allele2: alt,
+          imputed: true,
+          dosage: v.genotype_dosage,
+          quality: 1.0 // Could add DR2 quality score from Beagle if available
+        };
+      });
+
+      console.log(
+        `✅ Loaded ${formatted.length.toLocaleString()} imputed variants for ${individualId}`
+      );
+      return formatted;
+    } catch (error) {
+      console.log(`❌ No imputed data for ${individualId}: ${error.message}`);
+      return [];
+    }
+  }
+
+  async getAllVariants(individualId) {
+    await this.initialize();
+
+    console.log(`🧬 getAllVariants called for ${individualId}`);
+
+    // Load both genotyped and imputed variants
+    const [genotyped, imputed] = await Promise.all([
+      this.getVariants(individualId),
+      this.getImputedVariants(individualId)
+    ]);
+
+    console.log(
+      `📊 Loaded ${genotyped.length} genotyped + ${imputed.length} imputed variants`
+    );
+
+    Debug.log(
+      1,
+      'ServerStorageManager',
+      `Loaded ${genotyped.length} genotyped + ${imputed.length} imputed = ${genotyped.length + imputed.length} total variants for ${individualId}`
+    );
+
+    // Merge: genotyped takes precedence over imputed at same position
+    const merged = [...genotyped];
+    const genotypedPositions = new Set(
+      genotyped.map(v => `${v.chromosome}:${v.position}`)
+    );
+
+    for (const variant of imputed) {
+      const posKey = `${variant.chromosome}:${variant.position}`;
+      if (!genotypedPositions.has(posKey)) {
+        merged.push(variant);
+      }
+    }
+
+    console.log(`✅ Merged to ${merged.length} unique variants`);
+    Debug.log(
+      1,
+      'ServerStorageManager',
+      `Merged to ${merged.length} unique variants`
+    );
+    return merged;
   }
 
   // Risk score storage and retrieval
   async storeRiskScore(individualId, traitId, riskData) {
     await this.initialize();
-    
-    Debug.log(1, 'ServerStorageManager', `💾 Storing risk score for ${individualId}:${traitId}`);
-    
+
+    Debug.log(
+      1,
+      'ServerStorageManager',
+      `💾 Storing risk score for ${individualId}:${traitId}`
+    );
+
     try {
       const cacheFile = PATHS.RISK_SCORES_DB;
-      
+
       // Ensure DB exists with schema
       try {
         await fs.access(cacheFile);
       } catch {
         await this.initializeEmptyParquet();
       }
-      
+
       // Calculate totals from pgsDetails
       let totalMatched = 0;
       let totalExpected = 0;
       for (const details of Object.values(riskData.pgsDetails || {})) {
         totalMatched += details.matchedVariants || 0;
-        totalExpected += details.metadata?.variants_count || 0;
+        totalExpected += details.metadata?.variants_number || 0;
       }
-      
-      // Sort PGS by canonical ordering (best first)
+
+      // Sort PGS by quality score (best first)
       const sortedPgs = Object.entries(riskData.pgsBreakdown || [])
         .map(([pgsId, breakdown]) => ({
           pgsId,
@@ -376,25 +612,19 @@ export class ServerStorageManager extends StorageManager {
           details: riskData.pgsDetails?.[pgsId]
         }))
         .sort((a, b) => {
-          const insuffA = a.details?.insufficientData || false;
-          const insuffB = b.details?.insufficientData || false;
-          if (insuffA !== insuffB) return insuffA ? 1 : -1;
-          
-          const perfA = a.details?.performanceMetric || 0;
-          const perfB = b.details?.performanceMetric || 0;
-          if (perfA !== perfB) return perfB - perfA;
-          
-          return Math.abs(b.breakdown.positiveSum + b.breakdown.negativeSum) - 
-                 Math.abs(a.breakdown.positiveSum + a.breakdown.negativeSum);
+          const scoreA = a.details?.qualityScore ?? 0;
+          const scoreB = b.details?.qualityScore ?? 0;
+          return scoreB - scoreA; // Descending by quality score
         });
-      
+
       const duckdb = await import('duckdb');
       const writeDb = new duckdb.default.Database(cacheFile);
       const writeConn = writeDb.connect();
-      
+
       await new Promise((resolve, reject) => {
         // Store trait-level result
-        writeConn.exec(`
+        writeConn.exec(
+          `
           INSERT OR REPLACE INTO trait_results VALUES (
             '${individualId}', '${traitId}', 
             ${riskData.bestPGS ? `'${riskData.bestPGS}'` : 'NULL'},
@@ -408,114 +638,162 @@ export class ServerStorageManager extends StorageManager {
             ${Date.now()},
             ${riskData.value !== null && riskData.value !== undefined ? riskData.value : 'NULL'}
           )
-        `, (err) => {
-          if (err) return reject(err);
-          
-          // Store PGS-level results with sort order
-          const pgsInserts = [];
-          sortedPgs.forEach((item, index) => {
-            const { pgsId, breakdown, details } = item;
-            if (!details) return;
-            
-            const weightBucketsJson = breakdown.weightBuckets ? JSON.stringify(breakdown.weightBuckets).replace(/'/g, "''") : '[]';
-            const chromosomeCoverageJson = breakdown.chromosomeCoverage ? JSON.stringify(breakdown.chromosomeCoverage).replace(/'/g, "''") : '{}';
-            const topVariantsJson = details.topVariants ? JSON.stringify(details.topVariants).replace(/'/g, "''") : '[]';
-            
-            pgsInserts.push(`
+        `,
+          err => {
+            if (err) return reject(err);
+
+            // Store PGS-level results
+            const pgsInserts = [];
+            sortedPgs.forEach(item => {
+              const { pgsId, breakdown, details } = item;
+              if (!details) return;
+
+              const weightBucketsJson = breakdown.weightBuckets
+                ? JSON.stringify(breakdown.weightBuckets).replace(/'/g, "''")
+                : '[]';
+              const chromosomeCoverageJson = breakdown.chromosomeCoverage
+                ? JSON.stringify(breakdown.chromosomeCoverage).replace(
+                    /'/g,
+                    "''"
+                  )
+                : '{}';
+              const chrTotalsJson = breakdown.chrTotals
+                ? JSON.stringify(breakdown.chrTotals).replace(/'/g, "''")
+                : '{}';
+              const topVariantsJson = details.topVariants
+                ? JSON.stringify(details.topVariants).replace(/'/g, "''")
+                : '[]';
+
+              pgsInserts.push(`
               ('${individualId}', '${traitId}', '${pgsId}',
                ${details.score || 0}, 
                ${details.zScore !== null && details.zScore !== undefined ? details.zScore : 'NULL'},
                ${details.percentile || 'NULL'},
                ${details.matchedVariants || 0},
-               ${details.metadata?.variants_count || 0},
+               ${details.metadata?.variants_number || 0},
+               ${details.genotypedVariants || 0},
+               ${details.imputedVariants || 0},
                ${details.confidence ? `'${details.confidence}'` : 'NULL'},
                ${details.insufficientData ? 'TRUE' : 'FALSE'},
                ${details.performanceMetric || 'NULL'},
                ${breakdown.positive || 0}, ${breakdown.positiveSum || 0},
                ${breakdown.negative || 0}, ${breakdown.negativeSum || 0},
-               ${index},
                ${details.value !== null && details.value !== undefined ? details.value : 'NULL'},
+               ${details.qualityScore !== null && details.qualityScore !== undefined ? details.qualityScore : 'NULL'},
                '${weightBucketsJson}',
                '${chromosomeCoverageJson}',
+               '${chrTotalsJson}',
                '${topVariantsJson}')
             `);
-          });
-          
-          if (pgsInserts.length > 0) {
-            writeConn.exec(`
+            });
+
+            if (pgsInserts.length > 0) {
+              writeConn.exec(
+                `
               INSERT OR REPLACE INTO pgs_results VALUES ${pgsInserts.join(',')}
-            `, (err2) => {
+            `,
+                err2 => {
+                  writeConn.close();
+                  writeDb.close();
+                  if (err2) reject(err2);
+                  else resolve();
+                }
+              );
+            } else {
               writeConn.close();
               writeDb.close();
-              if (err2) reject(err2);
-              else resolve();
-            });
-          } else {
-            writeConn.close();
-            writeDb.close();
-            resolve();
+              resolve();
+            }
           }
-        });
+        );
       });
-      
-      Debug.log(1, 'ServerStorageManager', `✅ Successfully stored risk score for ${individualId}:${traitId}`);
+
+      Debug.log(
+        1,
+        'ServerStorageManager',
+        `✅ Successfully stored risk score for ${individualId}:${traitId}`
+      );
     } catch (error) {
-      Debug.log(1, 'ServerStorageManager', `❌ Failed to store risk score:`, error.message);
+      Debug.log(
+        1,
+        'ServerStorageManager',
+        `❌ Failed to store risk score:`,
+        error.message
+      );
       throw error;
     }
   }
 
   _getTotalExpectedVariants(pgsDetails) {
     if (!pgsDetails) return 0;
-    return Object.values(pgsDetails).reduce((sum, d) => sum + (d.metadata?.variants_count || 0), 0);
+    return Object.values(pgsDetails).reduce(
+      (sum, d) => sum + (d.metadata?.variants_number || 0),
+      0
+    );
   }
 
   async getCachedRiskScore(individualId, traitId) {
     await this.initialize();
     const cacheFile = PATHS.RISK_SCORES_DB;
-    
+
     try {
       await fs.access(cacheFile);
-      
+
       const duckdb = await import('duckdb');
-      const readDb = new duckdb.default.Database(cacheFile, duckdb.default.OPEN_READONLY);
+      const readDb = new duckdb.default.Database(
+        cacheFile,
+        duckdb.default.OPEN_READONLY
+      );
       const readConn = readDb.connect();
-      
+
       const result = await new Promise((resolve, reject) => {
         const sql = `SELECT 
              tr.*,
              (SELECT json_group_array(json_object(
                'pgs_id', pgs_id, 'raw_score', raw_score, 'z_score', z_score,
                'percentile', percentile, 'matched_variants', matched_variants,
+               'genotyped_variants', genotyped_variants, 'imputed_variants', imputed_variants,
                'confidence', confidence, 'insufficient_data', insufficient_data,
                'performance_metric', performance_metric,
                'positive_variants', positive_variants, 'positive_sum', positive_sum,
                'negative_variants', negative_variants, 'negative_sum', negative_sum,
-               'expected_variants', expected_variants, 'sort_order', sort_order,
+               'expected_variants', expected_variants, 'quality_score', quality_score,
                'weight_buckets', weight_buckets, 'chromosome_coverage', chromosome_coverage,
-               'top_variants', top_variants
-             )) FROM (SELECT * FROM pgs_results WHERE individual_id = tr.individual_id AND trait_id = tr.trait_id ORDER BY sort_order ASC)) as pgs_list
+               'chr_totals', chr_totals, 'top_variants', top_variants
+             )) FROM (SELECT * FROM pgs_results WHERE individual_id = tr.individual_id AND trait_id = tr.trait_id ORDER BY quality_score DESC)) as pgs_list
            FROM trait_results tr
            WHERE tr.individual_id = '${individualId.replace(/'/g, "''")}' AND tr.trait_id = '${traitId.replace(/'/g, "''")}'`;
         readConn.all(sql, (err, rows) => {
-            readConn.close();
-            readDb.close();
-            if (err) reject(err);
-            else resolve(rows?.[0] || null);
-          }
-        );
+          readConn.close();
+          readDb.close();
+          if (err) reject(err);
+          else resolve(rows?.[0] || null);
+        });
       });
-      
+
       if (!result) return null;
-      
+
       const pgsList = JSON.parse(result.pgs_list || '[]');
       const pgsBreakdown = {};
       const pgsDetails = {};
-      
+
       pgsList.forEach(pgs => {
-        const weightBuckets = typeof pgs.weight_buckets === 'string' ? JSON.parse(pgs.weight_buckets) : (pgs.weight_buckets || []);
-        const chromosomeCoverage = typeof pgs.chromosome_coverage === 'string' ? JSON.parse(pgs.chromosome_coverage) : (pgs.chromosome_coverage || {});
-        const topVariants = typeof pgs.top_variants === 'string' ? JSON.parse(pgs.top_variants) : (pgs.top_variants || []);
+        const weightBuckets =
+          typeof pgs.weight_buckets === 'string'
+            ? JSON.parse(pgs.weight_buckets)
+            : pgs.weight_buckets || [];
+        const chromosomeCoverage =
+          typeof pgs.chromosome_coverage === 'string'
+            ? JSON.parse(pgs.chromosome_coverage)
+            : pgs.chromosome_coverage || {};
+        const topVariants =
+          typeof pgs.top_variants === 'string'
+            ? JSON.parse(pgs.top_variants)
+            : pgs.top_variants || [];
+        const chrTotals =
+          typeof pgs.chr_totals === 'string'
+            ? JSON.parse(pgs.chr_totals)
+            : pgs.chr_totals || {};
         pgsBreakdown[pgs.pgs_id] = {
           positive: pgs.positive_variants,
           positiveSum: pgs.positive_sum,
@@ -524,21 +802,24 @@ export class ServerStorageManager extends StorageManager {
           total: pgs.positive_variants + pgs.negative_variants,
           weightBuckets,
           chromosomeCoverage,
-          topVariants
+          chrTotals
         };
         pgsDetails[pgs.pgs_id] = {
           score: pgs.raw_score,
           zScore: pgs.z_score,
           percentile: pgs.percentile,
           matchedVariants: pgs.matched_variants,
+          genotypedVariants: pgs.genotyped_variants || 0,
+          imputedVariants: pgs.imputed_variants || 0,
           confidence: pgs.confidence,
           insufficientData: pgs.insufficient_data,
           performanceMetric: pgs.performance_metric,
-          sortOrder: pgs.sort_order,
-          metadata: { variants_count: pgs.expected_variants }
+          qualityScore: pgs.quality_score,
+          topVariants,
+          metadata: { variants_number: pgs.expected_variants }
         };
       });
-      
+
       return {
         zScore: result.overall_z_score,
         percentile: result.overall_percentile,
@@ -554,37 +835,43 @@ export class ServerStorageManager extends StorageManager {
         value: result.value
       };
     } catch (error) {
-      Debug.log(1, 'ServerStorageManager', `Error in getCachedRiskScore: ${error.message}`);
+      Debug.log(
+        1,
+        'ServerStorageManager',
+        `Error in getCachedRiskScore: ${error.message}`
+      );
       throw error;
     }
   }
 
   async getCachedResults(individualId) {
     await this.initialize();
-    
+
     const cacheFile = PATHS.RISK_SCORES_DB;
-    
+
     try {
       await fs.access(cacheFile);
     } catch {
       return [];
     }
-    
+
     const duckdb = await import('duckdb');
-    const readDb = new duckdb.default.Database(cacheFile, duckdb.default.OPEN_READONLY);
+    const readDb = new duckdb.default.Database(
+      cacheFile,
+      duckdb.default.OPEN_READONLY
+    );
     const readConn = readDb.connect();
-    
+
     const rows = await new Promise((resolve, reject) => {
       const sql = `SELECT * FROM trait_results WHERE individual_id = '${individualId.replace(/'/g, "''")}' ORDER BY calculated_at DESC`;
       readConn.all(sql, (err, result) => {
-          readConn.close();
-          readDb.close();
-          if (err) reject(err);
-          else resolve(result || []);
-        }
-      );
+        readConn.close();
+        readDb.close();
+        if (err) reject(err);
+        else resolve(result || []);
+      });
     });
-    
+
     return rows.map(row => ({
       traitId: row.trait_id,
       zScore: row.overall_z_score,
@@ -600,28 +887,34 @@ export class ServerStorageManager extends StorageManager {
 
   async getAllCachedResults() {
     await this.initialize();
-    
+
     const cacheFile = PATHS.RISK_SCORES_DB;
-    
+
     try {
       await fs.access(cacheFile);
     } catch {
       return [];
     }
-    
+
     const duckdb = await import('duckdb');
-    const readDb = new duckdb.default.Database(cacheFile, duckdb.default.OPEN_READONLY);
+    const readDb = new duckdb.default.Database(
+      cacheFile,
+      duckdb.default.OPEN_READONLY
+    );
     const readConn = readDb.connect();
-    
+
     const rows = await new Promise((resolve, reject) => {
-      readConn.all('SELECT * FROM trait_results ORDER BY individual_id, calculated_at DESC', (err, result) => {
-        readConn.close();
-        readDb.close();
-        if (err) reject(err);
-        else resolve(result || []);
-      });
+      readConn.all(
+        'SELECT * FROM trait_results ORDER BY individual_id, calculated_at DESC',
+        (err, result) => {
+          readConn.close();
+          readDb.close();
+          if (err) reject(err);
+          else resolve(result || []);
+        }
+      );
     });
-    
+
     return rows.map(row => ({
       individual_id: row.individual_id,
       trait_id: row.trait_id,
@@ -637,11 +930,15 @@ export class ServerStorageManager extends StorageManager {
 
   async deleteIndividual(individualId) {
     await this.initialize();
-    
+
     // Delete from main DB tables
-    await this._runQuery('DELETE FROM individuals WHERE id = ?', [individualId]);
-    await this._runQuery('DELETE FROM variant_files WHERE individual_id = ?', [individualId]);
-    
+    await this._runQuery('DELETE FROM individuals WHERE id = ?', [
+      individualId
+    ]);
+    await this._runQuery('DELETE FROM variant_files WHERE individual_id = ?', [
+      individualId
+    ]);
+
     // Delete from risk results DB
     const cacheFile = PATHS.RISK_SCORES_DB;
     try {
@@ -649,118 +946,148 @@ export class ServerStorageManager extends StorageManager {
       const duckdb = await import('duckdb');
       const writeDb = new duckdb.default.Database(cacheFile);
       const writeConn = writeDb.connect();
-      
+
       await new Promise((resolve, reject) => {
-        writeConn.exec(`
+        writeConn.exec(
+          `
           DELETE FROM trait_results WHERE individual_id = '${individualId}';
           DELETE FROM pgs_results WHERE individual_id = '${individualId}';
           DELETE FROM pgs_top_variants WHERE individual_id = '${individualId}';
-        `, (err) => {
-          writeConn.close();
-          writeDb.close();
-          if (err) reject(err);
-          else resolve();
-        });
+        `,
+          err => {
+            writeConn.close();
+            writeDb.close();
+            if (err) reject(err);
+            else resolve();
+          }
+        );
       });
-    } catch (error) {
+    } catch (_error) {
       // Risk DB might not exist yet
     }
-    
+
     // Delete variant file
-    const variantFile = path.join(this.dataDir, 'variants', `${individualId}.json`);
+    const variantFile = path.join(
+      this.dataDir,
+      'variants',
+      `${individualId}.json`
+    );
     try {
       await fs.unlink(variantFile);
-    } catch (error) {
+    } catch (_error) {
       // File might not exist, ignore
     }
   }
 
   async clearCache() {
     const cacheFile = PATHS.RISK_SCORES_DB;
-    
+
     try {
       await fs.access(cacheFile);
       const duckdb = await import('duckdb');
       const writeDb = new duckdb.default.Database(cacheFile);
       const writeConn = writeDb.connect();
-      
+
       await new Promise((resolve, reject) => {
-        writeConn.exec(`
+        writeConn.exec(
+          `
           DELETE FROM trait_results;
           DELETE FROM pgs_results;
           DELETE FROM pgs_top_variants;
-        `, (err) => {
-          writeConn.close();
-          writeDb.close();
-          if (err) reject(err);
-          else resolve();
-        });
+        `,
+          err => {
+            writeConn.close();
+            writeDb.close();
+            if (err) reject(err);
+            else resolve();
+          }
+        );
       });
-    } catch (error) {
+    } catch (_error) {
       // DB might not exist yet
     }
   }
 
   async initializeEmptyParquet() {
     const cacheFile = PATHS.RISK_SCORES_DB;
-    
+
     try {
       await fs.access(cacheFile);
-      Debug.log(2, 'ServerStorageManager', 'Risk scores DB already exists, skipping initialization');
+      Debug.log(
+        2,
+        'ServerStorageManager',
+        'Risk scores DB already exists, skipping initialization'
+      );
       return;
     } catch {
       Debug.log(1, 'ServerStorageManager', 'Creating empty risk scores DB...');
     }
-    
-    await this._runQuery(`
-      ATTACH '${cacheFile.replace(/\\/g, '/')}' AS risk_cache;
-      
-      CREATE TABLE risk_cache.trait_results (
-        individual_id VARCHAR NOT NULL,
-        trait_id VARCHAR NOT NULL,
-        best_pgs_id VARCHAR,
-        best_pgs_performance DOUBLE,
-        overall_z_score DOUBLE,
-        overall_percentile DOUBLE,
-        overall_confidence VARCHAR,
-        total_matched_variants INTEGER,
-        total_expected_variants INTEGER,
-        trait_last_updated VARCHAR,
-        calculated_at BIGINT,
-        value DOUBLE,
-        PRIMARY KEY (individual_id, trait_id)
-      );
-      
-      CREATE TABLE risk_cache.pgs_results (
-        individual_id VARCHAR NOT NULL,
-        trait_id VARCHAR NOT NULL,
-        pgs_id VARCHAR NOT NULL,
-        raw_score DOUBLE,
-        z_score DOUBLE,
-        percentile DOUBLE,
-        matched_variants INTEGER,
-        expected_variants INTEGER,
-        confidence VARCHAR,
-        insufficient_data BOOLEAN DEFAULT FALSE,
-        performance_metric DOUBLE,
-        positive_variants INTEGER,
-        positive_sum DOUBLE,
-        negative_variants INTEGER,
-        negative_sum DOUBLE,
-        sort_order INTEGER,
-        value DOUBLE,
-        weight_buckets JSON,
-        chromosome_coverage JSON,
-        top_variants JSON,
-        PRIMARY KEY (individual_id, trait_id, pgs_id)
-      );
-      
-      DETACH risk_cache;
-    `);
-    
-    Debug.log(1, 'ServerStorageManager', 'Empty risk scores DB created successfully');
-  }
 
+    const duckdb = await import('duckdb');
+    const db = new duckdb.default.Database(cacheFile);
+    const conn = db.connect();
+
+    await new Promise((resolve, reject) => {
+      conn.exec(
+        `
+        CREATE TABLE trait_results (
+          individual_id VARCHAR NOT NULL,
+          trait_id VARCHAR NOT NULL,
+          best_pgs_id VARCHAR,
+          best_pgs_performance DOUBLE,
+          overall_z_score DOUBLE,
+          overall_percentile DOUBLE,
+          overall_confidence VARCHAR,
+          total_matched_variants INTEGER,
+          total_expected_variants INTEGER,
+          trait_last_updated VARCHAR,
+          calculated_at BIGINT,
+          value DOUBLE,
+          PRIMARY KEY (individual_id, trait_id)
+        );
+        
+        CREATE TABLE pgs_results (
+          individual_id VARCHAR NOT NULL,
+          trait_id VARCHAR NOT NULL,
+          pgs_id VARCHAR NOT NULL,
+          raw_score DOUBLE,
+          z_score DOUBLE,
+          percentile DOUBLE,
+          matched_variants INTEGER,
+          expected_variants INTEGER,
+          genotyped_variants INTEGER,
+          imputed_variants INTEGER,
+          confidence VARCHAR,
+          insufficient_data BOOLEAN DEFAULT FALSE,
+          performance_metric DOUBLE,
+          positive_variants INTEGER,
+          positive_sum DOUBLE,
+          negative_variants INTEGER,
+          negative_sum DOUBLE,
+          value DOUBLE,
+          quality_score DOUBLE,
+          weight_buckets JSON,
+          chromosome_coverage JSON,
+          chr_totals JSON,
+          top_variants JSON,
+          PRIMARY KEY (individual_id, trait_id, pgs_id)
+        );
+      `,
+        err => {
+          conn.close();
+          db.close();
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    Debug.log(
+      1,
+      'ServerStorageManager',
+      'Empty risk scores DB created successfully'
+    );
+  }
 
   async cleanup() {
     if (this.conn) {

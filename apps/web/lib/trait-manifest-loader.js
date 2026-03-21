@@ -26,9 +26,13 @@ export class TraitManifestLoader {
     try {
       const response = await fetch('/data/trait_manifest.json');
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      
+
       this.manifest = await response.json();
-      Debug.log(1, 'TraitManifestLoader', `Loaded ${Object.keys(this.manifest.traits).length} traits`);
+      Debug.log(
+        1,
+        'TraitManifestLoader',
+        `Loaded ${Object.keys(this.manifest.traits).length} traits`
+      );
       return this.manifest;
     } catch (error) {
       Debug.error('TraitManifestLoader', 'Failed to load manifest:', error);
@@ -71,16 +75,24 @@ export class TraitManifestLoader {
 
   async getTraitDetails(traitId) {
     Debug.log(2, 'TraitManifestLoader', `Fetching details for ${traitId}`);
-    
+
     try {
       const response = await fetch(`/api/traits/${traitId}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      
+
       const details = await response.json();
-      Debug.log(2, 'TraitManifestLoader', `Loaded ${details.pgs_scores?.length || 0} PGS scores for ${traitId}`);
+      Debug.log(
+        2,
+        'TraitManifestLoader',
+        `Loaded ${details.pgs_scores?.length || 0} PGS scores for ${traitId}`
+      );
       return details;
     } catch (error) {
-      Debug.error('TraitManifestLoader', `Failed to load details for ${traitId}:`, error);
+      Debug.error(
+        'TraitManifestLoader',
+        `Failed to load details for ${traitId}:`,
+        error
+      );
       throw error;
     }
   }

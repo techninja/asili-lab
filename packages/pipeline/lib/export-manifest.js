@@ -8,10 +8,11 @@ export async function exportTraitManifestJSON() {
   const DB_PATH = path.join(OUTPUT_DIR, 'trait_manifest.db');
   const db = new duckdb.Database(DB_PATH);
   const conn = db.connect();
-  
+
   // Get all traits with their PGS associations
   const traits = await new Promise((resolve, reject) => {
-    conn.all(`
+    conn.all(
+      `
       SELECT 
         t.trait_id,
         t.name,
@@ -29,7 +30,9 @@ export async function exportTraitManifestJSON() {
         t.reference_population
       FROM traits t
       ORDER BY t.name;
-    `, (err, rows) => err ? reject(err) : resolve(rows));
+    `,
+      (err, rows) => (err ? reject(err) : resolve(rows))
+    );
   });
 
   const manifest = {
@@ -40,20 +43,29 @@ export async function exportTraitManifestJSON() {
 
   for (const trait of traits) {
     const pgsScores = await new Promise((resolve, reject) => {
-      conn.all(`
+      conn.all(
+        `
         SELECT tp.pgs_id, tp.performance_weight
         FROM trait_pgs tp
         WHERE tp.trait_id = ?
         ORDER BY tp.pgs_id;
-      `, [trait.trait_id], (err, rows) => err ? reject(err) : resolve(rows));
+      `,
+        [trait.trait_id],
+        (err, rows) => (err ? reject(err) : resolve(rows))
+      );
     });
 
     let categories = [];
     try {
       categories = trait.categories ? JSON.parse(trait.categories) : [];
-    } catch (e) {
+    } catch (_e) {
       // If categories is not valid JSON, split by comma
-      categories = trait.categories ? trait.categories.split(',').map(c => c.trim()).filter(Boolean) : [];
+      categories = trait.categories
+        ? trait.categories
+            .split(',')
+            .map(c => c.trim())
+            .filter(Boolean)
+        : [];
     }
 
     manifest.traits[trait.trait_id] = {
@@ -67,8 +79,12 @@ export async function exportTraitManifestJSON() {
       phenotype_sd: trait.phenotype_sd || null,
       reference_population: trait.reference_population || null,
       categories: categories,
-      expected_variants: trait.expected_variants ? Number(trait.expected_variants) : 0,
-      estimated_unique_variants: trait.estimated_unique_variants ? Number(trait.estimated_unique_variants) : 0,
+      expected_variants: trait.expected_variants
+        ? Number(trait.expected_variants)
+        : 0,
+      estimated_unique_variants: trait.estimated_unique_variants
+        ? Number(trait.estimated_unique_variants)
+        : 0,
       pgs_count: pgsScores.length,
       file_path: `packs/${trait.trait_id.replace(/:/g, '_')}_hg38.parquet`
     };
@@ -76,10 +92,12 @@ export async function exportTraitManifestJSON() {
 
   const outputPath = path.join(OUTPUT_DIR, 'trait_manifest.json');
   await fs.writeFile(outputPath, JSON.stringify(manifest, null, 2));
-  console.log(`✓ Exported trait manifest: ${Object.keys(manifest.traits).length} traits`);
-  
+  console.log(
+    `✓ Exported trait manifest: ${Object.keys(manifest.traits).length} traits`
+  );
+
   conn.close();
   db.close();
-  
+
   return manifest;
 }

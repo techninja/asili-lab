@@ -8,14 +8,14 @@ import pgsApiClient from './pgs-api-client.js';
 import { shouldExcludePGS, WEIGHT_THRESHOLDS } from './lib/pgs-filter.js';
 import { calculateWeightStats } from './lib/weight-stats.js';
 import { analyzeTraitPGSQuality } from './lib/pgs-enhanced-filter.js';
+import { getLDStatus } from './lib/ld-detector.js';
 import * as pgsDB from './lib/pgs-db.js';
 import * as traitDB from './lib/trait-db.js';
-import { closeConnection } from './lib/shared-db.js';
+import { closeConnection, getConnection } from './lib/shared-db.js';
 import { execSync } from 'child_process';
-import crypto from 'crypto';
+import _crypto from 'crypto';
 
-
-function generateCanonicalURI(traitId) {
+function _generateCanonicalURI(traitId) {
   if (traitId.startsWith('TRAIT:')) {
     return `https://monarchinitiative.org/disease/${traitId}`;
   } else if (traitId.startsWith('EFO_')) {
@@ -37,23 +37,27 @@ async function collectTraitDescription(traitId) {
   try {
     // First try direct trait lookup
     let traitData = await pgsApiClient.getTraitInfo(traitId);
-    
+
     // If direct lookup fails or returns empty, try search
     if (!traitData || Object.keys(traitData).length === 0) {
       const searchResults = await pgsApiClient.searchTraitsByTrait(traitId);
-      
+
       if (searchResults?.results?.length > 0) {
         traitData = searchResults.results[0];
       }
     }
-    
+
     if (traitData?.description) {
       return traitData.description;
     }
-    
+
     return null; // No description found
   } catch (error) {
-    console.log(chalk.yellow(`    Warning: Could not fetch description for ${traitId}: ${error.message}`));
+    console.log(
+      chalk.yellow(
+        `    Warning: Could not fetch description for ${traitId}: ${error.message}`
+      )
+    );
     return null;
   }
 }
@@ -65,7 +69,9 @@ async function loadCatalog() {
     return catalog;
   } catch (error) {
     if (error.code === 'ENOENT') {
-      console.log(chalk.yellow('No existing catalog found, creating new one...'));
+      console.log(
+        chalk.yellow('No existing catalog found, creating new one...')
+      );
       return { traits: {} };
     }
     throw error;
@@ -110,10 +116,16 @@ async function lookupTraitById(traitId) {
     let canonicalId = traitId;
 
     // If direct lookup succeeds, use it
-    if (traitInfo && Object.keys(traitInfo).length > 0 && traitInfo.associated_pgs_ids?.length > 0) {
+    if (
+      traitInfo &&
+      Object.keys(traitInfo).length > 0 &&
+      traitInfo.associated_pgs_ids?.length > 0
+    ) {
       // Determine canonical ID (prefer TRAIT if available)
       if (traitId.startsWith('EFO_') && traitInfo.trait_mapped_terms) {
-        const mondoTerm = traitInfo.trait_mapped_terms.find(term => term.startsWith('TRAIT:'));
+        const mondoTerm = traitInfo.trait_mapped_terms.find(term =>
+          term.startsWith('TRAIT:')
+        );
         if (mondoTerm) {
           canonicalId = mondoTerm;
           console.log(chalk.blue(`  Found TRAIT equivalent: ${mondoTerm}`));
@@ -121,20 +133,31 @@ async function lookupTraitById(traitId) {
       }
     } else {
       // Direct lookup failed or has no PGS, try cross-standard resolution
-      console.log(chalk.yellow(`  Direct lookup failed, searching for equivalent traits...`));
-      
+      console.log(
+        chalk.yellow(
+          `  Direct lookup failed, searching for equivalent traits...`
+        )
+      );
+
       try {
         const searchResults = await pgsApiClient.searchTraits(traitId);
-        
+
         for (const result of searchResults.results || []) {
           // Look for traits that map to our target ID
-          if (result.trait_mapped_terms?.includes(traitId) || result.ontology_trait_name === traitId) {
+          if (
+            result.trait_mapped_terms?.includes(traitId) ||
+            result.ontology_trait_name === traitId
+          ) {
             const equivalentInfo = await pgsApiClient.getTraitInfo(result.id);
             if (equivalentInfo.associated_pgs_ids?.length > 0) {
               traitInfo = equivalentInfo;
               sourceId = result.id;
               canonicalId = traitId; // Keep original as canonical
-              console.log(chalk.green(`  Found equivalent: ${result.id} with ${equivalentInfo.associated_pgs_ids.length} PGS scores`));
+              console.log(
+                chalk.green(
+                  `  Found equivalent: ${result.id} with ${equivalentInfo.associated_pgs_ids.length} PGS scores`
+                )
+              );
               break;
             }
           }
@@ -153,7 +176,9 @@ async function lookupTraitById(traitId) {
       source_id: sourceId,
       title: traitInfo.label || 'Unknown trait',
       description: traitInfo.description || '',
-      pgs_count: (traitInfo.associated_pgs_ids?.length || 0) + (traitInfo.child_associated_pgs_ids?.length || 0),
+      pgs_count:
+        (traitInfo.associated_pgs_ids?.length || 0) +
+        (traitInfo.child_associated_pgs_ids?.length || 0),
       categories: traitInfo.trait_categories || []
     };
   } catch (error) {
@@ -199,207 +224,356 @@ async function analyzeTraitQuality(traitId) {
   try {
     const traitInfo = await pgsApiClient.getTraitInfo(traitId);
     console.log(chalk.bold(`Trait: ${traitInfo.label}`));
-    console.log(chalk.gray(`Description: ${traitInfo.description?.substring(0, 100)}...`));
-    
+    console.log(
+      chalk.gray(`Description: ${traitInfo.description?.substring(0, 100)}...`)
+    );
+
     const allPgsIds = [
       ...(traitInfo.associated_pgs_ids || []),
       ...(traitInfo.child_associated_pgs_ids || [])
     ];
-    
+
     console.log(chalk.blue(`\nTotal PGS scores: ${allPgsIds.length}`));
     console.log(chalk.gray('Analyzing each score...\n'));
-    
-    const analysis = await analyzeTraitPGSQuality(traitId, allPgsIds, pgsApiClient);
-    
-    console.log(chalk.bold.green(`\n✅ INCLUDED: ${analysis.included.length}/${analysis.total_pgs}`));
-    console.log(chalk.bold.red(`❌ EXCLUDED: ${analysis.excluded.length}/${analysis.total_pgs}`));
-    console.log(chalk.bold.yellow(`🔄 RECOVERED (NR): ${analysis.recovered_nr.length}/${analysis.total_pgs}`));
-    
+
+    const analysis = await analyzeTraitPGSQuality(
+      traitId,
+      allPgsIds,
+      pgsApiClient
+    );
+
+    console.log(
+      chalk.bold.green(
+        `\n✅ INCLUDED: ${analysis.included.length}/${analysis.total_pgs}`
+      )
+    );
+    console.log(
+      chalk.bold.red(
+        `❌ EXCLUDED: ${analysis.excluded.length}/${analysis.total_pgs}`
+      )
+    );
+    console.log(
+      chalk.bold.yellow(
+        `🔄 RECOVERED (NR): ${analysis.recovered_nr.length}/${analysis.total_pgs}`
+      )
+    );
+
     console.log(chalk.bold.blue(`\n📊 Performance Summary:`));
     console.log(`   Validated: ${analysis.performance_summary.validated}`);
     console.log(`   Unvalidated: ${analysis.performance_summary.unvalidated}`);
-    console.log(`   Avg Weight: ${analysis.performance_summary.avg_weight.toFixed(2)}`);
-    
+    console.log(
+      `   Avg Weight: ${analysis.performance_summary.avg_weight.toFixed(2)}`
+    );
+
     if (analysis.included.length > 0) {
-      console.log(chalk.bold.green(`\n✅ Included Scores (${analysis.included.length}):`));
+      console.log(
+        chalk.bold.green(`\n✅ Included Scores (${analysis.included.length}):`)
+      );
       for (const entry of analysis.included) {
-        const perfIcon = entry.performance_metrics?.has_validation ? '📈' : '❓';
-        const perfText = entry.performance_metrics?.best_metric 
+        const perfIcon = entry.performance_metrics?.has_validation
+          ? '📈'
+          : '❓';
+        const perfText = entry.performance_metrics?.best_metric
           ? `${entry.performance_metrics.best_metric.type}=${entry.performance_metrics.best_metric.value.toFixed(3)}`
           : 'No validation';
-        
+
         console.log(chalk.green(`   ${perfIcon} ${entry.pgs_id}`));
-        console.log(chalk.gray(`      Strategy: ${entry.strategy} | Weight: ${(entry.performance_weight || 0.5).toFixed(2)}`));
-        console.log(chalk.gray(`      Type: ${entry.weight_type} | Method: ${entry.method}`));
+        console.log(
+          chalk.gray(
+            `      Strategy: ${entry.strategy} | Weight: ${(entry.performance_weight || 0.5).toFixed(2)}`
+          )
+        );
+        console.log(
+          chalk.gray(
+            `      Type: ${entry.weight_type} | Method: ${entry.method}`
+          )
+        );
         console.log(chalk.gray(`      Performance: ${perfText}`));
-        console.log(chalk.gray(`      Variants: ${entry.variants?.toLocaleString() || 'unknown'}`));
+        console.log(
+          chalk.gray(
+            `      Variants: ${entry.variants?.toLocaleString() || 'unknown'}`
+          )
+        );
       }
     }
-    
+
     if (analysis.recovered_nr.length > 0) {
-      console.log(chalk.bold.yellow(`\n🔄 Recovered NR Scores (${analysis.recovered_nr.length}):`));
+      console.log(
+        chalk.bold.yellow(
+          `\n🔄 Recovered NR Scores (${analysis.recovered_nr.length}):`
+        )
+      );
       for (const entry of analysis.recovered_nr) {
         console.log(chalk.yellow(`   ${entry.pgs_id}: ${entry.reason}`));
-        console.log(chalk.gray(`      Performance weight: ${entry.performance_weight.toFixed(2)}`));
+        console.log(
+          chalk.gray(
+            `      Performance weight: ${entry.performance_weight.toFixed(2)}`
+          )
+        );
       }
     }
-    
+
     if (analysis.excluded.length > 0) {
-      console.log(chalk.bold.red(`\n❌ Excluded Scores (${analysis.excluded.length}):`));
-      
+      console.log(
+        chalk.bold.red(`\n❌ Excluded Scores (${analysis.excluded.length}):`)
+      );
+
       const byReason = {};
       for (const entry of analysis.excluded) {
         const reason = entry.reason || 'Unknown';
         if (!byReason[reason]) byReason[reason] = [];
         byReason[reason].push(entry.pgs_id);
       }
-      
+
       for (const [reason, pgsIds] of Object.entries(byReason)) {
         console.log(chalk.red(`   ${reason}: ${pgsIds.length} scores`));
         console.log(chalk.gray(`      ${pgsIds.join(', ')}`));
       }
     }
-    
-    const originalIncluded = analysis.included.length - analysis.recovered_nr.length;
+
+    const originalIncluded =
+      analysis.included.length - analysis.recovered_nr.length;
     const recoveryRate = analysis.recovered_nr.length / analysis.total_pgs;
     const totalInclusionRate = analysis.included.length / analysis.total_pgs;
-    
+
     console.log(chalk.bold.cyan(`\n📈 Recovery Impact:`));
-    console.log(`   Original inclusion rate: ${(originalIncluded / analysis.total_pgs * 100).toFixed(1)}%`);
-    console.log(`   Enhanced inclusion rate: ${(totalInclusionRate * 100).toFixed(1)}%`);
+    console.log(
+      `   Original inclusion rate: ${((originalIncluded / analysis.total_pgs) * 100).toFixed(1)}%`
+    );
+    console.log(
+      `   Enhanced inclusion rate: ${(totalInclusionRate * 100).toFixed(1)}%`
+    );
     console.log(`   Recovery gain: ${(recoveryRate * 100).toFixed(1)}%`);
-    console.log(`   Remaining excluded: ${(analysis.excluded.length / analysis.total_pgs * 100).toFixed(1)}%`);
-    
+    console.log(
+      `   Remaining excluded: ${((analysis.excluded.length / analysis.total_pgs) * 100).toFixed(1)}%`
+    );
   } catch (error) {
     console.error(chalk.red(`Error: ${error.message}`));
     console.error(error.stack);
   }
 }
 
-
+import { Worker } from 'worker_threads';
+import _os from 'os';
 
 async function refreshTraitData() {
   console.log(chalk.cyan('\n=== Refresh Trait Data ===\n'));
-  
-  // Load traits from trait_catalog.json (source of truth)
-  console.log(chalk.blue('Loading traits from trait_catalog.json...'));
+
+  // Close any existing DB connections first
+  try {
+    closeConnection();
+  } catch {
+    /* ignore */
+  }
+
   const catalogData = await fs.readFile(CATALOG_PATH, 'utf8');
   const catalog = JSON.parse(catalogData);
   const catalogTraits = Object.entries(catalog.traits || {});
-  
+
   if (catalogTraits.length === 0) {
     console.log(chalk.yellow('No traits in catalog'));
     return;
   }
-  
-  console.log(chalk.blue(`Refreshing ${catalogTraits.length} traits from PGS Catalog API...\n`));
-  
+
+  console.log(
+    chalk.blue(
+      `Refreshing ${catalogTraits.length} traits from PGS Catalog API...\n`
+    )
+  );
+
   const traitsToRemove = [];
-  
-  for (const [traitId, traitMeta] of catalogTraits) {
-    console.log(chalk.gray(`Processing ${traitMeta.title} (${traitId})...`));
-    
-    try {
+  const CONCURRENCY = 6;
+
+  // Fetch all trait info first (fast, cached)
+  let t = Date.now();
+  console.log(chalk.blue('Fetching trait info...'));
+  const traitsWithInfo = await Promise.all(
+    catalogTraits.map(async ([traitId, traitMeta]) => {
       const traitInfo = await pgsApiClient.getTraitInfo(traitId);
-      const pgsIds = [...new Set([
-        ...(traitInfo.associated_pgs_ids || []),
-        ...(traitInfo.child_associated_pgs_ids || [])
-      ])];
-      
-      if (pgsIds.length === 0) {
-        console.log(chalk.yellow(`  No PGS scores found - marking for removal`));
-        traitsToRemove.push(traitId);
-        await traitDB.deleteTrait(traitId);
-        continue;
-      }
-      
-      let totalVariants = 0;
-      let uniqueVariants = 0;
-      let includedCount = 0;
-      
-      for (const pgsId of pgsIds) {
-        try {
-          const data = await pgsApiClient.getScore(pgsId);
-          const filterResult = await shouldExcludePGS(pgsId, data, pgsApiClient);
-          
-          if (filterResult.exclude) {
-            await traitDB.addExcludedPGS(traitId, pgsId, filterResult.reason, data.method_name, data.weight_type);
-            continue;
-          }
-          
-          if (data.variants_number) {
-            totalVariants += data.variants_number;
-            uniqueVariants += Math.floor(data.variants_number * 0.7);
-          }
-          
-          const stats = await calculateWeightStats(pgsId, pgsApiClient);
-          
-          await pgsDB.upsertPGS(pgsId, {
-            weight_type: data.weight_type,
-            method: data.method_name,
-            norm_mean: stats?.mean ?? null,
-            norm_sd: stats?.sd ?? null,
-            variants_count: data.variants_number
-          });
-          
-          if (filterResult.performance_metrics) {
-            await pgsDB.upsertPerformanceMetrics(pgsId, filterResult.performance_metrics);
-          }
-          
-          await traitDB.addTraitPGS(traitId, pgsId, filterResult.performance_weight || 0.5);
-          includedCount++;
-        } catch (error) {
-          console.log(chalk.yellow(`  ⚠ ${pgsId}: ${error.message}`));
-        }
-      }
-      
-      if (includedCount === 0) {
-        console.log(chalk.red(`  All PGS excluded - marking for removal`));
-        traitsToRemove.push(traitId);
-        await traitDB.deleteTrait(traitId);
-        continue;
-      }
-      
-      await traitDB.upsertTrait(traitId, {
-        name: traitMeta.title,
-        description: traitMeta.description,
-        categories: (traitInfo.trait_categories || []).join(','),
-        expected_variants: totalVariants,
-        estimated_unique_variants: uniqueVariants
-      });
-      
-      console.log(chalk.green(`  ✓ Updated: ${includedCount} PGS, ${totalVariants.toLocaleString()} variants`));
-    } catch (error) {
-      console.log(chalk.red(`  Error: ${error.message}`));
-      traitsToRemove.push(traitId);
-    }
+      return { traitId, traitMeta, traitInfo };
+    })
+  );
+  console.log(
+    chalk.green(
+      `✓ Fetched ${traitsWithInfo.length} trait infos in ${Date.now() - t}ms\n`
+    )
+  );
+
+  // Check which traits are already up-to-date in DB
+  console.log(chalk.blue('Checking for existing traits...'));
+  const existingTraits = await traitDB.getAllTraits();
+  const existingIds = new Set(existingTraits.map(t => t.trait_id));
+
+  // Check if any existing traits are missing performance data
+  const conn = await getConnection();
+  const perfCount = await new Promise((resolve, reject) => {
+    conn.all(
+      'SELECT COUNT(DISTINCT pgs_id) as cnt FROM pgs_performance',
+      (err, rows) => (err ? reject(err) : resolve(rows[0]?.cnt || 0))
+    );
+  });
+  const forceRefresh = perfCount === 0;
+
+  const traitsToProcess = forceRefresh
+    ? traitsWithInfo
+    : traitsWithInfo.filter(t => !existingIds.has(t.traitId));
+
+  if (forceRefresh) {
+    console.log(
+      chalk.yellow(
+        `⚠ No performance metrics found - forcing full refresh of all ${traitsToProcess.length} traits`
+      )
+    );
+  } else {
+    console.log(
+      chalk.green(
+        `✓ ${existingIds.size} traits already in DB, ${traitsToProcess.length} to process\n`
+      )
+    );
   }
-  
-  // Remove traits from catalog that have no valid PGS
+
+  // Process traits in worker threads
+  let completed = 0;
+  const results = [];
+
+  for (let i = 0; i < traitsToProcess.length; i += CONCURRENCY) {
+    const batch = traitsToProcess.slice(i, i + CONCURRENCY);
+
+    t = Date.now();
+    const batchResults = await Promise.all(
+      batch.map(({ traitId, traitMeta, traitInfo }) => {
+        return new Promise(resolve => {
+          console.log(
+            chalk.cyan(`Processing ${traitMeta.title} (${traitId})...`)
+          );
+          const worker = new Worker(path.join(__dirname, 'refresh-worker.js'), {
+            workerData: { traitId, traitMeta, traitInfo }
+          });
+
+          worker.on('message', result => {
+            completed++;
+            console.log(
+              chalk.gray(
+                `[${completed}/${traitsToProcess.length}] Completed ${traitId}`
+              )
+            );
+            worker.terminate();
+            resolve(result);
+          });
+
+          worker.on('error', error => {
+            console.log(
+              chalk.red(`Worker error for ${traitId}: ${error.message}`)
+            );
+            worker.terminate();
+            resolve({ success: false, error: error.message, traitId });
+          });
+        });
+      })
+    );
+    console.log(
+      chalk.blue(
+        `Batch ${Math.floor(i / CONCURRENCY) + 1} completed in ${Date.now() - t}ms`
+      )
+    );
+
+    // Write batch results to DB immediately
+    t = Date.now();
+    console.log(chalk.blue(`Writing ${batchResults.length} results to DB...`));
+    for (const result of batchResults) {
+      if (!result.success || result.remove) {
+        traitsToRemove.push(result.traitId);
+        console.log(chalk.gray(`  Deleting ${result.traitId}...`));
+        await traitDB.deleteTrait(result.traitId);
+        continue;
+      }
+
+      console.log(
+        chalk.gray(
+          `  Writing ${result.traitId} (${result.valid.length} PGS)...`
+        )
+      );
+      await Promise.all([
+        ...result.excluded.map(r =>
+          traitDB.addExcludedPGS(
+            result.traitId,
+            r.pgsId,
+            r.reason,
+            r.method,
+            r.weightType
+          )
+        ),
+        ...result.valid.map(r => pgsDB.upsertPGS(r.pgsId, r.pgsData)),
+        ...result.valid
+          .filter(r => r.performanceMetrics)
+          .map(r =>
+            pgsDB.upsertPerformanceMetrics(r.pgsId, r.performanceMetrics)
+          ),
+        ...result.valid.map(r =>
+          traitDB.addTraitPGS(result.traitId, r.pgsId, r.performanceWeight)
+        )
+      ]);
+
+      console.log(
+        chalk.gray(`  Writing trait metadata for ${result.traitId}...`)
+      );
+      await traitDB.upsertTrait(result.traitId, {
+        name: result.traitMeta.title,
+        description: result.traitMeta.description,
+        categories: (result.traitInfo.trait_categories || []).join(','),
+        expected_variants: result.totalVariants,
+        estimated_unique_variants: result.uniqueVariants
+      });
+
+      console.log(
+        chalk.green(
+          `  ✓ ${result.traitMeta.title}: ${result.valid.length} PGS, ${result.totalVariants.toLocaleString()} variants`
+        )
+      );
+    }
+    console.log(chalk.green(`Batch DB writes: ${Date.now() - t}ms`));
+
+    // Flush WAL to disk after each batch
+    try {
+      const conn = await getConnection();
+      await new Promise(resolve => {
+        conn.run('CHECKPOINT', () => resolve());
+      });
+      console.log(chalk.gray('WAL flushed to disk'));
+    } catch (e) {
+      console.log(chalk.yellow('WAL flush warning:', e.message));
+    }
+
+    results.push(...batchResults);
+  }
+
+  // All batches complete
+  console.log(chalk.green(`\n✓ All batches complete`));
+
   if (traitsToRemove.length > 0) {
-    console.log(chalk.yellow(`\nRemoving ${traitsToRemove.length} traits from catalog...`));
+    console.log(
+      chalk.yellow(`Removing ${traitsToRemove.length} traits from catalog...`)
+    );
     for (const traitId of traitsToRemove) {
       delete catalog.traits[traitId];
-      console.log(chalk.gray(`  Removed ${traitId}`));
     }
     await saveCatalog(catalog);
     console.log(chalk.green(`✓ Catalog updated`));
   }
-  
+
   await pgsDB.close();
   closeConnection();
-  
+
   console.log(chalk.green(`\n✓ Trait data refresh complete`));
   console.log(chalk.blue(`  Processed: ${catalogTraits.length}`));
-  console.log(chalk.green(`  Valid: ${catalogTraits.length - traitsToRemove.length}`));
+  console.log(
+    chalk.green(`  Valid: ${catalogTraits.length - traitsToRemove.length}`)
+  );
   console.log(chalk.red(`  Removed: ${traitsToRemove.length}`));
 }
 
 async function addTrait() {
   console.log(chalk.cyan('\n=== Add a New Trait ===\n'));
-
-  
-  
 
   const catalog = await loadCatalog();
 
@@ -539,14 +713,20 @@ async function processSingleTrait(input, catalog) {
     }
 
     selectedTrait = traitInfo;
-    
+
     // Display nice formatted entry
     console.log(chalk.green(`\n📋 Trait Found:`));
     console.log(chalk.bold(`   ${traitInfo.title}`));
-    console.log(chalk.gray(`   ${traitInfo.description?.substring(0, 120)}...`));
-    console.log(chalk.blue(`   📊 ${traitInfo.pgs_count} PGS scores available`));
+    console.log(
+      chalk.gray(`   ${traitInfo.description?.substring(0, 120)}...`)
+    );
+    console.log(
+      chalk.blue(`   📊 ${traitInfo.pgs_count} PGS scores available`)
+    );
     if (traitInfo.categories?.length > 0) {
-      console.log(chalk.cyan(`   🏷️  Categories: ${traitInfo.categories.join(', ')}`));
+      console.log(
+        chalk.cyan(`   🏷️  Categories: ${traitInfo.categories.join(', ')}`)
+      );
     }
     console.log(chalk.gray(`   🔗 Canonical: ${traitInfo.canonical_id}`));
     if (traitInfo.source_id !== traitInfo.canonical_id) {
@@ -562,7 +742,9 @@ async function processSingleTrait(input, catalog) {
   console.log(chalk.blue('Fetching trait description...'));
   const description = await collectTraitDescription(canonicalId);
   if (description) {
-    console.log(chalk.green(`✓ Found description: ${description.substring(0, 80)}...`));
+    console.log(
+      chalk.green(`✓ Found description: ${description.substring(0, 80)}...`)
+    );
   } else {
     console.log(chalk.yellow('⚠ No description found'));
   }
@@ -601,13 +783,13 @@ async function processSingleTrait(input, catalog) {
         continue;
       }
       seenIds.add(pgsId);
-      
+
       try {
         const data = await pgsApiClient.getScore(pgsId);
         const filterResult = await shouldExcludePGS(pgsId, data, pgsApiClient);
-        
+
         filterResults.set(pgsId, filterResult);
-        
+
         if (filterResult.exclude) {
           excludedPgsIds.push(pgsId);
           excludedPgsDetails.push({
@@ -616,18 +798,22 @@ async function processSingleTrait(input, catalog) {
             method: data.method_name || 'Not specified',
             weight_type: data.weight_type || 'Not specified'
           });
-          console.log(chalk.yellow(`  ⚠ ${pgsId}: Excluded - ${filterResult.reason}`));
+          console.log(
+            chalk.yellow(`  ⚠ ${pgsId}: Excluded - ${filterResult.reason}`)
+          );
           continue;
         }
-        
+
         if (data.variants_number) {
           totalVariants += data.variants_number;
           const estimatedUnique = Math.floor(data.variants_number * 0.7);
           uniqueVariants += estimatedUnique;
         }
-        
+
         // Calculate normalization parameters
         const stats = await calculateWeightStats(pgsId, pgsApiClient);
+        const ldStatus = getLDStatus(data);
+
         if (stats && stats.sd > 0) {
           // Check for incompatible scale
           const ratio = Math.abs(stats.mean / stats.sd);
@@ -639,40 +825,64 @@ async function processSingleTrait(input, catalog) {
               method: data.method_name || 'Not specified',
               weight_type: data.weight_type || 'Not specified'
             });
-            console.log(chalk.yellow(`  ⚠ ${pgsId}: Excluded - Incompatible scale (ratio ${ratio.toFixed(1)})`));
+            console.log(
+              chalk.yellow(
+                `  ⚠ ${pgsId}: Excluded - Incompatible scale (ratio ${ratio.toFixed(1)})`
+              )
+            );
             continue;
           }
-          
-          pgsWithNorm.push({ 
-            id: pgsId, 
-            norm_mean: stats.mean, 
+
+          pgsWithNorm.push({
+            id: pgsId,
+            norm_mean: stats.mean,
             norm_sd: stats.sd,
             weight_type: data.weight_type,
             method: data.method_name,
+            variants_number: data.variants_number,
             performance_weight: filterResult.performance_weight || 0.5,
-            performance_metrics: filterResult.performance_metrics
+            performance_metrics: filterResult.performance_metrics,
+            ld_aware: ldStatus.ld_aware,
+            needs_clumping: ldStatus.needs_clumping
           });
-          console.log(chalk.green(`  ✓ ${pgsId}: ${data.variants_number?.toLocaleString()} variants (perf: ${(filterResult.performance_weight || 0.5).toFixed(2)})`));
+          const ldWarning = ldStatus.needs_clumping ? ' ⚠️ LD' : '';
+          console.log(
+            chalk.green(
+              `  ✓ ${pgsId}: ${data.variants_number?.toLocaleString()} variants (perf: ${(filterResult.performance_weight || 0.5).toFixed(2)})${ldWarning}`
+            )
+          );
         } else {
-          pgsWithNorm.push({ 
+          pgsWithNorm.push({
             id: pgsId,
             weight_type: data.weight_type,
             method: data.method_name,
+            variants_number: data.variants_number,
             performance_weight: filterResult.performance_weight || 0.5,
-            performance_metrics: filterResult.performance_metrics
+            performance_metrics: filterResult.performance_metrics,
+            ld_aware: ldStatus.ld_aware,
+            needs_clumping: ldStatus.needs_clumping
           });
-          console.log(chalk.green(`  ✓ ${pgsId}: ${data.variants_number?.toLocaleString()} variants (perf: ${(filterResult.performance_weight || 0.5).toFixed(2)})`));
+          const ldWarning = ldStatus.needs_clumping ? ' ⚠️ LD' : '';
+          console.log(
+            chalk.green(
+              `  ✓ ${pgsId}: ${data.variants_number?.toLocaleString()} variants (perf: ${(filterResult.performance_weight || 0.5).toFixed(2)})${ldWarning}`
+            )
+          );
         }
       } catch (error) {
         console.log(chalk.yellow(`  ⚠ ${pgsId}: ${error.message}`));
         pgsWithNorm.push({ id: pgsId });
       }
     }
-    
+
     if (excludedPgsIds.length > 0) {
-      console.log(chalk.yellow(`Excluded ${excludedPgsIds.length} integrative PGS: ${excludedPgsIds.join(', ')}`));
+      console.log(
+        chalk.yellow(
+          `Excluded ${excludedPgsIds.length} integrative PGS: ${excludedPgsIds.join(', ')}`
+        )
+      );
     }
-    
+
     console.log(
       chalk.blue(
         `Total variants: ${totalVariants.toLocaleString()} (estimated unique: ${uniqueVariants.toLocaleString()})`
@@ -682,14 +892,22 @@ async function processSingleTrait(input, catalog) {
 
   // Don't add traits with no valid PGS scores
   if (pgsWithNorm.length === 0) {
-    console.log(chalk.red(`❌ Trait has no valid PGS scores after filtering - not adding to catalog`));
+    console.log(
+      chalk.red(
+        `❌ Trait has no valid PGS scores after filtering - not adding to catalog`
+      )
+    );
     if (excludedPgsIds.length > 0) {
-      console.log(chalk.yellow(`   All ${excludedPgsIds.length} PGS scores were integrative/meta`));
+      console.log(
+        chalk.yellow(
+          `   All ${excludedPgsIds.length} PGS scores were integrative/meta`
+        )
+      );
     }
     return;
   }
 
-  const traitData = {
+  const _traitData = {
     trait_id: canonicalId,
     title: selectedTrait.title,
     description: description || undefined
@@ -706,15 +924,29 @@ async function processSingleTrait(input, catalog) {
 
   // Write to database (all PGS metadata)
   for (const pgs of pgsWithNorm) {
-    await pgsDB.upsertPGS(pgs.id, { weight_type: pgs.weight_type, method: pgs.method, norm_mean: pgs.norm_mean, norm_sd: pgs.norm_sd, variants_count: null });
-    if (pgs.performance_metrics) await pgsDB.upsertPerformanceMetrics(pgs.id, pgs.performance_metrics);
+    await pgsDB.upsertPGS(pgs.id, {
+      weight_type: pgs.weight_type,
+      method: pgs.method,
+      norm_mean: pgs.norm_mean,
+      norm_sd: pgs.norm_sd,
+      variants_number: pgs.variants_number,
+      ld_aware: pgs.ld_aware,
+      needs_clumping: pgs.needs_clumping
+    });
+    if (pgs.performance_metrics)
+      await pgsDB.upsertPerformanceMetrics(pgs.id, pgs.performance_metrics);
     await traitDB.addTraitPGS(canonicalId, pgs.id, pgs.performance_weight);
   }
   for (const ex of excludedPgsDetails) {
-    await traitDB.addExcludedPGS(canonicalId, ex.pgs_id, ex.reason, ex.method, ex.weight_type);
+    await traitDB.addExcludedPGS(
+      canonicalId,
+      ex.pgs_id,
+      ex.reason,
+      ex.method,
+      ex.weight_type
+    );
   }
-  
-  
+
   console.log(
     chalk.green(`\n✓ Added trait: ${selectedTrait.title} (${canonicalId})`)
   );
@@ -726,7 +958,6 @@ async function processSingleTrait(input, catalog) {
 }
 
 async function listTraits() {
-  
   const traits = await traitDB.getAllTraits();
 
   console.log(chalk.cyan('\n=== Current Traits ===\n'));
@@ -740,7 +971,9 @@ async function listTraits() {
     console.log(chalk.bold.blue(`${trait.name} (${trait.trait_id})`));
     const pgsScores = await traitDB.getTraitPGS(trait.trait_id);
     if (pgsScores.length > 0) {
-      console.log(`   ${chalk.green('PGS IDs:')} ${pgsScores.map(p => p.pgs_id).join(', ')}`);
+      console.log(
+        `   ${chalk.green('PGS IDs:')} ${pgsScores.map(p => p.pgs_id).join(', ')}`
+      );
     } else {
       console.log(`   ${chalk.yellow('No PGS scores assigned')}`);
     }
@@ -756,17 +989,26 @@ async function freshStart() {
 
 async function syncOverrides() {
   console.log(chalk.cyan('\n=== Sync Overrides to Database ===\n'));
-  execSync('node packages/pipeline/sync-overrides-to-db.js', { cwd: path.join(__dirname, '..', '..'), stdio: 'inherit' });
+  execSync('node packages/pipeline/sync-overrides-to-db.js', {
+    cwd: path.join(__dirname, '..', '..'),
+    stdio: 'inherit'
+  });
 }
 
 async function phenotypeRefs() {
   console.log(chalk.cyan('\n=== Phenotype References ===\n'));
-  execSync('node packages/pipeline/populate-phenotype-refs.js', { cwd: path.join(__dirname, '..', '..'), stdio: 'inherit' });
+  execSync('node packages/pipeline/populate-phenotype-refs.js', {
+    cwd: path.join(__dirname, '..', '..'),
+    stdio: 'inherit'
+  });
 }
 
 async function quantitativeAnalysis() {
   console.log(chalk.cyan('\n=== Quantitative Traits Analysis ===\n'));
-  execSync('node scripts/quantitative-traits.js', { cwd: path.join(__dirname, '..', '..'), stdio: 'inherit' });
+  execSync('node scripts/quantitative-traits.js', {
+    cwd: path.join(__dirname, '..', '..'),
+    stdio: 'inherit'
+  });
 }
 
 async function importFromFile() {
@@ -845,47 +1087,45 @@ async function importFromFile() {
 async function main() {
   const command = process.argv[2];
   const arg = process.argv[3];
-  
+
   // Handle command-line arguments
   if (command === 'analyze' && arg) {
     await analyzeTraitQuality(arg);
     return;
   }
-  
+
   if (command === 'refresh' || command === '--fresh') {
     await refreshTraitData();
     return;
   }
-  
+
   if (command === 'sync') {
     await syncOverrides();
     return;
   }
-  
+
   if (command === 'phenotype') {
     await phenotypeRefs();
     return;
   }
-  
+
   if (command === 'quantitative') {
     await quantitativeAnalysis();
     return;
   }
-  
+
   if (command === 'list') {
     await listTraits();
     return;
   }
-  
+
   if (command === 'add' && arg) {
-    
-    
     const catalog = await loadCatalog();
     await processSingleTrait(arg, catalog);
     closeConnection();
     return;
   }
-  
+
   // Interactive mode
   console.log(chalk.bold.blue('\n🧬 Asili Trait Manager\n'));
 

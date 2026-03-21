@@ -28,32 +28,36 @@ function calculateMetadataHash(override) {
 
 async function syncOverridesToDB() {
   console.log(chalk.cyan('\n=== Sync trait_overrides.json to Database ===\n'));
-  
+
   // Load overrides
   const overridesData = await fs.readFile(OVERRIDES_PATH, 'utf8');
   const overrides = JSON.parse(overridesData);
-  
+
   // Get all traits from DB
   const dbTraits = await getAllTraits();
   const dbTraitMap = Object.fromEntries(dbTraits.map(t => [t.trait_id, t]));
-  
+
   let updated = 0;
   let unchanged = 0;
   let notInDb = 0;
-  
-  console.log(chalk.blue(`Checking ${Object.keys(overrides).length} traits in overrides...`));
-  
+
+  console.log(
+    chalk.blue(
+      `Checking ${Object.keys(overrides).length} traits in overrides...`
+    )
+  );
+
   for (const [traitId, override] of Object.entries(overrides)) {
     const dbTrait = dbTraitMap[traitId];
-    
+
     if (!dbTrait) {
       notInDb++;
       continue;
     }
-    
+
     // Calculate hash of override metadata
     const overrideHash = calculateMetadataHash(override);
-    
+
     // Check if hash differs
     if (overrideHash !== dbTrait.metadata_hash) {
       await upsertTrait(traitId, {
@@ -63,25 +67,35 @@ async function syncOverridesToDB() {
         expected_variants: dbTrait.expected_variants,
         estimated_unique_variants: dbTrait.estimated_unique_variants
       });
-      
-      console.log(chalk.green(`✓ Updated ${override.editorial_name || dbTrait.name} (${traitId})`));
+
+      console.log(
+        chalk.green(
+          `✓ Updated ${override.editorial_name || dbTrait.name} (${traitId})`
+        )
+      );
       updated++;
     } else {
       unchanged++;
     }
   }
-  
+
   console.log(chalk.blue(`\n📊 Summary:`));
   console.log(chalk.green(`  Updated: ${updated}`));
   console.log(chalk.gray(`  Unchanged: ${unchanged}`));
   if (notInDb > 0) {
-    console.log(chalk.yellow(`  Not in DB: ${notInDb} (run 'pnpm traits add' to add them)`));
+    console.log(
+      chalk.yellow(
+        `  Not in DB: ${notInDb} (run 'pnpm traits add' to add them)`
+      )
+    );
   }
-  
+
   if (updated > 0) {
-    console.log(chalk.yellow('\n💡 Run pipeline to regenerate trait_manifest.json'));
+    console.log(
+      chalk.yellow('\n💡 Run pipeline to regenerate trait_manifest.json')
+    );
   }
-  
+
   closeConnection();
 }
 

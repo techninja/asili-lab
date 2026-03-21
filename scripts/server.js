@@ -4,11 +4,12 @@ import prompts from 'prompts';
 import chalk from 'chalk';
 
 const args = process.argv.slice(2);
-const [mode, cmd] = args[0] === 'static' || args[0] === 'calc' || args[0] === 'hybrid' 
-  ? [args[0], args[1]] 
-  : [args[0], args[1]];
+const [mode, cmd] =
+  args[0] === 'static' || args[0] === 'calc' || args[0] === 'hybrid'
+    ? [args[0], args[1]]
+    : [args[0], args[1]];
 
-const exec = (command) => {
+const exec = command => {
   try {
     execSync(command, { stdio: 'inherit', cwd: process.cwd() });
   } catch (error) {
@@ -19,10 +20,12 @@ const exec = (command) => {
 const dockerCommands = {
   up: () => exec('docker compose up -d'),
   down: () => exec('docker compose down'),
-  logs: (service) => exec(`docker compose logs -f ${service}`),
-  restart: (service) => exec(`docker compose restart ${service}`),
+  logs: service => {
+    exec(`node scripts/log-monitor.js asili-${service}`);
+  },
+  restart: service => exec(`docker compose restart ${service}`),
   status: () => exec('docker compose ps'),
-  build: (service) => exec(`docker compose build ${service}`)
+  build: service => exec(`docker compose build ${service}`)
 };
 
 const devCommands = {
@@ -35,7 +38,21 @@ async function main() {
   let selectedMode = mode;
   let selectedCmd = cmd;
 
-  if (!selectedMode || !['static', 'calc', 'hybrid', 'up', 'down', 'logs', 'restart', 'status', 'build', 'dev'].includes(selectedMode)) {
+  if (
+    !selectedMode ||
+    ![
+      'static',
+      'calc',
+      'hybrid',
+      'up',
+      'down',
+      'logs',
+      'restart',
+      'status',
+      'build',
+      'dev'
+    ].includes(selectedMode)
+  ) {
     const { mode: chosenMode } = await prompts({
       type: 'select',
       name: 'mode',

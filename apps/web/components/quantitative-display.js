@@ -5,7 +5,16 @@
 
 export class QuantitativeDisplay extends HTMLElement {
   static get observedAttributes() {
-    return ['value', 'unit', 'emoji', 'other-individuals', 'margin-of-error', 'phenotype-mean', 'phenotype-sd', 'reference-population'];
+    return [
+      'value',
+      'unit',
+      'emoji',
+      'other-individuals',
+      'margin-of-error',
+      'phenotype-mean',
+      'phenotype-sd',
+      'reference-population'
+    ];
   }
 
   constructor() {
@@ -62,35 +71,37 @@ export class QuantitativeDisplay extends HTMLElement {
     const others = this.otherIndividuals;
     const phenotypeMean = this.phenotypeMean;
     const phenotypeSd = this.phenotypeSd;
-    const refPop = this.referencePopulation;
-    
+    const _refPop = this.referencePopulation;
+
     // Calculate range for visualization
-    const allValues = [value, ...others.map(o => o.value)].filter(v => v != null);
-    
+    const allValues = [value, ...others.map(o => o.value)].filter(
+      v => v != null
+    );
+
     // Define clinical/population reference ranges
     const referenceRanges = this.getReferenceRanges(unit, value);
     let minVal = referenceRanges.min;
     let maxVal = referenceRanges.max;
-    
+
     // If we have phenotype mean/SD, use that to show population distribution
     let popMean = null;
     let popSd1Lower = null;
     let popSd1Upper = null;
     let popSd2Lower = null;
     let popSd2Upper = null;
-    
+
     if (phenotypeMean !== null && phenotypeSd !== null && phenotypeSd > 0) {
       popMean = phenotypeMean;
       popSd1Lower = phenotypeMean - phenotypeSd;
       popSd1Upper = phenotypeMean + phenotypeSd;
       popSd2Lower = phenotypeMean - 2 * phenotypeSd;
       popSd2Upper = phenotypeMean + 2 * phenotypeSd;
-      
+
       // Expand range to include ±3 SD
       minVal = Math.min(minVal, phenotypeMean - 3 * phenotypeSd);
       maxVal = Math.max(maxVal, phenotypeMean + 3 * phenotypeSd);
     }
-    
+
     // Expand range if data exceeds reference ranges
     if (allValues.length > 0) {
       const dataMin = Math.min(...allValues);
@@ -98,29 +109,30 @@ export class QuantitativeDisplay extends HTMLElement {
       if (dataMin < minVal) minVal = dataMin - (maxVal - minVal) * 0.1;
       if (dataMax > maxVal) maxVal = dataMax + (maxVal - minVal) * 0.1;
     }
-    
+
     const range = maxVal - minVal;
-    
-    const getPosition = (val) => {
-      return ((val - minVal) / range) * 360 + 20;
+
+    const getPosition = val => {
+      return Math.max(20, Math.min(380, ((val - minVal) / range) * 360 + 20));
     };
-    
-    const userX = getPosition(value);
-    
+
+    const _userX = getPosition(value);
+
     // Calculate margin of error box for current user
     const margin = this.marginOfError;
-    let userMarginBox = '';
     if (margin > 0) {
-      const marginStart = getPosition(Math.max(minVal, value - margin));
-      const marginEnd = getPosition(Math.min(maxVal, value + margin));
-      userMarginBox = `
-        <rect x="${marginStart}" y="55" width="${marginEnd - marginStart}" height="10" fill="#007acc" opacity="0.15" rx="2"/>
-      `;
+      getPosition(Math.max(minVal, value - margin));
+      getPosition(Math.min(maxVal, value + margin));
     }
-    
+
     // Add reference zones with percentile bands
-    const referenceZones = this.renderReferenceZones(unit, minVal, maxVal, getPosition);
-    
+    const referenceZones = this.renderReferenceZones(
+      unit,
+      minVal,
+      maxVal,
+      getPosition
+    );
+
     // Add population distribution markers if available
     let populationMarkers = '';
     if (popMean !== null) {
@@ -129,14 +141,14 @@ export class QuantitativeDisplay extends HTMLElement {
       const sd1UpperX = getPosition(popSd1Upper);
       const sd2LowerX = getPosition(popSd2Lower);
       const sd2UpperX = getPosition(popSd2Upper);
-      
+
       populationMarkers = `
         <!-- Population mean (50th percentile) -->
         <line x1="${meanX}" y1="55" x2="${meanX}" y2="65" stroke="#666" stroke-width="2" stroke-dasharray="3,3"/>
         <text x="${meanX}" y="80" class="pop-label" text-anchor="middle">Pop Avg</text>
         
         <!-- ±1 SD (68% of population) -->
-        <rect x="${sd1LowerX}" y="55" width="${sd1UpperX - sd1LowerX}" height="10" fill="#007acc" opacity="0.1"/>
+        <rect x="${sd1LowerX}" y="55" width="${Math.max(0, sd1UpperX - sd1LowerX)}" height="10" fill="#007acc" opacity="0.1"/>
         <line x1="${sd1LowerX}" y1="55" x2="${sd1LowerX}" y2="65" stroke="#007acc" stroke-width="1" opacity="0.5"/>
         <line x1="${sd1UpperX}" y1="55" x2="${sd1UpperX}" y2="65" stroke="#007acc" stroke-width="1" opacity="0.5"/>
         
@@ -145,41 +157,52 @@ export class QuantitativeDisplay extends HTMLElement {
         <line x1="${sd2UpperX}" y1="55" x2="${sd2UpperX}" y2="65" stroke="#999" stroke-width="1" opacity="0.3" stroke-dasharray="2,2"/>
       `;
     }
-    
+
     // Group individuals by proximity (within 2% of range)
     const proximityThreshold = range * 0.02;
     const groups = [];
-    
-    [...others, { emoji: this.emoji, value, isUser: true, name: 'You' }].forEach(ind => {
+
+    [
+      ...others,
+      { emoji: this.emoji, value, isUser: true, name: 'You' }
+    ].forEach(ind => {
       const pos = getPosition(ind.value);
-      let foundGroup = groups.find(g => Math.abs(g.position - pos) < proximityThreshold);
+      let foundGroup = groups.find(
+        g => Math.abs(g.position - pos) < proximityThreshold
+      );
       if (!foundGroup) {
         foundGroup = { position: pos, individuals: [] };
         groups.push(foundGroup);
       }
       foundGroup.individuals.push({ ...ind, position: pos });
     });
-    
+
     // Spread out overlapping emojis at bottom
     const emojiWidth = 20;
     const occupiedPositions = [];
-    
+
     groups.forEach(group => {
       group.individuals.forEach(ind => {
         if (!ind.isUser) {
           let displayX = ind.position;
-          
+
           // Check for overlaps and shift horizontally
           let attempts = 0;
           while (attempts < 50) {
-            const overlap = occupiedPositions.find(pos => Math.abs(pos - displayX) < emojiWidth);
+            const overlap = occupiedPositions.find(
+              pos => Math.abs(pos - displayX) < emojiWidth
+            );
             if (!overlap) break;
-            
+
             // Alternate left/right shifts
-            displayX = ind.position + (attempts % 2 === 0 ? 1 : -1) * Math.ceil(attempts / 2) * emojiWidth;
+            displayX =
+              ind.position +
+              (attempts % 2 === 0 ? 1 : -1) *
+                Math.ceil(attempts / 2) *
+                emojiWidth;
             attempts++;
           }
-          
+
           ind.displayX = Math.max(20, Math.min(380, displayX));
           occupiedPositions.push(ind.displayX);
         } else {
@@ -187,7 +210,7 @@ export class QuantitativeDisplay extends HTMLElement {
         }
       });
     });
-    
+
     this.shadowRoot.innerHTML = `
       <style>
         :host { display: block; width: 100%; height: 120px; position: relative; }
@@ -228,19 +251,25 @@ export class QuantitativeDisplay extends HTMLElement {
         <text x="380" y="75" class="label" text-anchor="end">${maxVal.toFixed(1)}</text>
         
         <!-- Individuals (grouped by proximity) -->
-        ${groups.map((group, groupIdx) => {
-          return group.individuals.map((ind) => {
-            const dataX = ind.position;
-            const displayX = ind.displayX;
-            const isUser = ind.isUser;
-            const indMargin = ind.marginOfError || 0;
-            let marginBox = '';
-            if (indMargin > 0) {
-              const mStart = getPosition(Math.max(minVal, ind.value - indMargin));
-              const mEnd = getPosition(Math.min(maxVal, ind.value + indMargin));
-              marginBox = `<rect x="${mStart}" y="55" width="${mEnd - mStart}" height="10" fill="${isUser ? '#007acc' : '#999'}" opacity="0.15" rx="2"/>`;
-            }
-            return `
+        ${groups
+          .map(group => {
+            return group.individuals
+              .map(ind => {
+                const dataX = ind.position;
+                const displayX = ind.displayX;
+                const isUser = ind.isUser;
+                const indMargin = ind.marginOfError || 0;
+                let marginBox = '';
+                if (indMargin > 0) {
+                  const mStart = getPosition(
+                    Math.max(minVal, ind.value - indMargin)
+                  );
+                  const mEnd = getPosition(
+                    Math.min(maxVal, ind.value + indMargin)
+                  );
+                  marginBox = `<rect x="${mStart}" y="55" width="${Math.max(0, mEnd - mStart)}" height="10" fill="${isUser ? '#007acc' : '#999'}" opacity="0.15" rx="2"/>`;
+                }
+                return `
               <g class="individual-group" data-name="${ind.name || ind.emoji}" data-value="${ind.value.toFixed(2)}" data-unit="${unit}">
                 ${marginBox}
                 <line x1="${displayX}" y1="${isUser ? 30 : 105}" x2="${dataX}" y2="60" class="${isUser ? 'user-line' : 'other-line'}"/>
@@ -248,20 +277,23 @@ export class QuantitativeDisplay extends HTMLElement {
                 <text x="${displayX}" y="${isUser ? 25 : 105}" class="${isUser ? 'user-label' : 'other-label'}" text-anchor="middle">${ind.emoji}</text>
               </g>
             `;
-          }).join('');
-        }).join('')}
+              })
+              .join('');
+          })
+          .join('')}
         
         <!-- Value display -->
         <text x="200" y="15" class="value-text">${value.toFixed(1)} ${unit}</text>
       </svg>
     `;
-    
+
     // Add hover interactions
     const tooltip = this.shadowRoot.getElementById('tooltip');
-    const individualGroups = this.shadowRoot.querySelectorAll('.individual-group');
-    
+    const individualGroups =
+      this.shadowRoot.querySelectorAll('.individual-group');
+
     individualGroups.forEach(group => {
-      group.addEventListener('mouseenter', (e) => {
+      group.addEventListener('mouseenter', () => {
         this.classList.add('hovering');
         const name = group.dataset.name;
         const val = group.dataset.value;
@@ -269,12 +301,14 @@ export class QuantitativeDisplay extends HTMLElement {
         tooltip.textContent = `${name}: ${val} ${unit}`;
         tooltip.classList.add('show');
       });
-      
-      group.addEventListener('mousemove', (e) => {
-        tooltip.style.left = (e.clientX - this.getBoundingClientRect().left + 10) + 'px';
-        tooltip.style.top = (e.clientY - this.getBoundingClientRect().top - 30) + 'px';
+
+      group.addEventListener('mousemove', e => {
+        tooltip.style.left =
+          e.clientX - this.getBoundingClientRect().left + 10 + 'px';
+        tooltip.style.top =
+          e.clientY - this.getBoundingClientRect().top - 30 + 'px';
       });
-      
+
       group.addEventListener('mouseleave', () => {
         this.classList.remove('hovering');
         tooltip.classList.remove('show');
@@ -285,15 +319,15 @@ export class QuantitativeDisplay extends HTMLElement {
   getReferenceRanges(unit, value) {
     // Define clinical/population reference ranges for common measurements
     const ranges = {
-      'BMI': { min: 16, max: 40 },
-      'kg': { min: 40, max: 120 },  // Body weight
-      'cm': { min: 140, max: 200 }, // Height
-      'mmHg': value > 50 ? { min: 90, max: 180 } : { min: 60, max: 110 }, // BP
+      BMI: { min: 16, max: 40 },
+      kg: { min: 40, max: 120 }, // Body weight
+      cm: { min: 140, max: 200 }, // Height
+      mmHg: value > 50 ? { min: 90, max: 180 } : { min: 60, max: 110 }, // BP
       'mg/dL': { min: 100, max: 300 }, // Cholesterol/glucose
-      'years': { min: 0, max: 100 },
+      years: { min: 0, max: 100 },
       '%': { min: 0, max: 100 },
-      'score': { min: 0, max: 10 },
-      'ratio': { min: 0.5, max: 1.5 },
+      score: { min: 0, max: 10 },
+      ratio: { min: 0.5, max: 1.5 },
       'kcal/day': { min: 1000, max: 3000 },
       'g/dL': { min: 10, max: 20 },
       'thousand/μL': { min: 0, max: 15 },
@@ -321,7 +355,7 @@ export class QuantitativeDisplay extends HTMLElement {
       const normal = getPosition(25);
       const overweight = getPosition(30);
       const obese = getPosition(35);
-      
+
       zones.push(`
         <rect x="20" y="55" width="${underweight - 20}" height="10" fill="#ffc107" opacity="0.15"/>
         <text x="${(20 + underweight) / 2}" y="52" class="zone-label" text-anchor="middle">Underweight</text>
@@ -341,7 +375,7 @@ export class QuantitativeDisplay extends HTMLElement {
       const elevated = getPosition(130);
       const stage1 = getPosition(140);
       const stage2 = getPosition(180);
-      
+
       zones.push(`
         <rect x="20" y="55" width="${normal - 20}" height="10" fill="#28a745" opacity="0.2"/>
         <text x="${(20 + normal) / 2}" y="52" class="zone-label" text-anchor="middle">Normal</text>
@@ -359,7 +393,7 @@ export class QuantitativeDisplay extends HTMLElement {
       // Total cholesterol
       const desirable = getPosition(200);
       const borderline = getPosition(240);
-      
+
       zones.push(`
         <rect x="20" y="55" width="${desirable - 20}" height="10" fill="#28a745" opacity="0.2"/>
         <text x="${(20 + desirable) / 2}" y="52" class="zone-label" text-anchor="middle">Desirable</text>
