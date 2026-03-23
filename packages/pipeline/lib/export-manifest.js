@@ -1,10 +1,13 @@
 import fs from 'fs/promises';
 import path from 'path';
 import duckdb from 'duckdb';
+import { loadAllowlist } from './catalog.js';
 
 const OUTPUT_DIR = process.env.OUTPUT_DIR || '/output';
 
 export async function exportTraitManifestJSON() {
+  const tier = process.env.ASILI_TIER || 'tier1_public';
+  const allowlist = await loadAllowlist(tier);
   const DB_PATH = path.join(OUTPUT_DIR, 'trait_manifest.db');
   const db = new duckdb.Database(DB_PATH);
   const conn = db.connect();
@@ -41,7 +44,17 @@ export async function exportTraitManifestJSON() {
     traits: {}
   };
 
+  const PACKS_DIR = path.join(OUTPUT_DIR, 'packs');
+
   for (const trait of traits) {
+    if (allowlist && !allowlist.has(trait.trait_id)) continue;
+
+    const parquetFile = `${trait.trait_id.replace(/:/g, '_')}_hg38.parquet`;
+    try {
+      await fs.access(path.join(PACKS_DIR, parquetFile));
+    } catch {
+      continue; // skip traits without built parquet files
+    }
     const pgsScores = await new Promise((resolve, reject) => {
       conn.all(
         `

@@ -2,7 +2,7 @@
 
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { loadTraitCatalog, getTraitConfigs } from './lib/catalog.js';
+import { getTraitConfigs } from './lib/catalog.js';
 import { generateTraitPack } from './lib/processor.js';
 import { closeManifestConnection } from './lib/trait-manifest.js';
 import { exportTraitManifestJSON } from './lib/export-manifest.js';
@@ -23,10 +23,10 @@ async function main() {
   const errors = [];
 
   try {
-    // Load trait catalog
-    logger.log('📋 Loading trait catalog...');
-    const catalog = await loadTraitCatalog();
-    const traitConfigs = await getTraitConfigs(catalog);
+    // Load traits from DB, filtered by tier
+    const tier = process.env.ASILI_TIER || 'tier1_public';
+    logger.log(`📋 Loading traits (tier: ${tier})...`);
+    const traitConfigs = await getTraitConfigs(tier);
 
     logger.log(`📊 Processing ${Object.keys(traitConfigs).length} traits`);
     logger.log('');

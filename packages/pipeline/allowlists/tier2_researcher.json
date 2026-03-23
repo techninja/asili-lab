@@ -1,0 +1,5 @@
+{
+  "name": "Tier 2 - Researcher",
+  "description": "All processed traits available. Wildcard tier.",
+  "traits": ["*"]
+}

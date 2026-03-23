@@ -144,3 +144,7 @@ Asili is designed with privacy as the foundational principle:
 - **User Control**: You own and control all data and results
 
 Your DNA data is yours alone. Asili simply provides the tools to analyze it privately.
+
+## Getting Started
+
+See [QUICKSTART.md](QUICKSTART.md) for setup from a fresh clone.

@@ -37,6 +37,11 @@ async function decompressFile(filePath) {
   });
 }
 
+export function terminateWorkerPool() {
+  for (const w of workers) w.terminate();
+  workers.length = 0;
+}
+
 export async function calculateWeightStats(pgsId, pgsApiClient) {
   try {
     const filePath = await pgsApiClient.getPGSFile(pgsId);
