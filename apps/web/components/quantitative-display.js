@@ -270,7 +270,7 @@ export class QuantitativeDisplay extends HTMLElement {
                   marginBox = `<rect x="${mStart}" y="55" width="${Math.max(0, mEnd - mStart)}" height="10" fill="${isUser ? '#007acc' : '#999'}" opacity="0.15" rx="2"/>`;
                 }
                 return `
-              <g class="individual-group" data-name="${ind.name || ind.emoji}" data-value="${ind.value.toFixed(2)}" data-unit="${unit}">
+              <g class="individual-group" data-name="${ind.name || ind.emoji}" data-value="${ind.value?.toFixed(2) ?? ''}" data-unit="${unit}">
                 ${marginBox}
                 <line x1="${displayX}" y1="${isUser ? 30 : 105}" x2="${dataX}" y2="60" class="${isUser ? 'user-line' : 'other-line'}"/>
                 <circle cx="${dataX}" cy="60" r="${isUser ? 6 : 4}" class="${isUser ? 'user-marker' : 'other-marker'}" opacity="${isUser ? 1 : 0.6}"/>

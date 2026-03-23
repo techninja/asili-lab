@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "@duckdb/duckdb-wasm": "^1.28.0",
+    "chart.js": "^4.5.1",
     "esbuild": "^0.27.0",
     "zustand": "^4.4.0"
   }
