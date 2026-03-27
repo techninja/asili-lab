@@ -100,3 +100,8 @@ server-data/
 
 # Python virtual environment
 .venv
+
+# Downloaded tools (managed by pnpm imputation setup)
+tools/beagle/
+tools/eagle/
+tools/liftover/
