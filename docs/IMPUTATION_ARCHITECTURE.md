@@ -19,8 +19,8 @@ graph TB
         C[Position 1100: C/T<br/>KNOWN from 23andMe]
     end
 
-    subgraph "Reference Panel: 1000 Genomes"
-        D[2,504 people with<br/>complete genomes]
+    subgraph "Reference Panel: TOPMed"
+        D[3,202 people with<br/>complete genomes]
     end
 
     A --> E{Pattern Matching}
@@ -44,19 +44,21 @@ flowchart TD
     end
 
     subgraph Phase2["Phase 2: User Upload Pipeline"]
-        Upload[User uploads<br/>23andMe file<br/>~600K variants] --> JSON[Convert to JSON<br/>server-data/variants/]
-        JSON --> VCF[Generate VCF.gz<br/>Filter: A,C,G,T only]
-        VCF --> Beagle[Beagle 5.4 Imputation<br/>+ 1000G Reference Panel]
-        Beagle --> Dense[Dense VCF.gz<br/>~10M variants per chr<br/>with dosage scores]
-        Dense --> Filter[Filter to Target List<br/>bcftools view -R]
-        Filter --> Sparse[Sparse BCF<br/>Only PGS-relevant variants]
-        Sparse --> Parquet[User Parquet<br/>variant_id | dosage]
+        Upload[User uploads<br/>23andMe/AncestryDNA file<br/>~600K variants] --> JSON[Convert to JSON<br/>server-data/variants/]
+        JSON --> RefLookup[Build REF allele lookup<br/>from reference panel]
+        RefLookup --> VCF[Generate VCF.gz<br/>REF/ALT from panel + strand flip detection]
+        VCF --> Eagle[Eagle2 Pre-Phasing<br/>per chromosome against reference panel]
+        Eagle --> Phased[Phased VCF.gz<br/>haplotype-resolved genotypes]
+        Phased --> Beagle[Beagle 5.4 Imputation<br/>impute-only mode + TOPMed]
+        Beagle --> Dense[Dense VCF.gz<br/>~10M variants per chr<br/>with dosage + GP quality]
+        Dense --> Filter[max GP ≥ 0.5 quality filter]
+        Filter --> Parquet[User Parquet<br/>variant_id | dosage | imputation_quality]
     end
 
     subgraph Phase3["Phase 3: Scoring Engine"]
-        Parquet --> Join[Inner Join on variant_id]
+        Parquet --> Join[Inner Join on chr:pos]
         ParquetDB --> Join
-        Join --> Calc["PGS = Σ(weight × dosage)"]
+        Join --> Calc["PGS = Σ(weight × dosage × √GP)"]
         Calc --> Results[100+ trait scores<br/>with percentiles]
     end
 
@@ -71,7 +73,7 @@ flowchart TD
 
 ### Step 1: Phasing (Haplotype Reconstruction)
 
-Your DNA has two copies of each chromosome (one from each parent). Phasing separates them:
+Your DNA has two copies of each chromosome (one from each parent). Eagle2 separates them using a reference panel, which is critical for accurate imputation of sparse consumer array data:
 
 ```
 Before Phasing (Genotypes):
@@ -86,7 +88,7 @@ Paternal: G - T - G
 
 ### Step 2: Reference Panel Matching
 
-Beagle compares your haplotypes to 2,504 fully-sequenced genomes from 1000 Genomes Project:
+Beagle takes Eagle2's phased haplotypes and compares them to the reference panel to impute missing positions:
 
 ```mermaid
 graph LR
@@ -211,21 +213,56 @@ graph TD
 
 ### Key Tools
 
-1. **Beagle 5.4**: Hidden Markov Model (HMM) for phasing and imputation
-2. **1000 Genomes Phase 3**: Reference panel with 2,504 individuals, 84.7M variants
-3. **bcftools**: Fast VCF filtering and querying
-4. **DuckDB/Parquet**: Columnar storage for efficient PGS calculations
+1. **Eagle 2.4.1**: Reference-based phasing optimized for sparse array data
+2. **Beagle 5.4**: Hidden Markov Model (HMM) for imputation using pre-phased haplotypes
+3. **TOPMed Freeze 8**: Reference panel with 3,202 individuals, ~300M variants
+4. **bcftools**: Fast VCF filtering and querying
+5. **DuckDB/Parquet**: Columnar storage for efficient PGS calculations
 
 ### Quality Control
 
-```python
-# Beagle outputs INFO/DR2 (dosage R²) for quality
-# DR2 > 0.8 = high confidence imputation
-# DR2 < 0.3 = low confidence, exclude from scoring
+Beagle outputs INFO/DR2 (dosage R²) measuring imputation confidence per variant.
+However, DR2 is unreliable for single-sample imputation (N=1 means no cross-sample
+correlation to estimate). Instead, the pipeline derives quality from **max(GP)** —
+the posterior probability of the most likely genotype.
 
-# We keep all dosages but weight by confidence:
-PGS = Σ(weight × dosage × sqrt(DR2))
+1. **Filtering**: Variants with max(GP) < 0.5 are dropped (Beagle is guessing)
+2. **Scoring**: Imputed variant contributions are weighted by √(max(GP))
+
+```python
+# Genotyped variants (from array): full weight
+contribution = weight × dosage
+
+# Imputed variants: weighted by confidence
+contribution = weight × dosage × sqrt(max_GP)
 ```
+
+### REF/ALT Assignment
+
+Consumer arrays (23andMe, AncestryDNA) report alleles without REF/ALT distinction.
+The pipeline resolves this by querying the reference panel:
+
+1. **REF lookup**: Each user variant position is matched against the reference panel to determine the true REF allele
+2. **Strand flip detection**: If neither allele matches REF but their complements do (A↔T, C↔G), alleles are flipped to the correct strand
+3. **Homozygous ALT**: When both user alleles differ from REF, the variant is correctly encoded as GT=1/1 (not 0/0)
+
+This is critical for Beagle — incorrect REF/ALT assignment degrades phasing accuracy across entire LD blocks.
+
+### Beagle Tuning for Consumer Arrays
+
+```bash
+java -Xmx8g -jar beagle.jar \
+  gt=user.vcf.gz \
+  ref=chr1.topmed.vcf.gz \
+  out=imputed \
+  impute=true gp=true ap=true \
+  ne=20000 err=0.0005 \
+  seed=42 nthreads=8
+```
+
+- `ne=20000`: Effective population size tuned for sparse consumer arrays (default 1M is for WGS)
+- `err=0.0005`: Genotyping error rate accounting for consumer array noise
+- `ap=true`: Allele probabilities for more accurate dosage estimates
 
 ## Privacy Preservation
 
@@ -236,7 +273,7 @@ graph TD
     C --> D[Filtered to PGS Only]
     D --> E[Stored Locally]
 
-    F[1000G Reference] -.->|Downloaded once| B
+    F[TOPMed Reference] -.->|Downloaded once| B
 
     G[❌ Never Uploaded] -.-> A
     G -.-> C
@@ -249,26 +286,27 @@ graph TD
 
 All imputation happens **on your hardware**:
 
-- Reference panel downloaded once (~50 GB)
+- Reference panel downloaded once (~150 GB)
 - No data sent to external servers
 - Results stored in local IndexedDB/filesystem
 
 ## Limitations
 
-1. **Indels excluded**: Beagle optimized for SNPs, 23andMe uses ambiguous I/D codes
+1. **Indels excluded**: Beagle optimized for SNPs, consumer arrays use ambiguous I/D codes
 2. **Rare variants**: Imputation accuracy drops for MAF < 1%
-3. **Ancestry mismatch**: 1000G is diverse but may not capture all populations equally
-4. **Computational cost**: 2 hours vs. 30 seconds for direct scoring
+3. **Ancestry mismatch**: Reference panels may not capture all populations equally
+4. **Computational cost**: 2-3 hours vs. 30 seconds for direct scoring
+5. **A/T and C/G ambiguity**: Strand-ambiguous SNPs where both alleles are complements cannot be resolved with certainty
 
 ## Future Improvements
 
-- **TOPMed reference panel**: 97,256 genomes, better rare variant coverage
 - **Ancestry-specific panels**: African, East Asian, South Asian references
-- **Indel normalization**: Convert 23andMe I/D codes using reference genome
+- **Indel normalization**: Convert consumer array I/D codes using reference genome
 - **GPU acceleration**: Reduce imputation time to ~20 minutes
+- **Cloud imputation service**: Ephemeral EC2 with client-side encryption (see [CLOUD_IMPUTATION_TODO.md](CLOUD_IMPUTATION_TODO.md))
 
 ## References
 
 - Browning BL, et al. (2021) "A one-penny imputed genome from next-generation reference panels" _Am J Hum Genet_ 103(3):338-348
-- 1000 Genomes Project Consortium (2015) "A global reference for human genetic variation" _Nature_ 526:68-74
+- Taliun D, et al. (2021) "Sequencing of 53,831 diverse genomes from the NHLBI TOPMed Program" _Nature_ 590:290-299
 - Lambert SA, et al. (2021) "The Polygenic Score Catalog" _Nat Genet_ 53:1243-1251

@@ -19,12 +19,17 @@ const LD_AWARE_METHODS = [
   'DBSLMM'
 ];
 
-// Methods that produce independent variants
+// Methods that produce independent variants (already clumped)
 const CLUMPED_METHODS = [
   'Clumping + Thresholding',
   'C+T',
   'Pruning + Thresholding',
-  'P+T'
+  'P+T',
+  'PRSice',
+  'PRSice-2',
+  'PRSmix',
+  'PRSmixPlus',
+  'PRSauto'
 ];
 
 /**
@@ -60,10 +65,14 @@ export function needsClumping(methodName, variantCount) {
   if (isLDAware(methodName)) return false;
 
   // Small PGS (<100 variants) unlikely to have LD issues
-  // Only skip clumping if we KNOW it's small
   if (variantCount && variantCount > 0 && variantCount < 100) return false;
 
-  // Unknown method or missing variant count - default to clumping for safety
+  // Large PGS (>100K variants) are genome-wide scores that inherently
+  // account for LD through their construction method, even if the method
+  // name isn't recognized. Distance-based clumping would destroy them.
+  if (variantCount && variantCount > 100000) return false;
+
+  // Unknown method with moderate variant count - default to clumping
   return true;
 }
 
@@ -84,6 +93,8 @@ export function getLDStatus(scoreData) {
       ? `Method "${method}" accounts for LD`
       : needs_clumping
         ? `Method "${method}" may have LD inflation`
-        : 'Small variant count (<100)'
+        : variantCount > 100000
+          ? `Genome-wide score (${variantCount.toLocaleString()} variants)`
+          : 'Small variant count (<100)'
   };
 }

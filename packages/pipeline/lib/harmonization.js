@@ -13,7 +13,9 @@ export const FORMAT_TYPES = {
 };
 
 /**
- * Detect PGS file format based on column headers
+ * Detect PGS file format based on column headers.
+ * Harmonized files (with hm_chr/hm_pos) are preferred — they provide
+ * GRCh38 coordinates regardless of the original genome build.
  */
 export function detectFormat(columns) {
   // Check dosage format first (more specific)
@@ -25,6 +27,16 @@ export function detectFormat(columns) {
     columns.includes('dosage_2_weight')
   ) {
     return FORMAT_TYPES.DOSAGE_WEIGHTS;
+  }
+
+  // Harmonized GRCh38 files — detect BEFORE standard formats so we
+  // always use hm_chr/hm_pos (hg38) instead of chr_position (often hg19)
+  if (columns.includes('hm_chr') && columns.includes('hm_pos')) {
+    return FORMAT_TYPES.RSID_HARMONIZED;
+  }
+
+  if (columns.includes('rsID') && columns.includes('is_haplotype')) {
+    return FORMAT_TYPES.HLA_ALLELE;
   }
 
   if (
@@ -39,14 +51,6 @@ export function detectFormat(columns) {
     !columns.includes('rsID')
   ) {
     return FORMAT_TYPES.STANDARD_SNP_NO_RSID;
-  } else if (columns.includes('rsID') && columns.includes('is_haplotype')) {
-    return FORMAT_TYPES.HLA_ALLELE;
-  } else if (
-    columns.includes('rsID') &&
-    columns.includes('hm_chr') &&
-    columns.includes('hm_pos')
-  ) {
-    return FORMAT_TYPES.RSID_HARMONIZED;
   } else if (
     columns.includes('rsID') &&
     !columns.includes('chr_name') &&
@@ -143,24 +147,31 @@ export function generateColumnExpressions(formatType, columns) {
 
       const hasOtherAllele = columns.includes('other_allele');
       const hasHmOther = columns.includes('hm_inferOtherAllele');
-      const otherExpr = hasOtherAllele
-        ? otherAlleleCol
-        : hasHmOther
-          ? hmOtherAlleleCol
-          : "''";
 
-      const variantId =
-        hasOtherAllele || hasHmOther
-          ? `CONCAT(${hmChrCol}, ':', ${hmPosCol}, ':', ${effectAlleleCol}, ':', ${otherExpr})`
-          : `CONCAT(${hmChrCol}, ':', ${hmPosCol}, ':', ${effectAlleleCol})`;
+      // Prefer explicit other_allele, fall back to hm_inferOtherAllele
+      const otherExpr = hasOtherAllele
+        ? `NULLIF(${otherAlleleCol}, '')`
+        : hasHmOther
+          ? `NULLIF(${hmOtherAlleleCol}, '')`
+          : 'NULL';
+
+      // variant_id: chr:pos:effect:other (drop rows where hm_pos is null/empty)
+      const variantId = `CONCAT(
+                REPLACE(${hmChrCol}, 'chr', ''), ':',
+                ${hmPosCol}, ':',
+                ${effectAlleleCol}, ':',
+                COALESCE(${otherExpr}, '')
+            )`;
 
       return {
         variant_id: variantId,
-        chr_name: hmChrCol,
+        chr_name: `REPLACE(${hmChrCol}, 'chr', '')`,
         chr_position: `TRY_CAST(${hmPosCol} AS BIGINT)`,
         effect_allele: effectAlleleCol,
         other_allele: otherExpr,
-        effect_weight: `TRY_CAST(${effectWeightCol} AS DOUBLE)`
+        effect_weight: `TRY_CAST(${effectWeightCol} AS DOUBLE)`,
+        // Filter expression: only keep rows with valid hm_pos
+        _filter: `${hmPosCol} IS NOT NULL AND ${hmPosCol} != '' AND ${hmPosCol} != '0'`
       };
     }
 
@@ -262,6 +273,7 @@ export function generateInsertSQL(
   }
 
   // Original logic for files with other_allele or no gnomAD
+  const extraFilter = expressions._filter ? `AND ${expressions._filter}` : '';
   return `
         INSERT INTO pgs_staging 
         SELECT 
@@ -282,6 +294,7 @@ export function generateInsertSQL(
         WHERE ${expressions.effect_allele} IS NOT NULL 
           AND ${expressions.effect_allele} != ''
           AND ${weightCol} IS NOT NULL
-          AND ${weightCol} != '';
+          AND ${weightCol} != ''
+          ${extraFilter};
     `;
 }

@@ -33,7 +33,7 @@ export class UnifiedDNASource extends DNASource {
   async loadDNA() {
     if (this._dnaLoaded) return;
     await this.db.query(
-      `CREATE OR REPLACE TABLE _dna AS SELECT chr, pos, variant_id AS user_variant_id, genotype_dosage, imputed FROM '${this.path}'`
+      `CREATE OR REPLACE TABLE _dna AS SELECT chr, pos, variant_id AS user_variant_id, genotype_dosage, imputed, imputation_quality FROM '${this.path}'`
     );
     this._dnaLoaded = true;
   }
@@ -78,7 +78,10 @@ export class UnifiedDNASource extends DNASource {
       CREATE OR REPLACE TEMP TABLE _matched AS
       SELECT t.pgs_id, t.chr, t.effect_weight,
              d.genotype_dosage AS dosage, d.imputed,
-             t.effect_weight * d.genotype_dosage AS contribution
+             t.effect_weight * d.genotype_dosage
+               * CASE WHEN d.imputed AND d.imputation_quality IS NOT NULL
+                      THEN SQRT(d.imputation_quality) ELSE 1.0 END
+               AS contribution
       FROM '${traitUrl}' t
       INNER JOIN _dna d ON t.chr = d.chr AND t.pos = d.pos
     `);

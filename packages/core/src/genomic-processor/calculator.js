@@ -412,8 +412,14 @@ export class SharedRiskCalculator {
         }
 
         if (!details.insufficientData && !details.insufficientEmpiricalData) {
-          totalWeightedZScore += details.zScore * performanceWeight;
-          totalWeight += performanceWeight;
+          // Exclude PGS with extreme z-scores from trait aggregation —
+          // >5σ almost always means incompatible normalization stats,
+          // not genuine extreme risk
+          const absZ = Math.abs(details.zScore);
+          if (absZ <= 5) {
+            totalWeightedZScore += details.zScore * performanceWeight;
+            totalWeight += performanceWeight;
+          }
         }
       } else {
         details.zScore = null;

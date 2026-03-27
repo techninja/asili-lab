@@ -63,10 +63,11 @@ The minimum threshold is 8 matched variants — below this, the PGS is marked `i
 
 ### 5. Normalization — 10% weight
 
-Whether population statistics (gnomAD mean/SD) exist for percentile calculation.
+Whether population statistics (TOPMed mean/SD) exist for percentile calculation.
 
-- Has empirical mean/SD: **10 pts**
-- Missing: **5 pts**
+- Has empirical mean/SD (≥80% TOPMed AF coverage): **10 pts**
+- Has partial mean/SD (5-80% coverage): **7 pts**
+- Missing (calculator uses theoretical fallback): **5 pts**
 
 ### 6. Signal Strength — 20% weight
 
@@ -82,7 +83,7 @@ Formula: `min(|z| / 3, 1) × 20`
 | 1σ      | 6.7        | Moderate            |
 | 2σ      | 13.3       | Strong              |
 | 3σ+     | 20         | Capped at maximum   |
-| >5σ     | **0**      | Bad stats penalty   |
+| >5σ     | **0**      | Bad stats penalty — also excluded from trait z-score |
 
 ## Weight Summary
 
@@ -104,51 +105,33 @@ Informativeness (20%):
 
 ## Normalization: How Z-Scores Are Calculated
 
-Z-scores convert raw PGS sums into population-relative measures. The normalization approach was overhauled during the genomic processor refactor (see [REFACTOR_GENOMIC_PROCESSOR.md](REFACTOR_GENOMIC_PROCESSOR.md)).
+Z-scores convert raw PGS sums into population-relative measures.
 
-### The Old Bug (coverage-scaled normalization)
+### Normalization Source: TOPMed Allele Frequencies
 
-The old `shared-calculator.js` scaled gnomAD mean and SD by coverage:
+Mean and SD are computed from the theoretical distribution using allele frequencies from the TOPMed imputation reference panel (~70M variants). See [PGS_NORMALIZATION.md](PGS_NORMALIZATION.md) for details.
 
-```js
-// OLD CODE (BROKEN)
-sd = sd * coverage;
-mean = mean * coverage;
-```
+PGS with <5% TOPMed AF coverage get NULL normalization — the calculator falls back to estimating SD from the sum of squared weights (assumes af=0.5).
 
-This produced **297 PGS with |z| > 5σ** across all traits — statistically impossible for a healthy person. The scaling assumes the matched variant subset is a random sample of the full PGS, which it isn't (it's biased by genotyping chip + imputation panel).
+### >5σ Exclusion from Trait Z-Score
 
-### The Fix (unscaled empirical stats)
+PGS with |z| > 5 are:
+1. Given **0 signal points** in the quality score (prevents bad-stats PGS from ranking high)
+2. **Excluded from the weighted trait-level z-score** (prevents one broken PGS from dominating the user-facing result)
 
-The new `calculator.js` never scales mean/SD by coverage:
-
-```js
-// NEW CODE (CORRECT)
-if (hasEmpiricalData && coverage >= 0.05) {
-  z = (rawScore - mean) / sd; // Unscaled
-} else {
-  z = rawScore / theoreticalSD; // Fallback
-}
-```
-
-Coverage affects **confidence** (quality score), not the z-score calculation. A person's genetic risk doesn't change because we measured fewer variants — we're just less certain about it.
-
-### When Unscaled Stats Are Still Wrong
-
-For PGS where the gnomAD stats were computed on a completely different variant set than the parquet (e.g., PGS was LD-clumped from 3.87M → 11K variants, but gnomAD stats cover the original 3.87M), the unscaled z-score will be extreme because the raw score (sum over 11K variants) is incomparable to the mean (expected sum over 3.87M variants).
-
-The >5σ signal penalty handles this: these PGS get 0 signal points, pushing them down in quality ranking. The long-term fix is Rule 4 from the refactor spec: recompute gnomAD stats against the actual parquet variants.
+The per-PGS z-score is still stored for transparency.
 
 ### Normalization Decision Tree
 
 ```
-Has empirical mean/SD?
-├── YES: Coverage ≥ 5%?
-│   ├── YES → Use empirical stats unscaled
-│   │         (coverage affects quality score, not z-score)
+Has empirical mean/SD in manifest?
+├── YES: User coverage ≥ 5%?
+│   ├── YES: naiveZ > 20 AND user coverage < 80%?
+│   │   ├── YES → Incompatible stats, use theoretical
+│   │   └── NO  → Use empirical stats unscaled
 │   └── NO  → Use theoretical normalization
-│             (mean=0, sd=√(Σw²×0.5))
 └── NO → Use theoretical normalization
+         (mean=0, sd=√(Σw²×0.5))
 ```
 
 ## Real-World Example: BMI-Adjusted Waist-Hip Ratio (EFO_0007788)

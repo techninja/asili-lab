@@ -51,29 +51,48 @@ ASILI_TIER=local pnpm traits refresh
 
 This is the slow step — each trait's PGS scores are fetched, filtered, and analyzed. Results are cached, so subsequent runs only process new traits.
 
-### 4. Calculate reference statistics
+### 4. Run the ETL pipeline
 
-Computes population normalization parameters (mean/SD) for each PGS score. Uses gnomAD data if available, otherwise falls back to theoretical defaults.
-
-```bash
-pnpm pgs refstats batch
-```
-
-This writes `norm_mean` and `norm_sd` to the `pgs_scores` table, which the scoring engine uses to z-score normalize results.
-
-### 5. Run the ETL pipeline
-
-Builds parquet files and the frontend manifest from the processed trait data.
+Builds parquet files and the frontend manifest from the processed trait data. Downloads harmonized GRCh38 scoring files from PGS Catalog.
 
 ```bash
 pnpm etl local
 ```
 
 This generates:
-- `data_out/packs/*.parquet` — one file per trait
+- `data_out/packs/*.parquet` — one file per trait (hg38 coordinates)
 - `data_out/trait_manifest.json` — frontend trait list (only includes traits with built parquet files)
 
-### 6. Start the server
+### 5. Calculate reference statistics
+
+Computes population normalization parameters (mean/SD) for each PGS score using TOPMed allele frequencies. First run extracts AF from the TOPMed panel (~7 min), then joins against all pack variants.
+
+Requires the TOPMed reference panel (`pnpm imputation setup`).
+
+```bash
+pnpm pgs refstats batch
+```
+
+This writes `norm_mean` and `norm_sd` to the `pgs_scores` table. PGS with <5% TOPMed AF coverage are left NULL — the scoring engine uses a theoretical fallback for those.
+
+### 6. Calculate scores
+
+Run PGS calculations for all individuals and traits:
+
+```bash
+# All individuals × all traits
+pnpm scores calc all
+
+# Single trait, all individuals
+pnpm scores calc EFO_0004340
+
+# Interactive selection
+pnpm scores calc
+```
+
+Results are stored in `data_out/risk_scores.db`.
+
+### 7. Start the server
 
 ```bash
 pnpm start
@@ -123,6 +142,7 @@ rm -rf data_out/
 pnpm traits seed
 pnpm traits sync
 pnpm traits refresh
-pnpm pgs refstats batch
 pnpm etl local
+pnpm pgs refstats batch
+pnpm scores calc all
 ```

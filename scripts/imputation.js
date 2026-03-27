@@ -9,73 +9,37 @@ const PIPELINE_DIR = './packages/pipeline';
 const DATA_DIR = './data_out/imputation';
 
 const COMMANDS = {
-  'extract-positions': {
-    fn: extractPGSPositions,
-    desc: 'Extract unique positions from PGS traits'
-  },
-  setup: { fn: setupBeagle, desc: 'Download Beagle and 1000G reference panel' },
-  'setup-topmed': {
-    fn: setupTOPMed,
-    desc: 'Download TOPMed reference panel (150GB, 70% coverage)'
-  },
+  setup: { fn: setupImputation, desc: 'Download Beagle, Eagle2, and TOPMed reference panel' },
+
   impute: { fn: imputeUser, desc: 'Run full imputation pipeline for user' },
   'verify-panel': {
     fn: verifyPanel,
     desc: 'Check reference panel and estimate coverage'
   },
+  'optimize-panel': {
+    fn: optimizePanel,
+    desc: 'Convert reference panel to BCF for faster imputation'
+  },
   status: { fn: showStatus, desc: 'Show system status' },
   clean: { fn: cleanData, desc: 'Clean imputation data' }
 };
 
-async function setupBeagle() {
-  console.log('\n📦 Setting up Beagle imputation system...\n');
+async function setupImputation() {
+  console.log('\n📦 Setting up imputation system (Eagle2 + Beagle + TOPMed)...\n');
 
-  // First, setup Beagle + 1000 Genomes
   await new Promise((resolve, reject) => {
-    const proc = spawn('./scripts/setup-beagle.sh', [], { stdio: 'inherit' });
+    const proc = spawn('./scripts/setup-imputation.sh', [], { stdio: 'inherit' });
     proc.on('close', code =>
       code === 0 ? resolve() : reject(new Error(`Exit code ${code}`))
     );
   });
-
-  // Ask if user wants TOPMed
-  console.log('\n📊 1000 Genomes setup complete (2.2% PGS coverage)\n');
-
-  const { wantTopmed } = await prompts({
-    type: 'confirm',
-    name: 'wantTopmed',
-    message: 'Download TOPMed panel for 60-80% coverage? (150GB, 2-6 hours)',
-    initial: true
-  });
-
-  if (wantTopmed) {
-    await setupTOPMed();
-  } else {
-    console.log(
-      '\n💡 You can download TOPMed later with: pnpm imputation setup-topmed\n'
-    );
-  }
 }
 
-async function setupTOPMed() {
-  console.log('\n🧬 Downloading TOPMed Reference Panel\n');
-  console.log('⚠️  This will download ~150GB of data');
-  console.log('⏱️  Estimated time: 2-6 hours depending on connection');
-  console.log('📊 Expected PGS coverage: 60-80% (vs 2.2% with 1000G)\n');
-
-  const { confirm } = await prompts({
-    type: 'confirm',
-    name: 'confirm',
-    message: 'Continue with TOPMed download?',
-    initial: false
-  });
-
-  if (!confirm) return;
+async function optimizePanel() {
+  console.log('\n⚡ Converting reference panel VCFs to BCF for faster I/O...\n');
 
   return new Promise((resolve, reject) => {
-    const proc = spawn('./scripts/download_topmed_panel.sh', [], {
-      stdio: 'inherit'
-    });
+    const proc = spawn('./scripts/convert_panel_bcf.sh', [], { stdio: 'inherit' });
     proc.on('close', code =>
       code === 0 ? resolve() : reject(new Error(`Exit code ${code}`))
     );
@@ -125,53 +89,15 @@ async function imputeUser() {
     return;
   }
 
-  // Check available reference panels
-  const panels = [];
-  try {
-    await fs.access('./cache/topmed_reference/chr1.topmed.vcf.gz');
-    panels.push({
-      name: 'TOPMed',
-      path: './cache/topmed_reference',
-      coverage: '60-80%',
-      time: '2-3 hours'
-    });
-  } catch {
-    /* ignore */
-  }
+  const panelDir = './cache/topmed_reference';
 
   try {
-    await fs.access('./cache/1000g_reference/chr1.1kg.phase3.v5a.vcf.gz');
-    panels.push({
-      name: '1000 Genomes',
-      path: './cache/1000g_reference',
-      coverage: '2.2%',
-      time: '45-60 min'
-    });
+    await fs.access(`${panelDir}/chr1.topmed.vcf.gz`);
   } catch {
-    /* ignore */
-  }
-
-  if (panels.length === 0) {
     console.log(
-      '\n❌ No reference panel found. Run "pnpm imputation setup" first.\n'
+      '\n❌ TOPMed reference panel not found. Run "pnpm imputation setup" first.\n'
     );
     return;
-  }
-
-  let selectedPanel = panels[0]; // Default to first (TOPMed if available)
-
-  if (panels.length > 1) {
-    const { panel } = await prompts({
-      type: 'select',
-      name: 'panel',
-      message: 'Select reference panel:',
-      choices: panels.map(p => ({
-        title: `${p.name} (${p.coverage} coverage, ~${p.time})`,
-        value: p
-      }))
-    });
-    if (!panel) return;
-    selectedPanel = panel;
   }
 
   const { selected } = await prompts({
@@ -186,11 +112,9 @@ async function imputeUser() {
 
   if (!selected) return;
 
-  console.log(`\n🧬 Running Beagle imputation for ${selected.name}`);
-  console.log(
-    `📊 Panel: ${selectedPanel.name} (${selectedPanel.coverage} coverage)`
-  );
-  console.log(`⏱️  Estimated time: ${selectedPanel.time}\n`);
+  console.log(`\n🧬 Running Eagle2 phasing + Beagle imputation for ${selected.name}`);
+  console.log('📊 Panel: TOPMed (60-80% coverage)');
+  console.log('⏱️  Estimated time: 1-2 hours\n');
 
   return new Promise((resolve, reject) => {
     const proc = spawn(
@@ -198,23 +122,8 @@ async function imputeUser() {
       ['scripts/impute_user.py', selected.path, selected.fullId],
       {
         stdio: 'inherit',
-        env: { ...process.env, REF_PANEL_DIR: selectedPanel.path }
+        env: { ...process.env, REF_PANEL_DIR: panelDir }
       }
-    );
-    proc.on('close', code =>
-      code === 0 ? resolve() : reject(new Error(`Exit code ${code}`))
-    );
-  });
-}
-
-async function extractPGSPositions() {
-  console.log('\n📍 Extracting unique positions from PGS trait files...\n');
-
-  return new Promise((resolve, reject) => {
-    const proc = spawn(
-      '.venv/bin/python3',
-      ['scripts/extract_pgs_positions.py'],
-      { stdio: 'inherit' }
     );
     proc.on('close', code =>
       code === 0 ? resolve() : reject(new Error(`Exit code ${code}`))

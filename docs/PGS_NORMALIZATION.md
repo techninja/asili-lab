@@ -2,121 +2,95 @@
 
 ## Problem
 
-Different PGS scores use different weight scales:
+Different PGS scores use different weight scales — raw phenotype units, standardized betas, log-odds. A raw sum is not comparable across PGS or interpretable on its own.
 
-- **snpnet**: Raw phenotype units (e.g., impedance in ohms, BMI units)
-- **LDpred2**: Standardized betas (σ units)
-- **Effect allele counts**: Integer weights
+**Z-score normalization** converts each PGS raw score to standard deviations from the population mean:
 
-Combining raw scores from different scales produces meaningless results. For example:
-
-- PGS003904 (body impedance): weights range from -3.91 to 4.27
-- PGS003509 (body fat %): weights in small standardized units
-
-A combined score of -134.26 from raw weights is not interpretable.
-
-## Solution
-
-**Z-score normalization**: Convert each PGS raw score to standard deviations from the mean.
-
-Formula: `z = (raw_score - mean) / sd`
-
-This makes all PGS scores comparable:
-
-- z = 0: Average risk
-- z = 1: One standard deviation above average
-- z = 2: Two standard deviations above average
-
-## Implementation
-
-### 1. Schema Changes
-
-**trait-catalog-schema.json**: PGS IDs can now be objects with normalization parameters:
-
-```json
-{
-  "pgs_ids": [
-    "PGS000001",
-    {
-      "id": "PGS003904",
-      "norm_mean": -5.3934e-4,
-      "norm_sd": 1.858e-1
-    }
-  ]
-}
+```
+z = (raw_score - mean) / sd
 ```
 
-### 2. Pipeline Changes
+## How Mean/SD Are Computed
 
-**packages/pipeline/lib/weight-stats.js**: Calculates weight statistics from PGS files.
+The theoretical distribution under Hardy-Weinberg equilibrium:
 
-**packages/pipeline/manage-traits.js**:
+```
+E[PGS] = Σ(w_i × 2 × af_i)
+SD[PGS] = √Σ(w_i² × 2 × af_i × (1 - af_i))
+```
 
-- Calculates mean and SD for each PGS during trait refresh/add
-- Stores normalization params if `|max(weight)| > 1.0`
+Where `w_i` is the effect weight and `af_i` is the allele frequency for each variant.
 
-**packages/pipeline/lib/catalog.js**: Normalizes PGS IDs to objects with `{ id, norm_mean, norm_sd }`
+### Allele Frequency Source: TOPMed
 
-### 3. Core Processing Changes
+We use allele frequencies from the **TOPMed imputation reference panel** (~70M variants across 22 autosomes). This is the same panel used for user DNA imputation, ensuring coordinate and variant ID consistency.
 
-**packages/core/src/genomic-processor/shared-calculator.js**:
+The AF extraction is cached at `cache/topmed_reference/allele_frequencies.tsv` after first run.
 
-- Constructor accepts `normalizationParams`
-- `finalize()` applies z-score normalization per PGS before summing
-- Returns both `riskScore` (normalized) and `rawScore`
+### Coverage Tiers
 
-**packages/core/src/unified-processor.js** & **unified-processor-browser.js**:
+Not all PGS variants exist in TOPMed. The normalization quality depends on how many variants matched:
 
-- Extracts normalization params from `trait.pgs_ids`
-- Passes to genomic processor
+| TOPMed AF Coverage | Treatment | Count |
+|---|---|---|
+| ≥80% | **Empirical** — mean/SD from real AFs, stored in manifest | ~258 PGS |
+| 5-80% | **Partial** — mean/SD from matched subset, stored in manifest | ~319 PGS |
+| <5% | **NULL** — left empty, calculator uses theoretical fallback | ~721 PGS |
 
-**packages/core/src/genomic-processor/server.js** & **browser.js**:
+The <5% threshold exists because computing mean/SD from a tiny fraction of variants produces stats that describe a completely different distribution than what gets scored. A PGS with 0.3% AF coverage and `sd=0.00005` would produce z-scores in the thousands.
 
-- Accepts `normalizationParams` parameter
-- Passes to SharedRiskCalculator/PGSAggregator
+### Calculator Fallback
 
-### 4. Tools
+When `norm_mean`/`norm_sd` are NULL in the manifest, the scoring calculator (`calculator.js`) estimates SD from the actual matched weights:
 
-**check-pgs.js**: CLI tool to inspect PGS scores:
+```
+sd = √(Σ(w_i²) × 0.5)    // assumes af=0.5 for all variants
+mean = 0
+```
+
+This is less accurate than real AFs but safe — it can't produce extreme z-scores because the SD scales with the same weights that produce the raw score.
+
+## Pipeline
+
+### Step 1: Extract TOPMed AF
 
 ```bash
-pnpm checkpgs PGS003904
+# Automatic on first run of refstats
+# Cached at cache/topmed_reference/allele_frequencies.tsv
+bcftools query -f '%CHROM:%POS:%REF:%ALT\t%AF\n' chr{1..22}.topmed.vcf.gz
 ```
 
-## Usage
-
-### Adding New Traits
+### Step 2: Compute per-PGS stats
 
 ```bash
-pnpm traits
-# Normalization params are calculated automatically
+pnpm pgs refstats batch
 ```
 
-### Checking PGS Scores
+Joins each trait pack's variants against the TOPMed AF table in DuckDB, computes mean/SD per PGS, writes to `data_out/pgs_topmed_stats.json`, then imports to `trait_manifest.db`.
+
+### Step 3: Reset and recompute
 
 ```bash
-pnpm checkpgs PGS003904
+pnpm pgs refstats reset   # Clear all norm_mean/norm_sd
+pnpm pgs refstats batch   # Recompute from TOPMed AF
 ```
 
-### Result Format
+## Coordinate System
 
-```json
-{
-  "riskScore": 1.23,
-  "rawScore": -134.26,
-  "pgsDetails": {
-    "PGS003904": {
-      "score": -134.26,
-      "normalized_score": 1.23,
-      "matchedVariants": 15234
-    }
-  }
-}
-```
+PGS scoring files from the PGS Catalog come in mixed genome builds (75% GRCh37, 11% GRCh38, 7% other). The ETL pipeline uses **harmonized GRCh38 files** from the PGS Catalog (`_hmPOS_GRCh38.txt.gz`) which provide `hm_chr`/`hm_pos` columns with lifted-over coordinates.
 
-## Benefits
+The format detection in `harmonization.js` prioritizes `hm_chr`/`hm_pos` over `chr_position` to ensure all pack parquets contain hg38 coordinates matching the TOPMed panel and user imputed data.
 
-1. **Comparable Scores**: All PGS scores on same scale (standard deviations)
-2. **Interpretable**: z=2.0 always means "2 SD above average"
-3. **Combinable**: Multiple PGS scores for same trait can be meaningfully combined
-4. **Backward Compatible**: PGS scores without normalization params work as before
+## >5σ Exclusion
+
+PGS with |z| > 5 are excluded from the weighted trait-level z-score aggregation. A z-score beyond 5σ almost always indicates incompatible normalization (partial AF coverage, wrong variant set) rather than genuine extreme genetic risk. These scores are still stored per-PGS for transparency but don't affect the user-facing trait percentile.
+
+## Files
+
+| File | Purpose |
+|---|---|
+| `scripts/calc-pgs-refstats.js` | Orchestrator — reset, batch compute, import to manifest |
+| `scripts/calc-pgs-refstats-topmed.py` | Python worker — extracts TOPMed AF, joins against packs |
+| `data_out/pgs_topmed_stats.json` | Cached per-PGS stats (coverage, mean, SD) |
+| `cache/topmed_reference/allele_frequencies.tsv` | Cached TOPMed AF (~70M variants) |
+| `packages/core/src/genomic-processor/calculator.js` | Runtime z-score calculation + theoretical fallback |

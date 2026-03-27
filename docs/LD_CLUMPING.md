@@ -4,99 +4,64 @@
 
 Variants in Linkage Disequilibrium (LD) are inherited together and represent the same genetic signal. Summing their effects inflates PGS scores.
 
-## Solution
+## Detection
 
-**Automatic LD Detection & Clumping with gnomAD Quality Control**
-
-### Detection
-
-The pipeline automatically detects if PGS scores need clumping based on method:
+The pipeline automatically detects if PGS scores need clumping based on method name and variant count. This is evaluated during `pnpm traits refresh` and stored as `needs_clumping` in the `pgs_scores` table.
 
 **LD-Aware Methods** (no clumping needed):
+- LDpred, LDpred2, LDpred-funct, LDpred-inf, LDpred-auto
+- PRS-CS, PRS-CSx
+- lassosum, SBLUP, SBayesR
+- MegaPRS, JAMPred, DBSLMM
 
-- LDpred, LDpred2, PRS-CS, lassosum, SBayesR
-- Clumping + Thresholding (C+T)
+**Already-Clumped Methods** (no clumping needed):
+- Clumping + Thresholding (C+T), Pruning + Thresholding (P+T)
+- PRSice, PRSice-2
+- PRSmix, PRSmixPlus, PRSauto
 
-**Needs Clumping**:
+**Safeguards:**
+- PGS with <100 variants: skip clumping (too small for LD issues)
+- PGS with >100K variants: skip clumping (genome-wide scores inherently account for LD through their construction, and distance-based clumping would destroy them)
 
-- Unknown methods with >100 variants
-- Raw GWAS results
+**Needs Clumping:**
+- Unknown methods with 100-100K variants
 
-### Clumping Algorithm
+## Clumping Algorithm
 
-**Distance-based approach:**
+### Distance-Based (fallback)
+
+Used when gnomAD LD parquets are not available:
 
 1. Divide each chromosome into 250kb windows
-2. Keep strongest variant (highest |effect_weight|) per window
-3. Remove all other variants in that window
+2. Keep strongest variant (highest |effect_weight|) per window per PGS
+3. Protect top 8 variants globally from removal
 
-**gnomAD Quality Control** (if available):
+### LD-Based (preferred)
 
-- Filters ultra-rare variants (AF < 0.1%)
-- Removes likely genotyping errors
-- Uses gnomAD v4.1 allele frequencies
+Used when `GENOMES_LD_PARQUET` is set and contains per-chromosome LD files:
 
-### Schema
+1. Load r² data for variant pairs in the PGS
+2. For pairs with r² > 0.8, remove the weaker variant
+3. Protect top 8 variants globally from removal
 
-`pgs_scores` table tracks LD status:
+## Schema
 
 ```sql
-ld_aware BOOLEAN        -- Method accounts for LD
-needs_clumping BOOLEAN  -- Requires clumping
+-- pgs_scores table
+ld_aware BOOLEAN        -- Method inherently accounts for LD
+needs_clumping BOOLEAN  -- Requires clumping during ETL
 ```
 
-### Pipeline Integration
+## Pipeline Integration
 
-1. **manage-traits.js**: Detects LD status when adding traits
-2. **processor.js**: Applies clumping during parquet generation
-3. **gnomAD filtering**: Removes ultra-rare variants if GNOMAD_DB_PATH set
-4. **Output**: Clumped parquet files with independent variants
+1. **`pnpm traits refresh`**: Evaluates `getLDStatus()` for each PGS, stores `ld_aware` and `needs_clumping` in manifest DB
+2. **`pnpm etl local`**: Reads `needs_clumping` from DB, applies clumping during parquet generation
+3. **Output**: Clumped parquet files with independent variants
 
-### Usage
+## Files
 
-```bash
-# Interactive menu
-pnpm etl
-
-# Run locally (faster, uses gnomAD)
-pnpm etl local
-
-# Run in Docker (isolated, uses gnomAD if mounted)
-pnpm etl docker
-```
-
-### Output
-
-```
-✓ PGS000001: 15234 variants (perf: 0.85)
-✓ PGS000002: 8421 variants (perf: 0.72) ⚠️ LD
-  Applying LD clumping to PGS000002...
-  ✓ Clumped PGS000002: removed 3241 variants (5180 remaining)
-```
-
-## Benefits
-
-- **Accurate scores**: No LD inflation
-- **Quality control**: gnomAD filters genotyping errors
-- **Automatic**: No manual intervention
-- **Transparent**: Logs show clumping activity
-- **Backward compatible**: Only affects non-LD-aware PGS
-
-## gnomAD Integration
-
-When `GNOMAD_DB_PATH` is set in `.env`:
-
-- Queries allele frequencies for all variants
-- Removes variants with AF < 0.1% (likely errors)
-- Improves PGS accuracy by 5-10%
-- Already used for normalization statistics
-
-**Setup:**
-
-```bash
-# In .env file
-GNOMAD_DB_PATH=/path/to/gnomad/gnomad.genomes.v4.1.sites.db
-
-# Docker automatically mounts and passes to pipeline
-docker compose run --rm pipeline pnpm run etl
-```
+| File | Purpose |
+|---|---|
+| `packages/pipeline/lib/ld-detector.js` | Method detection + clumping decision |
+| `packages/pipeline/lib/ld-clumping.js` | SQL generation for distance/LD-based clumping |
+| `packages/pipeline/lib/processor.js` | Applies clumping during ETL |

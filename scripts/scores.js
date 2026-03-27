@@ -539,14 +539,34 @@ const COMMANDS = {
       validate();
     }
   },
-  all: {
-    label: '🧬 All — Run everything',
+  analyze: {
+    label: '🧬 Analyze — Run all analysis',
     fn: () => {
       summary();
       extremes();
       coverage();
       smallSDs();
       console.log(chalk.green('\n✓ Analysis complete\n'));
+    }
+  },
+  all: {
+    label: '🧬 All — Alias for analyze',
+    fn: () => {
+      COMMANDS.analyze.fn();
+    }
+  },
+  calc: {
+    label: '🧮 Calc — Calculate scores (all | <traitId> | <individualId> <traitId>)',
+    fn: args => {
+      const calcArgs = args.length > 0 ? args.join(' ') : '';
+      try {
+        execSync(`node scripts/calc-scores.js ${calcArgs}`, {
+          cwd: path.join(__dirname, '..'),
+          stdio: 'inherit'
+        });
+      } catch (err) {
+        process.exit(err.status || 1);
+      }
     }
   }
 };

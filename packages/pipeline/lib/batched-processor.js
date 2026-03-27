@@ -21,7 +21,7 @@ import {
   generateColumnDefinitions,
   FORMAT_TYPES
 } from './harmonization.js';
-import { shouldClumpPGS } from './ld-clumping.js';
+import { shouldClumpPGS, generateClumpingSQL } from './ld-clumping.js';
 import { execSync } from 'child_process';
 import { createLogger } from '../../core/src/utils/logger.js';
 
@@ -279,6 +279,8 @@ async function processBatchWithDuckDB(
   }
 
   // Create DuckDB subprocess to avoid memory issues
+  const CLUMP_WINDOW = 250000;
+  const MIN_VARIANTS_AFTER_CLUMP = 8;
   const clumpingSQL = Array.from(pgsMetadata.entries())
     .filter(
       ([pgsId, meta]) =>
@@ -291,24 +293,21 @@ async function processBatchWithDuckDB(
         DELETE FROM batch_variants 
         WHERE (variant_id, pgs_id) IN (
           SELECT variant_id, pgs_id FROM (
-            SELECT *, 
+            SELECT *,
               ROW_NUMBER() OVER (
-                PARTITION BY pgs_id, 
-                  CASE 
-                    WHEN variant_id LIKE '%:%:%:%' THEN SUBSTRING(variant_id, 1, POSITION(':' IN variant_id) - 1)
-                    ELSE 'unknown'
-                  END,
-                  CASE 
-                    WHEN variant_id LIKE '%:%:%:%' THEN 
-                      FLOOR(TRY_CAST(SUBSTRING(variant_id, POSITION(':' IN variant_id) + 1, 
-                        POSITION(':' IN SUBSTRING(variant_id, POSITION(':' IN variant_id) + 1)) - 1) AS BIGINT) / 250000)
-                    ELSE 0
-                  END
+                PARTITION BY pgs_id,
+                  SPLIT_PART(variant_id, ':', 1),
+                  FLOOR(TRY_CAST(SPLIT_PART(variant_id, ':', 2) AS BIGINT) / ${CLUMP_WINDOW})
                 ORDER BY ABS(effect_weight) DESC
-              ) as rank_in_window
+              ) as rank_in_window,
+              ROW_NUMBER() OVER (
+                PARTITION BY pgs_id
+                ORDER BY ABS(effect_weight) DESC
+              ) as global_rank
             FROM batch_variants
             WHERE pgs_id = '${pgsId}'
           ) WHERE rank_in_window > 1
+            AND global_rank > ${MIN_VARIANTS_AFTER_CLUMP}
         );`;
     })
     .join('\n');

@@ -279,6 +279,17 @@ export class UnifiedProcessor {
     }
 
     const lines = text.split('\n');
+
+    // Detect genome build from header comments
+    let build = 'unknown';
+    for (const line of lines) {
+      if (!line.startsWith('#')) break;
+      const lower = line.toLowerCase();
+      if (lower.includes('build 36') || lower.includes('grch36')) { build = 'hg18'; break; }
+      if (lower.includes('build 37') || lower.includes('grch37')) { build = 'hg19'; break; }
+      if (lower.includes('build 38') || lower.includes('grch38')) { build = 'hg38'; break; }
+    }
+
     const dataLines = lines.filter(
       line => line.trim() && !line.startsWith('#') && !line.startsWith('rsid')
     );
@@ -351,6 +362,7 @@ export class UnifiedProcessor {
         filename: file.name || 'uploaded_file',
         size: file.size || text.length,
         variantCount: variants.length,
+        build,
         parsedAt: new Date().toISOString()
       }
     };
@@ -393,26 +405,9 @@ export class UnifiedProcessor {
       // Get user DNA data (use preloaded if available)
       progressCallback?.('Loading user DNA...', 0);
       let userDNA;
-      let _isHybridLookup = false;
 
       if (preloadedDNA) {
-        // Check if it's a HybridVariantLookup instance
-        if (
-          preloadedDNA.constructor.name === 'HybridVariantLookup' ||
-          (preloadedDNA.genotypedMap &&
-            preloadedDNA.get &&
-            typeof preloadedDNA.get === 'function')
-        ) {
-          // It's a HybridVariantLookup - pass it directly
-          userDNA = preloadedDNA;
-          _isHybridLookup = true;
-          Debug.log(
-            2,
-            'UnifiedProcessor',
-            `Using HybridVariantLookup with ${preloadedDNA.genotypedMap?.size || 0} genotyped variants`
-          );
-        } else if (preloadedDNA instanceof Map) {
-          // Convert Map to array
+        if (preloadedDNA instanceof Map) {
           userDNA = Array.from(preloadedDNA.values());
           Debug.log(
             2,
@@ -420,7 +415,6 @@ export class UnifiedProcessor {
             `Using preloaded DNA Map: ${userDNA.length} variants`
           );
         } else {
-          // Assume it's an array
           userDNA = preloadedDNA;
           Debug.log(
             2,
