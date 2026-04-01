@@ -5,7 +5,6 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Use /output in Docker, data_out locally
 const OUTPUT_DIR =
   process.env.OUTPUT_DIR ||
   (fs.existsSync('/output')
@@ -13,15 +12,16 @@ const OUTPUT_DIR =
     : path.join(path.resolve(__dirname, '../../..'), 'data_out'));
 const DB_PATH = path.join(OUTPUT_DIR, 'trait_manifest.db');
 
-// Ensure output directory exists
 if (!fs.existsSync(OUTPUT_DIR)) {
   console.log(`Creating output directory: ${OUTPUT_DIR}`);
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 }
 
-// Singleton database instance
+// Singleton database instance — ALL access to trait_manifest.db goes through here.
+// DuckDB does not support concurrent writers; a serialized queue prevents corruption.
 let db = null;
 let conn = null;
+let writeQueue = Promise.resolve();
 
 export async function getConnection() {
   if (!db) {
@@ -62,16 +62,26 @@ export async function getConnection() {
   if (!conn) {
     console.log('[shared-db] Creating new connection');
     conn = db.connect();
-    // Run checkpoint to recover WAL
-    await new Promise((resolve, _reject) => {
-      conn.run('CHECKPOINT', err => {
-        if (err) console.log('[shared-db] Checkpoint warning:', err.message);
-        resolve();
-      });
-    });
     console.log('[shared-db] Connection ready');
   }
   return conn;
+}
+
+/**
+ * Execute a write operation through the serialized queue.
+ * Prevents concurrent writes from corrupting DuckDB's internal state.
+ *
+ * @param {function(conn): Promise} fn - async function receiving the connection
+ * @returns {Promise} result of fn
+ */
+export function serializedWrite(fn) {
+  const task = writeQueue.then(async () => {
+    const c = await getConnection();
+    return fn(c);
+  });
+  // Chain regardless of success/failure so the queue keeps moving
+  writeQueue = task.catch(() => {});
+  return task;
 }
 
 export function closeConnection() {
@@ -85,3 +95,5 @@ export function closeConnection() {
     db = null;
   }
 }
+
+export { DB_PATH, OUTPUT_DIR };

@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import './lib/env.js';
 import prompts from 'prompts';
 import { execSync } from 'child_process';
 import path from 'path';

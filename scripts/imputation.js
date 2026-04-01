@@ -4,6 +4,7 @@ import { spawn } from 'child_process';
 import prompts from 'prompts';
 import fs from 'fs/promises';
 import path from 'path';
+import '../packages/pipeline/lib/env.js';
 
 const PIPELINE_DIR = './packages/pipeline';
 const DATA_DIR = './data_out/imputation';
@@ -89,7 +90,7 @@ async function imputeUser() {
     return;
   }
 
-  const panelDir = './cache/topmed_reference';
+  const panelDir = process.env.REF_PANEL_DIR || './cache/topmed_reference';
 
   try {
     await fs.access(`${panelDir}/chr1.topmed.vcf.gz`);

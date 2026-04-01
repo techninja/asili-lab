@@ -10,11 +10,12 @@ The score lives in [`packages/core/src/genomic-processor/calculator.js`](../pack
 
 ```
 Quality Score = (R² × 35 × CoveragePenalty)
+             + (ValidationBonus × 15)
              + (GenotypedRatio × 15)
              + (Coverage × 10)
              + (log₁₀(matched/8) × 10)
-             + (Normalization × 10)
-             + (Signal × 20)
+             + (Normalization × 5)
+             + (Signal × 10)
 ```
 
 ## Components
@@ -31,29 +32,34 @@ Values >1 are treated as percentages and normalized to 0-1. Default 0.05 when no
 - **5-20% coverage**: Moderate — `√(coverage/0.20)`
 - **>20% coverage**: None
 
-**Why R² is primary**: A PGS with R²=0.13 explains 2.6× more variance than R²=0.05. This is the single most important differentiator when comparing PGS for the same trait.
+### 2. Validation Bonus — 15% weight (NEW)
 
-### 2. Data Reliability — 15% weight
+A PGS with independently validated R² from the PGS Catalog is fundamentally more trustworthy than one with no validation data. This bonus ensures validated PGS rank above unvalidated ones even when the unvalidated PGS has more matched variants or a more extreme z-score.
+
+Formula: `min(R² / 0.44, 1) × 15` (only when R² > 0.05 default)
+
+| R²     | Bonus | Notes                                    |
+| ------ | ----- | ---------------------------------------- |
+| 0.05   | 0     | Default R² — no validation data          |
+| 0.10   | 3.4   | Modest validation                        |
+| 0.20   | 6.8   | Good validation                          |
+| 0.44+  | 15.0  | Excellent validation (capped)            |
+
+**Why this matters**: Without this bonus, a PGS with default R²=0.05 and 1.2M matched variants (quality ~36) would outrank a PGS with validated R²=0.44 and 18 matched variants (quality ~30). The validated PGS is scientifically superior — its predictive power was confirmed in an independent cohort study. The bonus corrects this ranking.
+
+### 3. Data Reliability — 15% weight
 
 Proportion of matched variants that are directly genotyped (not imputed).
 
 Formula: `genotypedVariants / matchedVariants × 15`
 
-- 95% genotyped → **14.3 pts**
-- 50% genotyped → **7.5 pts**
-- 1% genotyped → **0.15 pts**
-
-**Why it matters**: Genotyped variants are direct measurements (0, 1, or 2 alleles). Imputed variants are statistical estimates with inherent uncertainty. The R² reported by PGS Catalog was validated on accurately genotyped/sequenced cohorts, not imputed data.
-
-### 3. Coverage — 10% weight
+### 4. Coverage — 10% weight
 
 Percentage of PGS variants found in user's DNA.
 
 Formula: `min(matched/total, 1) × 10`
 
-**Note**: `total` is the variant count from the parquet file (post-LD-clumping), not the PGS Catalog `variants_number` (pre-clumping). Some parquet files have duplicate entries from harmonization, which can push coverage above 100%.
-
-### 4. Sample Size — 10% weight
+### 5. Sample Size — 10% weight
 
 Number of variants matched, log-scaled with diminishing returns.
 
@@ -61,47 +67,59 @@ Formula: `min(log₁₀(matched/8) / 3.1, 1) × 10`
 
 The minimum threshold is 8 matched variants — below this, the PGS is marked `insufficientData` and excluded from best-PGS selection entirely.
 
-### 5. Normalization — 10% weight
+### 6. Normalization — 5% weight
 
 Whether population statistics (TOPMed mean/SD) exist for percentile calculation.
 
-- Has empirical mean/SD (≥80% TOPMed AF coverage): **10 pts**
-- Has partial mean/SD (5-80% coverage): **7 pts**
-- Missing (calculator uses theoretical fallback): **5 pts**
+- Has empirical mean/SD: **5 pts**
+- Missing (calculator uses theoretical fallback): **2.5 pts**
 
-### 6. Signal Strength — 20% weight
+### 7. Signal Strength — 10% weight
 
 How informative the result is for this individual, based on absolute z-score.
 
-Formula: `min(|z| / 3, 1) × 20`
+Formula: `min(|z| / 3, 1) × 10`
 
-**With >5σ penalty**: If `|z| > 5`, signal score is **0 points**. A z-score beyond 5σ almost certainly indicates incompatible normalization statistics (e.g., gnomAD stats computed on a different variant set than the parquet), not genuine extreme genetic risk. Zeroing the signal prevents bad-stats PGS from being boosted by their own broken z-scores.
+**With >5σ penalty**: If `|z| > 5`, signal score is **0 points**. A z-score beyond 5σ almost certainly indicates incompatible normalization statistics, not genuine extreme genetic risk.
 
 | z-score | Signal pts | Interpretation      |
 | ------- | ---------- | ------------------- |
 | 0σ      | 0          | Average — no signal |
-| 1σ      | 6.7        | Moderate            |
-| 2σ      | 13.3       | Strong              |
-| 3σ+     | 20         | Capped at maximum   |
-| >5σ     | **0**      | Bad stats penalty — also excluded from trait z-score |
+| 1σ      | 3.3        | Moderate            |
+| 2σ      | 6.7        | Strong              |
+| 3σ+     | 10         | Capped at maximum   |
+| >5σ     | **0**      | Bad stats penalty   |
 
 ## Weight Summary
 
 ```
-Scientific Validity (35%):
+Scientific Validity (50%):
   R² × CoveragePenalty    35%   How well does this PGS predict the trait?
+  Validation Bonus         15%   Has it been independently validated?
 
 Data Quality (25%):
   Data Reliability         15%   Are we using real DNA or statistical estimates?
   Coverage                 10%   Do we have the variants the PGS needs?
 
-Interpretability (20%):
+Interpretability (15%):
   Sample Size              10%   Enough data points?
-  Normalization            10%   Can we calculate percentiles?
+  Normalization             5%   Can we calculate percentiles?
 
-Informativeness (20%):
-  Signal Strength          20%   How much do we learn about this individual?
+Informativeness (10%):
+  Signal Strength          10%   How much do we learn about this individual?
 ```
+
+## Design Rationale
+
+### Why Validation Bonus exists
+
+Before this component, 357 out of 362 PGS for a trait could all score ~51 with default R²=0.05, while the 5 PGS with real validated R² scored ~35-45 due to fewer matched variants. The trait result would inherit a z-score from an essentially random unvalidated PGS.
+
+The Validation Bonus ensures that a PGS which has been tested in an independent cohort study always ranks above one that hasn't, unless the validated PGS has catastrophically low coverage or data quality.
+
+### Why Signal was reduced from 20% to 10%
+
+Signal Strength is personalized — it measures how informative a result is for *this* individual. But at 20%, it dominated the score for unvalidated PGS: a PGS with z=4.9σ (just under the penalty threshold) got 20 signal points, making it rank higher than a validated PGS with a moderate z=1.5σ. Reducing to 10% keeps signal as a tiebreaker without letting it override scientific validity.
 
 ## Normalization: How Z-Scores Are Calculated
 
@@ -111,15 +129,11 @@ Z-scores convert raw PGS sums into population-relative measures.
 
 Mean and SD are computed from the theoretical distribution using allele frequencies from the TOPMed imputation reference panel (~70M variants). See [PGS_NORMALIZATION.md](PGS_NORMALIZATION.md) for details.
 
-PGS with <5% TOPMed AF coverage get NULL normalization — the calculator falls back to estimating SD from the sum of squared weights (assumes af=0.5).
-
 ### >5σ Exclusion from Trait Z-Score
 
 PGS with |z| > 5 are:
-1. Given **0 signal points** in the quality score (prevents bad-stats PGS from ranking high)
-2. **Excluded from the weighted trait-level z-score** (prevents one broken PGS from dominating the user-facing result)
-
-The per-PGS z-score is still stored for transparency.
+1. Given **0 signal points** in the quality score
+2. **Excluded from the weighted trait-level z-score**
 
 ### Normalization Decision Tree
 
@@ -134,37 +148,14 @@ Has empirical mean/SD in manifest?
          (mean=0, sd=√(Σw²×0.5))
 ```
 
-## Real-World Example: BMI-Adjusted Waist-Hip Ratio (EFO_0007788)
-
-From Ethan's data (unified parquet, 13.6M variants):
-
-| PGS       | R²    | Coverage | Matched | Geno/Imp          | z-score | Quality  | Notes                                        |
-| --------- | ----- | -------- | ------- | ----------------- | ------- | -------- | -------------------------------------------- |
-| PGS003485 | 5.0%  | 101.1%   | 793,573 | 3,601g + 789,972i | -3.79   | **51.8** | Best — huge variant set, near-full coverage  |
-| PGS005095 | 5.0%  | 36.4%    | 175     | 156g + 19i        | -1.06   | **40.1** | Small PGS, decent genotyped ratio            |
-| PGS000299 | 1.95% | 31.8%    | 147     | 131g + 16i        | -21.68  | **31.6** | Bad gnomAD stats → >5σ penalty zeroes signal |
-| PGS000843 | 5.0%  | 0%       | 0       | —                 | null    | **0**    | No matches at all                            |
-
-**Old code** gave PGS000299 a z-score of 0.039 (looked normal) and quality of 31.57. The coverage scaling accidentally masked the incompatible stats. The new code exposes the truth (z=-21.68) and the >5σ penalty prevents it from ranking higher than it should.
-
-## Design Decisions
-
-- **R² sourced from `pgs_performance` table**, not the pre-computed `trait_pgs.performance_weight` column. Only raw R² and "PGS R² (no covariates)" metrics are used.
-- **Genotyped ratio at 15%** (not higher) because imputed data still has value — TOPMed imputation at 74% coverage provides useful signal. But genotyped data is more trustworthy.
-- **Signal strength is personalized**: Same PGS scores differently for different people. A z=2.5σ result is more actionable than z=0.1σ.
-- **>5σ penalty**: Extreme z-scores are almost always bad normalization, not real signal. Zeroing signal prevents garbage-in-garbage-out from inflating quality scores.
-- **Coverage penalty only applies to R²**: Low coverage degrades the validated predictive power, but doesn't affect other components.
-- **No double-counting**: Genotyped ratio appears only in Data Reliability, not also inside the R² multiplier.
-- **Parquet variant count is the canonical denominator**: The parquet file is what we actually score against. The PGS Catalog `variants_number` is irrelevant after LD clumping.
-
 ## Interpretation
 
-| Score | Rating    | Characteristics                                         |
-| ----- | --------- | ------------------------------------------------------- |
-| 65+   | Excellent | High R², good coverage, strong signal, mostly genotyped |
-| 55-65 | Good      | Decent R² and coverage, moderate signal                 |
-| 40-55 | Moderate  | Low coverage OR mostly imputed OR weak signal           |
-| 0-40  | Limited   | Very low coverage, missing data, or no validation       |
+| Score | Rating    | Characteristics                                              |
+| ----- | --------- | ------------------------------------------------------------ |
+| 65+   | Excellent | High validated R², good coverage, strong signal              |
+| 50-65 | Good      | Validated R² with decent coverage, or high coverage default  |
+| 35-50 | Moderate  | Some validation or good coverage without validation          |
+| 0-35  | Limited   | No validation, low coverage, or insufficient data            |
 
 ## Testing
 
@@ -173,12 +164,3 @@ Quality score logic is tested in [`packages/core/tests/calculator.test.js`](../p
 ```bash
 pnpm test core
 ```
-
-Key test cases:
-
-- Higher R² produces higher score
-- Higher genotyped ratio produces higher score
-- Coverage penalty below 5%
-- > 5σ z-scores get 0 signal points
-- Breakdown component scores sum to total
-- No matched variants → score 0

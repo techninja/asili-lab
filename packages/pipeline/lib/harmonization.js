@@ -72,7 +72,7 @@ export function detectFormat(columns) {
  */
 export function getColumnRef(columns, colName) {
   const idx = columns.indexOf(colName);
-  return idx !== -1 ? `column${idx}` : "''";
+  return idx !== -1 ? `"${colName}"` : "''";
 }
 
 /**
@@ -203,7 +203,8 @@ export function generateColumnExpressions(formatType, columns) {
  * Generate DuckDB column definitions for CSV reading
  */
 export function generateColumnDefinitions(columns) {
-  return columns.map((col, idx) => `'column${idx}': 'VARCHAR'`).join(', ');
+  // No longer needed — DuckDB reads headers directly with header=true
+  return null;
 }
 
 /**
@@ -218,7 +219,6 @@ export function generateInsertSQL(
   traitName
 ) {
   const expressions = generateColumnExpressions(formatType, columns);
-  const columnDefs = generateColumnDefinitions(columns);
   const weightCol =
     formatType === FORMAT_TYPES.DOSAGE_WEIGHTS
       ? getColumnRef(columns, 'dosage_1_weight')
@@ -260,7 +260,7 @@ export function generateInsertSQL(
             ${config.weight || 1.0} as source_weight,
             'log_odds' as weight_type,
             '${formatType}' as format_type
-        FROM read_csv('${dataPath}', delim='\\t', header=false, columns={${columnDefs}}) csv
+        FROM read_csv('${dataPath}', delim='\\t', header=true, comment='#', all_varchar=true) csv
         LEFT JOIN read_parquet('${gnomadPath}') g 
             ON 'chr' || REPLACE(csv.${chrNameCol}, 'chr', '') = g.chr 
             AND TRY_CAST(csv.${chrPosCol} AS BIGINT) = g.pos
@@ -290,7 +290,7 @@ export function generateInsertSQL(
             ${config.weight || 1.0} as source_weight,
             'log_odds' as weight_type,
             '${formatType}' as format_type
-        FROM read_csv('${dataPath}', delim='\\t', header=false, columns={${columnDefs}})
+        FROM read_csv('${dataPath}', delim='\\t', header=true, comment='#', all_varchar=true)
         WHERE ${expressions.effect_allele} IS NOT NULL 
           AND ${expressions.effect_allele} != ''
           AND ${weightCol} IS NOT NULL

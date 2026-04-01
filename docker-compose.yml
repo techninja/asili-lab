@@ -49,5 +49,5 @@ services:
       - /app/packages/pipeline/node_modules
       - /app/packages/core/node_modules
       - ./data_out:/output
-      - ./cache:/cache
+      - ${CACHE_DIR:-./cache}:/cache
       - ${GNOMAD_DB_PATH}:${GNOMAD_DB_PATH}:ro

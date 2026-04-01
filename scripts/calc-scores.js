@@ -14,6 +14,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import prompts from 'prompts';
+import '../packages/pipeline/lib/env.js';
 
 import { PATHS } from '../packages/core/src/constants/paths.js';
 import { PGSScorer } from '../packages/core/src/genomic-processor/scorer.js';
@@ -251,8 +252,30 @@ async function main() {
     process.exit(1);
   }
 
-  const total = targetIndividuals.length * targetTraits.length;
-  console.log(chalk.cyan(`\n🧬 Calculating ${targetIndividuals.length} individual(s) × ${targetTraits.length} trait(s) = ${total} calculations\n`));
+  // Specific trait = force recalc; batch = skip existing scores
+  const forceRecalc = targetTraits.length === 1;
+
+  let skipped = 0;
+  const calcPlan = [];
+  for (const individual of targetIndividuals) {
+    for (const traitId of targetTraits) {
+      if (!forceRecalc) {
+        const existing = await storage.getCachedRiskScore(individual.id, traitId).catch(() => null);
+        if (existing) { skipped++; continue; }
+      }
+      calcPlan.push({ individual, traitId });
+    }
+  }
+
+  const total = calcPlan.length;
+  const skipMsg = skipped > 0 ? chalk.gray(` (${skipped} already scored, skipping)`) : '';
+  console.log(chalk.cyan(`\n🧬 Calculating ${total} scores for ${targetIndividuals.length} individual(s) × ${targetTraits.length} trait(s)${skipMsg}\n`));
+
+  if (total === 0) {
+    console.log(chalk.green('✅ All scores up to date.\n'));
+    closeConnection();
+    process.exit(0);
+  }
 
   const duckdb = new DuckDBServerAdapter();
   await duckdb.initialize();
@@ -260,37 +283,38 @@ async function main() {
   let done = 0;
   let errors = 0;
   const start = Date.now();
+  let currentIndId = null;
 
-  for (let ii = 0; ii < targetIndividuals.length; ii++) {
-    const individual = targetIndividuals[ii];
+  for (const { individual, traitId } of calcPlan) {
     const indId = individual.id;
     const indName = individual.name || individual.id;
-    console.log(chalk.bold(`\n👤 [${ii + 1}/${targetIndividuals.length}] ${indName}`));
-
-    for (const traitId of targetTraits) {
-      const traitName = manifest.traits[traitId]?.name || traitId;
-      done++;
-      try {
-        const t0 = Date.now();
-        process.stdout.write(chalk.gray(`  ⏳ ${traitName} (${traitId})...`));
-        const result = await calcTrait(traitId, indId, duckdb, storage, manifest);
-        const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
-        const pct = result.percentile != null ? `${result.percentile.toFixed(1)}%ile` : 'N/A';
-        const z = result.zScore != null ? `z=${result.zScore.toFixed(2)}` : 'z=N/A';
-        const matched = result.matchedVariants?.toLocaleString() || '?';
-        process.stdout.clearLine?.(0);
-        process.stdout.cursorTo?.(0);
-        console.log(
-          chalk.green(`  ✓ [${done}/${total}] ${traitName}: ${z} ${pct} | ${matched} variants | ${elapsed}s`)
-        );
-      } catch (err) {
-        errors++;
-        process.stdout.clearLine?.(0);
-        process.stdout.cursorTo?.(0);
-        console.log(
-          chalk.red(`  ✗ [${done}/${total}] ${traitName}: ${err.message}`)
-        );
-      }
+    if (indId !== currentIndId) {
+      currentIndId = indId;
+      const indIdx = targetIndividuals.indexOf(individual) + 1;
+      console.log(chalk.bold(`\n👤 [${indIdx}/${targetIndividuals.length}] ${indName}`));
+    }
+    const traitName = manifest.traits[traitId]?.name || traitId;
+    done++;
+    try {
+      const t0 = Date.now();
+      process.stdout.write(chalk.gray(`  ⏳ ${traitName} (${traitId})...`));
+      const result = await calcTrait(traitId, indId, duckdb, storage, manifest);
+      const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+      const pct = result.percentile != null ? `${result.percentile.toFixed(1)}%ile` : 'N/A';
+      const z = result.zScore != null ? `z=${result.zScore.toFixed(2)}` : 'z=N/A';
+      const matched = result.matchedVariants?.toLocaleString() || '?';
+      process.stdout.clearLine?.(0);
+      process.stdout.cursorTo?.(0);
+      console.log(
+        chalk.green(`  ✓ [${done}/${total}] ${traitName}: ${z} ${pct} | ${matched} variants | ${elapsed}s`)
+      );
+    } catch (err) {
+      errors++;
+      process.stdout.clearLine?.(0);
+      process.stdout.cursorTo?.(0);
+      console.log(
+        chalk.red(`  ✗ [${done}/${total}] ${traitName}: ${err.message}`)
+      );
     }
   }
 

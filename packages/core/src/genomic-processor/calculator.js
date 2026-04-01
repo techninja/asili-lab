@@ -83,8 +83,19 @@ export class SharedRiskCalculator {
     }
   }
 
+  static get DEFAULT_R2() { return 0.05; }
+
   /**
-   * Quality score formula (unchanged from original)
+   * Quality score formula — see docs/PGS_QUALITY_SCORE.md
+   *
+   * Components (max 100):
+   *   R² × 35 × CoveragePenalty   — Predictive accuracy
+   *   Validation Bonus × 15       — Has real R² from PGS Catalog?
+   *   Genotyped Ratio × 15        — Data reliability
+   *   Coverage × 10               — Variant coverage
+   *   log₁₀(matched/8) × 10      — Sample size
+   *   Normalization × 5           — Has population stats?
+   *   Signal × 10                 — Individual informativeness
    */
   static calculatePGSQualityScore(
     matchedVariants,
@@ -99,13 +110,18 @@ export class SharedRiskCalculator {
     const coverage = Math.min(matchedVariants / totalVariants, 1);
     const genotypedRatio =
       matchedVariants > 0 ? genotypedVariants / matchedVariants : 0;
-    const r2 = performanceMetric || 0.05;
+    const r2 = performanceMetric || SharedRiskCalculator.DEFAULT_R2;
+    const hasValidatedR2 = performanceMetric && performanceMetric > SharedRiskCalculator.DEFAULT_R2;
 
     let coveragePenalty = 1.0;
     if (coverage < 0.05) coveragePenalty = Math.pow(coverage / 0.05, 2);
     else if (coverage < 0.2) coveragePenalty = Math.sqrt(coverage / 0.2);
 
     const performanceScore = r2 * 35 * coveragePenalty;
+    // Validated PGS get a large bonus — a PGS with real R² from an independent
+    // cohort study is fundamentally more trustworthy than one with no validation.
+    // Scaled by R² so higher R² = bigger bonus (R²=0.44 → 15pts, R²=0.06 → 1.8pts).
+    const validationBonus = hasValidatedR2 ? Math.min(r2 / 0.44, 1) * 15 : 0;
     const dataReliabilityScore = genotypedRatio * 15;
     const coverageScore = coverage * 10;
     const sampleSizeRatio = Math.max(
@@ -113,22 +129,22 @@ export class SharedRiskCalculator {
       1
     );
     const sampleScore = Math.min(Math.log10(sampleSizeRatio) / 3.1, 1) * 10;
-    const normalizationScore = hasNormalization ? 10 : 5;
+    const normalizationScore = hasNormalization ? 5 : 2.5;
 
     let signalScore = 0;
     if (zScore !== null && zScore !== undefined && !isNaN(zScore)) {
       const absZ = Math.abs(zScore);
-      // Cap signal at 3σ, and penalize extreme z-scores (>5σ) as likely bad stats
       if (absZ > 5) {
-        signalScore = 0; // Extreme z = bad normalization, not real signal
+        signalScore = 0;
       } else {
-        signalScore = Math.min(absZ / 3, 1) * 20;
+        signalScore = Math.min(absZ / 3, 1) * 10;
       }
     }
 
     return (
       Math.round(
         (performanceScore +
+          validationBonus +
           dataReliabilityScore +
           coverageScore +
           sampleScore +
@@ -152,7 +168,8 @@ export class SharedRiskCalculator {
     }
 
     const coverage = Math.min(matchedVariants / totalVariants, 1);
-    const r2 = performanceMetric || 0.05;
+    const r2 = performanceMetric || SharedRiskCalculator.DEFAULT_R2;
+    const hasValidatedR2 = performanceMetric && performanceMetric > SharedRiskCalculator.DEFAULT_R2;
     const genotypedRatio =
       matchedVariants > 0 ? genotypedVariants / matchedVariants : 0;
     const imputedVariants = matchedVariants - genotypedVariants;
@@ -168,6 +185,7 @@ export class SharedRiskCalculator {
     }
 
     const performanceScore = r2 * 35 * coveragePenalty;
+    const validationBonus = hasValidatedR2 ? Math.min(r2 / 0.44, 1) * 15 : 0;
     const dataReliabilityScore = genotypedRatio * 15;
     const coverageScore = coverage * 10;
     const sampleScore =
@@ -175,7 +193,7 @@ export class SharedRiskCalculator {
         Math.log10(Math.max(matchedVariants / MIN_VARIANT_THRESHOLD, 1)) / 3.1,
         1
       ) * 10;
-    const normalizationScore = hasNormalization ? 10 : 5;
+    const normalizationScore = hasNormalization ? 5 : 2.5;
 
     let signalScore = 0;
     let signalDescription = 'No z-score available';
@@ -185,7 +203,7 @@ export class SharedRiskCalculator {
         signalScore = 0;
         signalDescription = `Extreme z-score (${absZ.toFixed(1)}σ) — likely bad normalization stats, signal zeroed`;
       } else {
-        signalScore = Math.min(absZ / 3, 1) * 20;
+        signalScore = Math.min(absZ / 3, 1) * 10;
         signalDescription =
           absZ >= 3
             ? `Extreme signal: ${absZ.toFixed(1)}σ from mean (capped at 3σ)`
@@ -199,6 +217,7 @@ export class SharedRiskCalculator {
 
     const total =
       performanceScore +
+      validationBonus +
       dataReliabilityScore +
       coverageScore +
       sampleScore +
@@ -216,6 +235,16 @@ export class SharedRiskCalculator {
           maxScore: 35,
           weight: '35%',
           description: `R²=${(r2 * 100).toFixed(1)}% × ${penaltyDescription}`
+        },
+        {
+          name: 'Validation Bonus',
+          value: hasValidatedR2 ? r2 : 0,
+          score: Math.round(validationBonus * 10) / 10,
+          maxScore: 15,
+          weight: '15%',
+          description: hasValidatedR2
+            ? `Independently validated R²=${(r2 * 100).toFixed(1)}%`
+            : 'No independent validation data (default R²)'
         },
         {
           name: 'Data Reliability',
@@ -245,8 +274,8 @@ export class SharedRiskCalculator {
           name: 'Normalization',
           value: hasNormalization ? 1 : 0.5,
           score: normalizationScore,
-          maxScore: 10,
-          weight: '10%',
+          maxScore: 5,
+          weight: '5%',
           description: hasNormalization
             ? 'Percentile available'
             : 'No percentile data'
@@ -255,8 +284,8 @@ export class SharedRiskCalculator {
           name: 'Signal Strength',
           value: zScore !== null ? Math.abs(zScore) : 0,
           score: Math.round(signalScore * 10) / 10,
-          maxScore: 20,
-          weight: '20%',
+          maxScore: 10,
+          weight: '10%',
           description: signalDescription
         }
       ],
@@ -471,21 +500,20 @@ export class SharedRiskCalculator {
       delete details._topMinIdx;
     }
 
-    // Select best PGS by quality score
+    // Select best PGS by quality score, excluding extreme z-scores
+    // (|z| > 5 almost always means incompatible normalization, not real signal)
     let bestPGS = null;
     let bestQualityScore = 0;
     for (const [pgsId, details] of this.pgsDetails.entries()) {
-      if (
-        !details.insufficientData &&
-        details.qualityScore > bestQualityScore
-      ) {
+      if (details.insufficientData) continue;
+      if (details.zScore !== null && Math.abs(details.zScore) > 5) continue;
+      if (details.qualityScore > bestQualityScore) {
         bestQualityScore = details.qualityScore;
         bestPGS = pgsId;
       }
     }
 
-    // Fallback: if all PGS are insufficient, pick the best available anyway
-    // (user gets a result with low confidence rather than nothing)
+    // Fallback: if all non-extreme PGS are insufficient, allow extreme z-scores
     if (!bestPGS && this.pgsDetails.size > 0) {
       for (const [pgsId, details] of this.pgsDetails.entries()) {
         if (

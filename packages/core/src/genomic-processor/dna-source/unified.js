@@ -6,7 +6,9 @@
  * → fast in-memory aggregation queries. Top variants re-joins parquet for
  * string columns but only for 4 specific PGS IDs.
  *
- * All JOINs use integer chr/pos columns exclusively.
+ * All JOINs use chr + pos + allele_key columns for allele-aware matching.
+ * allele_key = md5(sorted allele pair) truncated to BIGINT, deterministic
+ * across all DuckDB runtimes (CLI, Node, Python).
  */
 
 import { DNASource } from './interface.js';
@@ -29,11 +31,12 @@ export class UnifiedDNASource extends DNASource {
 
   /**
    * Load DNA into an in-memory DuckDB table (once per individual, reused across traits).
+   * Requires allele_key column in the parquet (rebuild unified parquet if missing).
    */
   async loadDNA() {
     if (this._dnaLoaded) return;
     await this.db.query(
-      `CREATE OR REPLACE TABLE _dna AS SELECT chr, pos, variant_id AS user_variant_id, genotype_dosage, imputed, imputation_quality FROM '${this.path}'`
+      `CREATE OR REPLACE TABLE _dna AS SELECT chr, pos, allele_key, variant_id AS user_variant_id, genotype_dosage, imputed, imputation_quality FROM '${this.path}'`
     );
     this._dnaLoaded = true;
   }
@@ -72,7 +75,7 @@ export class UnifiedDNASource extends DNASource {
   async _runScoreQueries(traitUrl) {
     const scanStart = Date.now();
 
-    // Single parquet scan → lean in-memory table (no string columns)
+    // allele_key JOIN ensures only the correct allele at multiallelic sites matches.
     log.debug('Materializing matched variants...');
     await this.db.query(`
       CREATE OR REPLACE TEMP TABLE _matched AS
@@ -83,7 +86,7 @@ export class UnifiedDNASource extends DNASource {
                       THEN SQRT(d.imputation_quality) ELSE 1.0 END
                AS contribution
       FROM '${traitUrl}' t
-      INNER JOIN _dna d ON t.chr = d.chr AND t.pos = d.pos
+      INNER JOIN _dna d ON t.chr = d.chr AND t.pos = d.pos AND t.allele_key = d.allele_key
     `);
     log.debug(`Materialized in ${log.elapsed(scanStart)}`);
 
@@ -166,7 +169,7 @@ export class UnifiedDNASource extends DNASource {
                  d.genotype_dosage AS dosage, d.imputed, d.user_variant_id,
                  t.effect_weight * d.genotype_dosage AS contribution
           FROM '${traitUrl}' t
-          INNER JOIN _dna d ON t.chr = d.chr AND t.pos = d.pos
+          INNER JOIN _dna d ON t.chr = d.chr AND t.pos = d.pos AND t.allele_key = d.allele_key
           WHERE d.genotype_dosage > 0 AND t.pgs_id = '${pgsId}'
           ORDER BY ABS(t.effect_weight * d.genotype_dosage) DESC
           LIMIT 20
@@ -184,7 +187,7 @@ export class UnifiedDNASource extends DNASource {
                    d.genotype_dosage AS dosage, d.imputed, d.user_variant_id,
                    t.effect_weight * d.genotype_dosage AS contribution
             FROM '${traitUrl}' t
-            INNER JOIN _dna d ON t.chr = d.chr AND t.pos = d.pos
+            INNER JOIN _dna d ON t.chr = d.chr AND t.pos = d.pos AND t.allele_key = d.allele_key
             WHERE d.genotype_dosage > 0 AND t.pgs_id = '${pgsId}'
             ORDER BY ABS(t.effect_weight * d.genotype_dosage) DESC
             LIMIT 20
@@ -215,7 +218,7 @@ export class UnifiedDNASource extends DNASource {
   }
 
   /**
-   * Legacy batch-yielding interface for backward compatibility.
+   * Batch-yielding interface for non-scoreInDB callers.
    */
   async *matchVariants(traitUrl, { chunkSize = 15_000_000 } = {}) {
     await this.loadDNA();
@@ -226,7 +229,7 @@ export class UnifiedDNASource extends DNASource {
         SELECT t.variant_id, t.effect_allele, t.effect_weight, t.pgs_id,
                d.genotype_dosage AS dosage, d.imputed
         FROM (SELECT * FROM '${traitUrl}' LIMIT ${chunkSize} OFFSET ${offset}) t
-        INNER JOIN _dna d ON t.chr = d.chr AND t.pos = d.pos
+        INNER JOIN _dna d ON t.chr = d.chr AND t.pos = d.pos AND t.allele_key = d.allele_key
       `);
       yield matches;
     }

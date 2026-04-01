@@ -76,19 +76,26 @@ def compute_normalization(packs_dir, af_tsv, output_json, pgs_list_file):
     con.execute(f"SET temp_directory='{tmp_dir}'")
     con.execute("SET threads TO 8")
 
-    # Load TOPMed AF as a table — strip chr prefix to match pack variant_id format
+    # Load TOPMed AF as a table — strip chr prefix, compute allele_key for allele-aware joins
     con.execute(f"""
         CREATE TABLE topmed_af AS
         SELECT
             regexp_replace(column0, '^chr', '') AS variant_id,
-            TRY_CAST(column1 AS DOUBLE) AS af
+            TRY_CAST(column1 AS DOUBLE) AS af,
+            TRY_CAST(split_part(regexp_replace(column0, '^chr', ''), ':', 1) AS TINYINT) AS chr,
+            TRY_CAST(split_part(regexp_replace(column0, '^chr', ''), ':', 2) AS INTEGER) AS pos,
+            ('0x' || md5(
+                LEAST(split_part(regexp_replace(column0, '^chr', ''), ':', 3), split_part(regexp_replace(column0, '^chr', ''), ':', 4))
+                || ':' ||
+                GREATEST(split_part(regexp_replace(column0, '^chr', ''), ':', 3), split_part(regexp_replace(column0, '^chr', ''), ':', 4))
+            )[:15])::BIGINT AS allele_key
         FROM read_csv('{af_tsv}', sep='\t', header=false, all_varchar=true)
         WHERE TRY_CAST(column1 AS DOUBLE) IS NOT NULL
     """)
     af_count = con.execute("SELECT count(*) FROM topmed_af").fetchone()[0]
     print(f"  ✓ Loaded {af_count:,} TOPMed allele frequencies")
 
-    con.execute("CREATE INDEX idx_af_vid ON topmed_af(variant_id)")
+    con.execute("CREATE INDEX idx_af_chr_pos ON topmed_af(chr, pos, allele_key)")
 
     pack_files = sorted(Path(packs_dir).glob("*.parquet"))
     if not pack_files:
@@ -99,20 +106,42 @@ def compute_normalization(packs_dir, af_tsv, output_json, pgs_list_file):
 
     for i, pf in enumerate(pack_files, 1):
         pf_start = time.monotonic()
-        rows = con.execute(f"""
-            SELECT
-                p.pgs_id,
-                count(*) AS total_variants,
-                count(a.af) AS found,
-                SUM(CASE WHEN a.af IS NOT NULL
-                    THEN p.effect_weight * 2 * a.af ELSE 0 END) AS mean_score,
-                SQRT(SUM(CASE WHEN a.af IS NOT NULL
-                    THEN p.effect_weight * p.effect_weight * 2 * a.af * (1 - a.af) ELSE 0 END)) AS sd_score
-            FROM read_parquet('{pf}') p
-            LEFT JOIN topmed_af a ON p.variant_id = a.variant_id
-            WHERE p.pgs_id IN (SELECT unnest(list_value({','.join(f"'{p}'" for p in pgs_to_process)})))
-            GROUP BY p.pgs_id
-        """).fetchall()
+        try:
+            rows = con.execute(f"""
+                SELECT
+                    p.pgs_id,
+                    count(*) AS total_variants,
+                    count(a.af) AS found,
+                    SUM(CASE WHEN a.af IS NOT NULL
+                        THEN p.effect_weight * 2 * a.af ELSE 0 END) AS mean_score,
+                    SQRT(SUM(CASE WHEN a.af IS NOT NULL
+                        THEN p.effect_weight * p.effect_weight * 2 * a.af * (1 - a.af) ELSE 0 END)) AS sd_score
+                FROM read_parquet('{pf}') p
+                LEFT JOIN topmed_af a ON p.chr = a.chr AND p.pos = a.pos AND p.allele_key = a.allele_key
+                WHERE p.pgs_id IN (SELECT unnest(list_value({','.join(f"'{p}'" for p in pgs_to_process)})))
+                GROUP BY p.pgs_id
+            """).fetchall()
+        except duckdb.BinderError:
+            # Fallback for packs without allele_key column (pre-migration)
+            rows = con.execute(f"""
+                SELECT
+                    p.pgs_id,
+                    count(*) AS total_variants,
+                    count(a.af) AS found,
+                    SUM(CASE WHEN a.af IS NOT NULL
+                        THEN p.effect_weight * 2 * a.af ELSE 0 END) AS mean_score,
+                    SQRT(SUM(CASE WHEN a.af IS NOT NULL
+                        THEN p.effect_weight * p.effect_weight * 2 * a.af * (1 - a.af) ELSE 0 END)) AS sd_score
+                FROM read_parquet('{pf}') p
+                LEFT JOIN topmed_af a ON p.chr = a.chr AND p.pos = a.pos
+                    AND a.allele_key = ('0x' || md5(
+                        LEAST(split_part(p.variant_id,':',3), split_part(p.variant_id,':',4))
+                        || ':' ||
+                        GREATEST(split_part(p.variant_id,':',3), split_part(p.variant_id,':',4))
+                    )[:15])::BIGINT
+                WHERE p.pgs_id IN (SELECT unnest(list_value({','.join(f"'{p}'" for p in pgs_to_process)})))
+                GROUP BY p.pgs_id
+            """).fetchall()
 
         for pgs_id, total, found, mean, sd in rows:
             coverage = round(found / total * 100, 2) if total > 0 else 0

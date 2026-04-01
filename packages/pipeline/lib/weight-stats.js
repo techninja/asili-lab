@@ -1,115 +1,61 @@
-import { Worker } from 'worker_threads';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import os from 'os';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const workerPath = path.join(__dirname, '../decompress-worker.js');
-
-const POOL_SIZE = os.cpus().length;
-const workers = [];
-let requestId = 0;
-const pendingRequests = new Map();
-let nextWorker = 0;
-
-function initWorkerPool() {
-  for (let i = 0; i < POOL_SIZE; i++) {
-    const worker = new Worker(workerPath);
-    worker.on('message', ({ id, data, error }) => {
-      const resolve = pendingRequests.get(id);
-      if (resolve) {
-        pendingRequests.delete(id);
-        if (error) resolve(null);
-        else resolve(data);
-      }
-    });
-    workers.push(worker);
-  }
-}
-
-async function decompressFile(filePath) {
-  if (workers.length === 0) initWorkerPool();
-  return new Promise(resolve => {
-    const id = requestId++;
-    pendingRequests.set(id, resolve);
-    workers[nextWorker].postMessage({ filePath, id });
-    nextWorker = (nextWorker + 1) % POOL_SIZE;
-  });
-}
+import duckdb from 'duckdb';
 
 export function terminateWorkerPool() {
-  for (const w of workers) w.terminate();
-  workers.length = 0;
+  // No-op — kept for API compatibility
 }
 
 export async function calculateWeightStats(pgsId, pgsApiClient) {
+  const filePath = await pgsApiClient.getPGSFile(pgsId);
+  return calculateWeightStatsFromFile(pgsId, filePath);
+}
+
+export async function calculateWeightStatsFromFile(pgsId, filePath) {
+  const db = new duckdb.Database(':memory:');
+  const conn = db.connect();
+
   try {
-    const filePath = await pgsApiClient.getPGSFile(pgsId);
-    const fileContent = await decompressFile(filePath);
-    if (!fileContent) return null;
+    // Detect weight column — dosage format uses dosage_1_weight instead of effect_weight
+    const described = await new Promise((resolve, reject) => {
+      conn.all(`DESCRIBE SELECT * FROM read_csv('${filePath}', delim='\t', header=true, comment='#', all_varchar=true)`,
+        (err, rows) => err ? reject(err) : resolve(rows));
+    });
+    const cols = described.map(r => r.column_name);
+    const weightCol = cols.includes('effect_weight') ? 'effect_weight'
+      : cols.includes('dosage_1_weight') ? 'dosage_1_weight'
+      : cols.includes('weight') ? 'weight' : null;
+    if (!weightCol) return null;
 
-    // Find header and column indices
-    let weightColIdx = -1;
-    let afColIdx = -1;
-    let pos = 0;
-
-    while (pos < fileContent.length) {
-      const nextNewline = fileContent.indexOf('\n', pos);
-      if (nextNewline === -1) break;
-
-      const line = fileContent.slice(pos, nextNewline);
-      pos = nextNewline + 1;
-
-      if (line.startsWith('#')) continue;
-
-      const cols = line.split('\t');
-      weightColIdx = cols.findIndex(
-        c => c === 'effect_weight' || c === 'weight'
-      );
-      afColIdx = cols.findIndex(
-        c => c === 'allelefrequency_effect' || c === 'effect_allele_frequency'
-      );
-
-      if (weightColIdx === -1) return null;
-      break;
+    const hasAF = cols.includes('allelefrequency_effect') || cols.includes('effect_allele_frequency');
+    if (!hasAF) {
+      // Without real allele frequencies, af=0.5 produces garbage normalization.
+      // Return null so the TOPMed refstats pipeline provides proper stats later.
+      return null;
     }
+    const afCol = cols.includes('allelefrequency_effect') ? 'allelefrequency_effect' : 'effect_allele_frequency';
+    const afExpr = `COALESCE(TRY_CAST("${afCol}" AS DOUBLE), 0.5)`;
 
-    // Calculate theoretical distribution: E[PGS] = Σ(w_i * 2 * af_i), Var[PGS] = Σ(w_i² * 2 * af_i * (1-af_i))
-    let meanSum = 0;
-    let varianceSum = 0;
-    let count = 0;
+    const rows = await new Promise((resolve, reject) => {
+      conn.all(`
+        SELECT
+          SUM(w * 2.0 * af) as mean_sum,
+          SUM(w * w * 2.0 * af * (1.0 - af)) as var_sum,
+          COUNT(*) as cnt
+        FROM (
+          SELECT TRY_CAST("${weightCol}" AS DOUBLE) as w, ${afExpr} as af
+          FROM read_csv('${filePath}', delim='\t', header=true, comment='#', all_varchar=true, ignore_errors=true)
+          WHERE "${weightCol}" IS NOT NULL AND "${weightCol}" != ''
+        )
+      `, (err, rows) => err ? reject(err) : resolve(rows));
+    });
 
-    while (pos < fileContent.length) {
-      const nextNewline = fileContent.indexOf('\n', pos);
-      if (nextNewline === -1) break;
-
-      const line = fileContent.slice(pos, nextNewline);
-      pos = nextNewline + 1;
-
-      if (!line) continue;
-
-      const cols = line.split('\t');
-      const weight = parseFloat(cols[weightColIdx]);
-      const af = afColIdx >= 0 ? parseFloat(cols[afColIdx]) : 0.5; // Default to 0.5 if missing
-
-      if (!isNaN(weight) && !isNaN(af) && af >= 0 && af <= 1) {
-        meanSum += weight * 2 * af;
-        varianceSum += weight * weight * 2 * af * (1 - af);
-        count++;
-      }
-    }
-
-    if (count === 0) return null;
-
-    const mean = meanSum;
-    const sd = Math.sqrt(varianceSum);
-
-    return { mean, sd, count };
+    const { mean_sum, var_sum, cnt } = rows[0];
+    if (!cnt || cnt === 0) return null;
+    return { mean: mean_sum, sd: Math.sqrt(var_sum), count: Number(cnt) };
   } catch (error) {
-    console.error(
-      `Error calculating theoretical distribution for ${pgsId}:`,
-      error.message
-    );
+    console.error(`Error calculating weight stats for ${pgsId}:`, error.message);
     return null;
+  } finally {
+    conn.close();
+    db.close();
   }
 }

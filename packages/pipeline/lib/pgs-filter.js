@@ -211,10 +211,14 @@ async function shouldExcludePGS(pgsId, scoreData, pgsApiClient = null) {
     };
   }
 
-  // Check for integrative methods
+  // Flag integrative methods but don't exclude — they often have better
+  // validated performance than components. Double-counting is handled at
+  // score aggregation time in the browser, not at the variant level.
+  let isIntegrative = false;
   for (const keyword of INTEGRATIVE_METHOD_KEYWORDS) {
     if (methodName.includes(keyword) || methodParams.includes(keyword)) {
-      return { exclude: true, reason: `Integrative method: ${keyword}` };
+      isIntegrative = true;
+      break;
     }
   }
 
@@ -232,7 +236,8 @@ async function shouldExcludePGS(pgsId, scoreData, pgsApiClient = null) {
 
   return {
     exclude: false,
-    reason: 'Standard PGS score',
+    reason: isIntegrative ? 'Integrative PGS (flagged)' : 'Standard PGS score',
+    integrative: isIntegrative,
     performance_weight: performanceWeight,
     performance_metrics: performanceMetrics
   };

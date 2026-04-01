@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import duckdb from 'duckdb';
+import { getConnection } from './shared-db.js';
 import { loadAllowlist } from './catalog.js';
 
 const OUTPUT_DIR = process.env.OUTPUT_DIR || '/output';
@@ -8,9 +8,7 @@ const OUTPUT_DIR = process.env.OUTPUT_DIR || '/output';
 export async function exportTraitManifestJSON() {
   const tier = process.env.ASILI_TIER || 'tier1_public';
   const allowlist = await loadAllowlist(tier);
-  const DB_PATH = path.join(OUTPUT_DIR, 'trait_manifest.db');
-  const db = new duckdb.Database(DB_PATH);
-  const conn = db.connect();
+  const conn = await getConnection();
 
   // Get all traits with their PGS associations
   const traits = await new Promise((resolve, reject) => {
@@ -108,9 +106,6 @@ export async function exportTraitManifestJSON() {
   console.log(
     `✓ Exported trait manifest: ${Object.keys(manifest.traits).length} traits`
   );
-
-  conn.close();
-  db.close();
 
   return manifest;
 }

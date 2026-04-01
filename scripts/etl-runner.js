@@ -108,8 +108,7 @@ async function runLocal() {
     ...process.env,
     ...envConfig,
     PATH: `${path.join(VENV_PATH, 'bin')}:${process.env.PATH}`,
-    OUTPUT_DIR: path.join(__dirname, '..', 'data_out'),
-    CACHE_DIR: path.join(__dirname, '..', 'cache')
+    OUTPUT_DIR: envConfig.OUTPUT_DIR || path.join(__dirname, '..', 'data_out')
   };
 
   // Display performance settings

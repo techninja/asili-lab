@@ -11,8 +11,9 @@
  * For PGS with <50% AF coverage, falls back to af=0.5 assumption (less accurate
  * but better than using partial-coverage empirical stats).
  */
+import '../packages/pipeline/lib/env.js';
 import { spawn } from 'child_process';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync } from 'fs';
 import { readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -30,19 +31,7 @@ const OUTPUT_JSON = path.join(ROOT, 'data_out', 'pgs_topmed_stats.json');
 const MANIFEST_DB = path.join(ROOT, 'data_out', 'trait_manifest.db');
 const PACKS_DIR = path.join(ROOT, 'data_out', 'packs');
 
-function _loadEnv() {
-  const envPath = path.join(ROOT, '.env');
-  if (!existsSync(envPath)) return {};
-  const env = {};
-  for (const line of readFileSync(envPath, 'utf8').split('\n')) {
-    const match = line.match(/^([^=:#]+)=(.*)$/);
-    if (match) env[match[1].trim()] = match[2].trim();
-  }
-  return env;
-}
-
-const env = _loadEnv();
-const PANEL_DIR = env.REF_PANEL_DIR || path.join(ROOT, 'cache', 'topmed_reference');
+const PANEL_DIR = process.env.REF_PANEL_DIR || path.join(ROOT, 'cache', 'topmed_reference');
 
 // Minimum AF coverage to trust empirical normalization.
 // Below this, the mean/SD describe a different distribution than what gets scored.
@@ -82,6 +71,12 @@ function dbQuery(conn, sql) {
   });
 }
 
+function openManifest() {
+  const db = new duckdb.Database(MANIFEST_DB);
+  const conn = db.connect();
+  return { db, conn, close() { conn.close(); db.close(); } };
+}
+
 async function importToManifest() {
   console.log('\n📥 Importing results to manifest...\n');
 
@@ -91,8 +86,8 @@ async function importToManifest() {
   }
 
   const stats = JSON.parse(await readFile(OUTPUT_JSON, 'utf8'));
-  const db = new duckdb.Database(MANIFEST_DB);
-  const conn = db.connect();
+  const manifest = openManifest();
+  const conn = manifest.conn;
 
   const allPgs = await dbQuery(conn, 'SELECT pgs_id, norm_mean, norm_sd FROM pgs_scores');
   console.log(`Total PGS in manifest: ${allPgs.length}`);
@@ -136,18 +131,15 @@ async function importToManifest() {
   console.log(`   ${theoretical} with partial TOPMed AF (${MIN_USABLE_PCT}-${MIN_COVERAGE_PCT}% coverage)`);
   console.log(`   ${skipped} with defaults (<${MIN_USABLE_PCT}% coverage or no data)`);
 
-  conn.close();
-  db.close();
+  manifest.close();
 }
 
 async function resetStats() {
   console.log('🔄 Resetting all PGS normalization statistics...');
-  const db = new duckdb.Database(MANIFEST_DB);
-  const conn = db.connect();
-  await dbQuery(conn, 'UPDATE pgs_scores SET norm_mean = NULL, norm_sd = NULL');
+  const manifest = openManifest();
+  await dbQuery(manifest.conn, 'UPDATE pgs_scores SET norm_mean = NULL, norm_sd = NULL');
   console.log('✅ Reset complete\n');
-  conn.close();
-  db.close();
+  manifest.close();
 }
 
 async function runBatch() {
@@ -164,16 +156,14 @@ async function runBatch() {
   }
 
   // Get list of all PGS that need processing
-  const db = new duckdb.Database(MANIFEST_DB);
-  const conn = db.connect();
+  const manifest = openManifest();
 
-  const allPgs = await dbQuery(conn,
+  const allPgs = await dbQuery(manifest.conn,
     'SELECT DISTINCT pgs_id FROM pgs_scores'
   );
   const pgsToProcess = allPgs.map(r => r.pgs_id);
 
-  conn.close();
-  db.close();
+  manifest.close();
 
   if (pgsToProcess.length === 0) {
     console.log('✅ No PGS scores in manifest.');

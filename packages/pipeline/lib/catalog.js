@@ -27,13 +27,23 @@ export async function loadAllowlist(tier) {
 export async function getTraitConfigs(tier) {
   const allowlist = await loadAllowlist(tier);
   const conn = await getConnection();
+  const singleTrait = process.env.SINGLE_TRAIT;
 
-  const allTraits = await new Promise((resolve, reject) => {
-    conn.all('SELECT * FROM traits ORDER BY name', (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
+  const query = (sql, params = []) => new Promise((resolve, reject) => {
+    conn.all(sql, ...([params.length ? params : [], (err, rows) => err ? reject(err) : resolve(rows)].flat()));
   });
+
+  // Load traits — single query, filtered at DB level when possible
+  let allTraits;
+  if (singleTrait) {
+    const ids = singleTrait.split(',').map(s => s.trim());
+    const inClause = ids.map(id => `'${id}'`).join(',');
+    allTraits = await query(
+      `SELECT * FROM traits WHERE trait_id IN (${inClause}) OR name IN (${inClause})`
+    );
+  } else {
+    allTraits = await query('SELECT * FROM traits ORDER BY name');
+  }
 
   const filtered = allowlist
     ? allTraits.filter(t => allowlist.has(t.trait_id))
@@ -41,39 +51,45 @@ export async function getTraitConfigs(tier) {
 
   console.log(`✓ ${filtered.length} traits loaded (tier: ${tier || 'local'})`);
 
+  // Batch load all PGS mappings + scores in two queries instead of N+1
+  const traitIds = filtered.map(t => t.trait_id);
+  const inClause = traitIds.map(id => `'${id}'`).join(',');
+
+  const allPgs = traitIds.length > 0
+    ? await query(`SELECT tp.trait_id, tp.pgs_id, tp.performance_weight,
+        ps.norm_mean, ps.norm_sd, ps.weight_type, ps.method_name, ps.variants_number
+      FROM trait_pgs tp
+      LEFT JOIN pgs_scores ps ON tp.pgs_id = ps.pgs_id
+      WHERE tp.trait_id IN (${inClause})
+      ORDER BY tp.trait_id, tp.pgs_id`)
+    : [];
+
+  // Group by trait
+  const pgsByTrait = new Map();
+  for (const row of allPgs) {
+    if (!pgsByTrait.has(row.trait_id)) pgsByTrait.set(row.trait_id, []);
+    pgsByTrait.get(row.trait_id).push(row);
+  }
+
   const configs = {};
   for (const trait of filtered) {
-    const pgsScores = await new Promise((resolve, reject) => {
-      conn.all(
-        'SELECT pgs_id, performance_weight FROM trait_pgs WHERE trait_id = ?',
-        [trait.trait_id],
-        (err, rows) => (err ? reject(err) : resolve(rows))
-      );
-    });
-
+    const pgsRows = pgsByTrait.get(trait.trait_id) || [];
     const normalizationParams = {};
-    for (const { pgs_id, performance_weight } of pgsScores) {
-      const pgs = await new Promise((resolve, reject) => {
-        conn.all(
-          'SELECT * FROM pgs_scores WHERE pgs_id = ?',
-          [pgs_id],
-          (err, rows) => (err ? reject(err) : resolve(rows[0]))
-        );
-      });
-      if (pgs) {
-        normalizationParams[pgs_id] = {
-          norm_mean: pgs.norm_mean || 0,
-          norm_sd: pgs.norm_sd || null,
-          weight_type: pgs.weight_type,
-          method: pgs.method_name,
-          performance_weight: performance_weight || 0.5,
-          variants_number: pgs.variants_number ? Number(pgs.variants_number) : null
+    for (const row of pgsRows) {
+      if (row.norm_mean != null || row.norm_sd != null || row.weight_type) {
+        normalizationParams[row.pgs_id] = {
+          norm_mean: row.norm_mean || 0,
+          norm_sd: row.norm_sd || null,
+          weight_type: row.weight_type,
+          method: row.method_name,
+          performance_weight: row.performance_weight || 0.5,
+          variants_number: row.variants_number ? Number(row.variants_number) : null
         };
       }
     }
 
     configs[trait.trait_id] = {
-      pgs_ids: pgsScores.map(p => p.pgs_id),
+      pgs_ids: pgsRows.map(p => p.pgs_id),
       normalization_params: normalizationParams,
       name: trait.editorial_name || trait.name,
       trait_id: trait.trait_id,

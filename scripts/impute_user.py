@@ -455,19 +455,29 @@ def bcf_to_chr_parquet(bcf_file, user_id, chromosome):
     con.execute(f"""
         COPY (
             SELECT
-                regexp_replace(vid, '^chr', '') AS variant_id,
-                CAST(ds AS FLOAT) AS genotype_dosage,
-                CAST(greatest(gp1, gp2, gp3) AS FLOAT) AS imputation_quality
+                variant_id,
+                genotype_dosage,
+                imputation_quality,
+                ('0x' || md5(LEAST(split_part(variant_id,':',3), split_part(variant_id,':',4))
+                  || ':' ||
+                  GREATEST(split_part(variant_id,':',3), split_part(variant_id,':',4))
+                )[:15])::BIGINT AS allele_key
             FROM (
                 SELECT
-                    column0 AS vid,
-                    column1 AS ds,
-                    CAST(split_part(column2, ',', 1) AS DOUBLE) AS gp1,
-                    CAST(split_part(column2, ',', 2) AS DOUBLE) AS gp2,
-                    CAST(split_part(column2, ',', 3) AS DOUBLE) AS gp3
-                FROM read_csv('{tsv_file}', sep='\t', header=false, all_varchar=true)
+                    regexp_replace(vid, '^chr', '') AS variant_id,
+                    CAST(ds AS FLOAT) AS genotype_dosage,
+                    CAST(greatest(gp1, gp2, gp3) AS FLOAT) AS imputation_quality
+                FROM (
+                    SELECT
+                        column0 AS vid,
+                        column1 AS ds,
+                        CAST(split_part(column2, ',', 1) AS DOUBLE) AS gp1,
+                        CAST(split_part(column2, ',', 2) AS DOUBLE) AS gp2,
+                        CAST(split_part(column2, ',', 3) AS DOUBLE) AS gp3
+                    FROM read_csv('{tsv_file}', sep='\t', header=false, all_varchar=true)
+                )
+                WHERE greatest(gp1, gp2, gp3) >= 0.5
             )
-            WHERE greatest(gp1, gp2, gp3) >= 0.5
         ) TO '{chr_parquet}' (FORMAT PARQUET, COMPRESSION ZSTD)
     """)
     count = con.execute(f"SELECT count(*) FROM read_parquet('{chr_parquet}')").fetchone()[0]
@@ -551,7 +561,11 @@ def merge_with_genotyped(user_file, imputed_parquet, user_id):
                        WHEN 'X' THEN 23 WHEN 'Y' THEN 24 WHEN 'MT' THEN 25
                        ELSE TRY_CAST(split_part(variant_id,':',1) AS TINYINT)
                    END AS chr,
-                   TRY_CAST(split_part(variant_id,':',2) AS INTEGER) AS pos
+                   TRY_CAST(split_part(variant_id,':',2) AS INTEGER) AS pos,
+                   ('0x' || md5(LEAST(split_part(variant_id,':',3), split_part(variant_id,':',4))
+                     || ':' ||
+                     GREATEST(split_part(variant_id,':',3), split_part(variant_id,':',4))
+                   )[:15])::BIGINT AS allele_key
             FROM (
                 SELECT * FROM genotyped
                 UNION ALL
@@ -576,7 +590,8 @@ def merge_with_genotyped(user_file, imputed_parquet, user_id):
     unified_dir = f"{OUTPUT_DIR}/../unified"
     Path(unified_dir).mkdir(parents=True, exist_ok=True)
     unified_file = f"{unified_dir}/{user_id}.parquet"
-    os.rename(f"{TEMP_DIR}/unified_tmp.parquet", unified_file)
+    import shutil
+    shutil.move(f"{TEMP_DIR}/unified_tmp.parquet", unified_file)
     
     print(f"✓ Unified file created: {unified_file}")
     print(f"  Genotyped: {counts[0]:,}")
