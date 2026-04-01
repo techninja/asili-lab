@@ -13,6 +13,7 @@
     "traits": "node packages/pipeline/manage-traits.js",
     "pgs": "node packages/pipeline/manage-pgs.js",
     "etl": "node scripts/etl-runner.js",
+    "perf": "node scripts/profiler.js",
     "pipeline": "node scripts/pipeline-controller.js",
     "imputation": "node scripts/imputation.js",
     "start": "node scripts/server.js",
