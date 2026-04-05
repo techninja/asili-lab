@@ -202,7 +202,7 @@ export function generateColumnExpressions(formatType, columns) {
 /**
  * Generate DuckDB column definitions for CSV reading
  */
-export function generateColumnDefinitions(columns) {
+export function generateColumnDefinitions(_columns) {
   // No longer needed — DuckDB reads headers directly with header=true
   return null;
 }

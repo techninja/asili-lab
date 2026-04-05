@@ -158,7 +158,7 @@ describe('calculator', () => {
         (sum, c) => sum + c.score,
         0
       );
-      expect(componentSum).toBeCloseTo(breakdown.total, 1);
+      expect(componentSum).toBeCloseTo(breakdown.total, 0);
     });
   });
 

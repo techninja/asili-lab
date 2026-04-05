@@ -10,7 +10,7 @@ const SKINS = [
 const SKIN_COLORS = ['#FFCC4D', '#FADCBC', '#E0BB95', '#BF8B68', '#9B643D', '#594539'];
 
 // Gender: 0=man, 1=woman, 2=neutral
-const GENDER_LABELS = ['Man', 'Woman', 'Neutral'];
+const _GENDER_LABELS = ['Man', 'Woman', 'Neutral'];
 
 // --- Head-only base characters (no ZWJ = consistent head rendering) ---
 // Each "look" is a base codepoint that renders as a head with skin tone support.
@@ -106,7 +106,7 @@ export class EmojiBuilder extends HTMLElement {
     this._hair = -1;
 
     // Detect look + gender from base character (strip skin tone for matching)
-    const stripped = emoji.replace(new RegExp(`[${SKINS.slice(1).join('')}]`), '');
+    const stripped = emoji.replace(new RegExp(`[${SKINS.slice(1).join('')}]`, 'u'), '');
     for (let li = 0; li < LOOKS.length; li++) {
       for (let gi = 0; gi < 3; gi++) {
         const candidate = LOOKS[li].bases[gi];

@@ -7,7 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import pgsApiClient from './pgs-api-client.js';
-import { shouldExcludePGS, WEIGHT_THRESHOLDS } from './lib/pgs-filter.js';
+import { shouldExcludePGS, WEIGHT_THRESHOLDS as _WEIGHT_THRESHOLDS } from './lib/pgs-filter.js';
 import { calculateWeightStats, terminateWorkerPool } from './lib/weight-stats.js';
 import { analyzeTraitPGSQuality } from './lib/pgs-enhanced-filter.js';
 import * as pgsDB from './lib/pgs-db.js';

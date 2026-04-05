@@ -8,7 +8,7 @@ import {
   countVariantsInFile,
   validateParquetFile,
   prepareFileForProcessing,
-  query as duckQuery
+  query as _duckQuery
 } from './processor-core.js';
 import {
   detectFormat,
@@ -127,7 +127,7 @@ async function processBatchWithDuckDB(
   batchNum,
   traitName,
   totalBatches,
-  pgsMetadata = new Map(),
+  _pgsMetadata = new Map(),
   logger = console
 ) {
   logger.log(
@@ -401,13 +401,13 @@ async function mergeBatchResults(batchFiles, traitName) {
   `;
 
   try {
-    execSync(`duckdb :memory: "${sql.replace(/"/g, '\"')}"`, {
+    execSync(`duckdb :memory: "${sql.replace(/"/g, '"')}"`, {
       cwd: OUTPUT_DIR,
       stdio: ['pipe', 'pipe', 'pipe'],
       maxBuffer: 10 * 1024 * 1024
     });
     console.log(`    ✓ DuckDB merge complete`);
-  } catch (error) {
+  } catch (_error) {
     // If inline SQL fails (too long), write to temp file
     console.log(`    Inline merge failed, using SQL file...`);
     const sqlPath = path.join(BATCH_DIR, `${safeFileName}_merge.sql`);

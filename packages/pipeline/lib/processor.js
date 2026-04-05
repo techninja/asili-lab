@@ -15,7 +15,7 @@ import {
   PACKS_DIR
 } from './processor-core.js';
 import { detectFormat, generateInsertSQL } from './harmonization.js';
-import { getPGS } from './pgs-db.js';
+import { getPGS as _getPGS } from './pgs-db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMP_SQL_DIR = path.join(OUTPUT_DIR, 'temp_sql');
@@ -125,7 +125,7 @@ async function streamProcessWithDuckDB(traitName, config) {
     // Pipeline: download+prepare next PGS while importing current one
     // Pre-fetch up to PREFETCH_AHEAD files ahead of the import cursor
     const PREFETCH_AHEAD = 3;
-    const prepared = new Map(); // pgsId -> { columns, dataOnlyPath, dataLineCount, formatType, importSQL } | null
+    const _prepared = new Map(); // pgsId -> { columns, dataOnlyPath, dataLineCount, formatType, importSQL } | null
     const preparing = new Map(); // pgsId -> Promise
 
     async function preparePGS(pgsId) {

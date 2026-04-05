@@ -59,7 +59,7 @@ async function main() {
     logger.log('');
 
     const active = new Set();
-    const results = [];
+    const _results = [];
 
     for (const [traitName, config] of sortedTraits) {
       // Wait if at capacity
