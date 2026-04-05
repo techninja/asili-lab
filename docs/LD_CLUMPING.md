@@ -1,102 +1,21 @@
-# LD Clumping
+# LD Clumping — Removed
 
-## Problem
+## History
 
-Variants in Linkage Disequilibrium (LD) are inherited together and represent the same genetic signal. Summing their effects inflates PGS scores.
+The ETL pipeline previously included distance-based LD clumping that attempted to remove correlated variants from PGS scores. This was removed because:
 
-## Solution
+1. **Every PGS in the PGS Catalog already handles LD** through its construction method (LDpred, PRS-CS, C+T, snpnet, GWAS-significant selection, etc.)
+2. The distance-based fallback (250kb windows) **destroyed data** — it removed all variants from dozens of PGS scores across multiple traits
+3. Maintaining a method recognition list was a losing game — new methods constantly appeared and got incorrectly clumped
+4. The `variants_in_parquet` vs `variants_number` distinction only existed because of clumping
 
-**Automatic LD Detection & Clumping with gnomAD Quality Control**
+## Current Behavior
 
-### Detection
+The ETL pipeline imports PGS variants exactly as provided by the PGS Catalog's harmonized GRCh38 scoring files. No variants are removed or modified during import.
 
-The pipeline automatically detects if PGS scores need clumping based on method:
+## Files Removed/Unused
 
-**LD-Aware Methods** (no clumping needed):
-
-- LDpred, LDpred2, PRS-CS, lassosum, SBayesR
-- Clumping + Thresholding (C+T)
-
-**Needs Clumping**:
-
-- Unknown methods with >100 variants
-- Raw GWAS results
-
-### Clumping Algorithm
-
-**Distance-based approach:**
-
-1. Divide each chromosome into 250kb windows
-2. Keep strongest variant (highest |effect_weight|) per window
-3. Remove all other variants in that window
-
-**gnomAD Quality Control** (if available):
-
-- Filters ultra-rare variants (AF < 0.1%)
-- Removes likely genotyping errors
-- Uses gnomAD v4.1 allele frequencies
-
-### Schema
-
-`pgs_scores` table tracks LD status:
-
-```sql
-ld_aware BOOLEAN        -- Method accounts for LD
-needs_clumping BOOLEAN  -- Requires clumping
-```
-
-### Pipeline Integration
-
-1. **manage-traits.js**: Detects LD status when adding traits
-2. **processor.js**: Applies clumping during parquet generation
-3. **gnomAD filtering**: Removes ultra-rare variants if GNOMAD_DB_PATH set
-4. **Output**: Clumped parquet files with independent variants
-
-### Usage
-
-```bash
-# Interactive menu
-pnpm etl
-
-# Run locally (faster, uses gnomAD)
-pnpm etl local
-
-# Run in Docker (isolated, uses gnomAD if mounted)
-pnpm etl docker
-```
-
-### Output
-
-```
-✓ PGS000001: 15234 variants (perf: 0.85)
-✓ PGS000002: 8421 variants (perf: 0.72) ⚠️ LD
-  Applying LD clumping to PGS000002...
-  ✓ Clumped PGS000002: removed 3241 variants (5180 remaining)
-```
-
-## Benefits
-
-- **Accurate scores**: No LD inflation
-- **Quality control**: gnomAD filters genotyping errors
-- **Automatic**: No manual intervention
-- **Transparent**: Logs show clumping activity
-- **Backward compatible**: Only affects non-LD-aware PGS
-
-## gnomAD Integration
-
-When `GNOMAD_DB_PATH` is set in `.env`:
-
-- Queries allele frequencies for all variants
-- Removes variants with AF < 0.1% (likely errors)
-- Improves PGS accuracy by 5-10%
-- Already used for normalization statistics
-
-**Setup:**
-
-```bash
-# In .env file
-GNOMAD_DB_PATH=/path/to/gnomad/gnomad.genomes.v4.1.sites.db
-
-# Docker automatically mounts and passes to pipeline
-docker compose run --rm pipeline pnpm run etl
-```
+- `packages/pipeline/lib/ld-clumping.js` — can be deleted
+- `packages/pipeline/lib/ld-detector.js` — can be deleted
+- `pgs_scores.ld_aware` column — no longer written
+- `pgs_scores.needs_clumping` column — no longer written

@@ -134,7 +134,7 @@ export class PGSScorer {
 
   /**
    * Score all PGS for a trait using matched variants from any DNA source.
-   * Fallback path for non-unified sources (GenotypedDNASource, HybridDNASource).
+   * Fallback path for non-unified sources (GenotypedDNASource).
    *
    * @param {import('./dna-source/interface.js').DNASource} dnaSource
    * @param {string} traitUrl - Path/URL to trait Parquet file

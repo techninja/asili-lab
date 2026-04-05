@@ -18,6 +18,7 @@ import { execSync } from 'child_process';
 import chalk from 'chalk';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import '../packages/pipeline/lib/env.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.join(__dirname, '../data_out/risk_scores.db');
@@ -177,7 +178,7 @@ function coverage() {
     )[0];
     console.log(chalk.yellow(`${r.pgs_id}:`));
     console.log(
-      `  Avg coverage: ${r.avg_cov.toFixed(1)}% | Max |z|: ${r.max_z.toFixed(1)}σ | Affected: ${r.affected}`
+      `  Avg coverage: ${r.avg_cov?.toFixed(1) ?? '?'}% | Max |z|: ${r.max_z?.toFixed(1) ?? 'N/A'}σ | Affected: ${r.affected}`
     );
     if (info)
       console.log(
@@ -468,6 +469,17 @@ function validate() {
     detail: `${zeroExpected} found`
   });
 
+  // Check 5b: No PGS with matched > expected (multiallelic cross-product bug)
+  const overMatched =
+    qr(
+      `SELECT COUNT(*) as n FROM pgs_results WHERE matched_variants > expected_variants AND expected_variants > 0`
+    )[0]?.n || 0;
+  checks.push({
+    name: 'No PGS with matched > expected variants',
+    pass: overMatched === 0,
+    detail: `${overMatched} found`
+  });
+
   // Check 6: Insufficient data rate
   const insufficientRate = qr(`
     SELECT COUNT(*) as total,
@@ -539,14 +551,35 @@ const COMMANDS = {
       validate();
     }
   },
-  all: {
-    label: '🧬 All — Run everything',
+  analyze: {
+    label: '🧬 Analyze — Run all analysis',
     fn: () => {
       summary();
       extremes();
       coverage();
       smallSDs();
       console.log(chalk.green('\n✓ Analysis complete\n'));
+    }
+  },
+  all: {
+    label: '🧬 All — Alias for analyze',
+    fn: () => {
+      COMMANDS.analyze.fn();
+    }
+  },
+  calc: {
+    label:
+      '🧮 Calc — Calculate scores (all | <traitId> | <individualId> <traitId>)',
+    fn: args => {
+      const calcArgs = args.length > 0 ? args.join(' ') : '';
+      try {
+        execSync(`node scripts/calc-scores.js ${calcArgs}`, {
+          cwd: path.join(__dirname, '..'),
+          stdio: 'inherit'
+        });
+      } catch (err) {
+        process.exit(err.status || 1);
+      }
     }
   }
 };

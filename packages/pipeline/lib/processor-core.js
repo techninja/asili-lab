@@ -1,392 +1,198 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { spawn } from 'child_process';
-import { gunzip } from 'zlib';
-import { promisify } from 'util';
 import os from 'os';
-import pgsApiClient from '../pgs-api-client.js';
-import { shouldExcludePGS } from './pgs-filter.js';
-
+import duckdb from 'duckdb';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR =
   process.env.OUTPUT_DIR || path.join(__dirname, '..', '..', '..', 'data_out');
 const PACKS_DIR = path.join(OUTPUT_DIR, 'packs');
-const PATHS = {
-  DATA_OUT: OUTPUT_DIR,
-  TRAIT_MANIFEST: path.join(OUTPUT_DIR, 'trait_manifest.json'),
-  getTraitFile: traitId =>
-    path.join(PACKS_DIR, `${traitId.replace(/:/g, '_')}_hg38.parquet`)
-};
-const gunzipAsync = promisify(gunzip);
 
-// Global metadata cache to avoid duplicate API calls
-const globalMetadataCache = new Map();
+export { OUTPUT_DIR, PACKS_DIR };
 
-export async function collectPgsMetadata(
-  pgsIds,
-  existingMetadata = {},
-  _traitId = null
-) {
-  const metadata = {};
-  const uncachedIds = [];
-  const excludedIds = [];
+// --- Persistent DuckDB connection helper ---
 
-  // Check existing manifest metadata first, then global cache
-  for (const pgsId of pgsIds) {
-    if (existingMetadata[pgsId]) {
-      metadata[pgsId] = existingMetadata[pgsId];
-    } else if (globalMetadataCache.has(pgsId)) {
-      metadata[pgsId] = globalMetadataCache.get(pgsId);
-    } else {
-      uncachedIds.push(pgsId);
-    }
-  }
+export function openDuckDB(dbPath) {
+  const db = new duckdb.Database(dbPath);
+  const conn = db.connect();
+  const memoryLimit = process.env.DUCKDB_MEMORY_LIMIT || '8GB';
+  const tempDir = process.env.LARGE_TMP || '/tmp';
+  const threads =
+    process.env.DUCKDB_THREADS || Math.max(4, Math.floor(os.cpus().length / 2));
 
-  if (uncachedIds.length === 0) {
-    console.log(
-      `    All ${pgsIds.length} PGS scores found in existing metadata`
-    );
-    return metadata;
-  }
+  conn.run(`PRAGMA memory_limit='${memoryLimit}'`);
+  conn.run(`PRAGMA temp_directory='${tempDir}'`);
+  conn.run(`PRAGMA threads=${threads}`);
 
-  console.log(
-    `    Collecting metadata for ${uncachedIds.length} new PGS scores...`
-  );
-
-  // Process sequentially to avoid rate limits
-  for (let i = 0; i < uncachedIds.length; i++) {
-    const pgsId = uncachedIds[i];
-    console.log(
-      `      Processing ${pgsId} (${i + 1}/${uncachedIds.length})...`
-    );
-
-    try {
-      const scoreData = await pgsApiClient.getScore(pgsId);
-
-      // Check if PGS should be excluded
-      const filterResult = await shouldExcludePGS(
-        pgsId,
-        scoreData,
-        pgsApiClient
-      );
-      if (filterResult.exclude) {
-        console.log(`      ⚠ Excluding ${pgsId}: ${filterResult.reason}`);
-        excludedIds.push(pgsId);
-        continue;
-      }
-
-      const pgsMetadata = {
-        name: scoreData.name || '',
-        trait: scoreData.trait_reported || '',
-        ancestry: scoreData.ancestry_broad || ''
-      };
-
-      metadata[pgsId] = pgsMetadata;
-      globalMetadataCache.set(pgsId, pgsMetadata);
-      console.log(
-        `      ✓ ${pgsId}: ${scoreData.trait_reported || 'Unknown trait'}`
-      );
-    } catch (error) {
-      console.log(`      ⚠ ${pgsId}: ${error.message}`);
-      const fallbackMetadata = {
-        name: pgsId,
-        trait: 'Unknown',
-        ancestry: ''
-      };
-      metadata[pgsId] = fallbackMetadata;
-      globalMetadataCache.set(pgsId, fallbackMetadata);
-    }
-
-    // Add delay between requests
-    if (i < uncachedIds.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 200));
-    }
-  }
-
-  if (excludedIds.length > 0) {
-    console.log(
-      `    Excluded ${excludedIds.length} integrative PGS scores: ${excludedIds.join(', ')}`
-    );
-  }
-
-  return metadata;
+  return { db, conn };
 }
 
-export async function needsUpdate(traitName, _config) {
-  console.log(`    Checking if ${traitName} needs update...`);
+/** Run a query, return rows */
+export function query(conn, sql) {
+  return new Promise((resolve, reject) => {
+    conn.all(sql, (err, rows) => (err ? reject(err) : resolve(rows)));
+  });
+}
 
-  // Check if file exists
+/** Run a statement (no result needed) */
+export function exec(conn, sql) {
+  return new Promise((resolve, reject) => {
+    conn.exec(sql, err => (err ? reject(err) : resolve()));
+  });
+}
+
+/** Close a { db, conn } pair */
+export function closeDuckDB({ db, conn }) {
+  try {
+    conn.close();
+  } catch {
+    /* ignore */
+  }
+  try {
+    db.close();
+  } catch {
+    /* ignore */
+  }
+}
+
+// --- File utilities ---
+
+export async function needsUpdate(traitName, _config) {
   const safeFileName = traitName.replace(':', '_');
   const filePath = path.join(PACKS_DIR, `${safeFileName}_hg38.parquet`);
   try {
-    const stats = await fs.stat(filePath);
-    console.log(`    Output file exists: ${filePath} (${stats.size} bytes)`);
-
-    // Simple parquet integrity check
-    try {
-      await validateParquetFile(filePath);
-      console.log('    File integrity verified, skipping generation');
-      return false;
-    } catch (error) {
-      console.log(
-        `    File integrity check failed: ${error.message}, will regenerate`
-      );
-      return true;
-    }
+    await fs.stat(filePath);
+    await validateParquetFile(filePath);
+    console.log(`    ✓ ${filePath} exists and valid, skipping`);
+    return false;
   } catch {
-    console.log('    No output file found, will generate');
     return true;
   }
 }
 
-export async function loadExistingManifest() {
-  const manifestPath = PATHS.TRAIT_MANIFEST;
-  try {
-    const content = await fs.readFile(manifestPath, 'utf8');
-    return JSON.parse(content);
-  } catch {
-    return { traits: {} };
-  }
-}
-
-export async function collectSourceHashes(pgsIds) {
-  const sourceHashes = {};
-  for (const pgsId of pgsIds) {
-    try {
-      const scoreData = await pgsApiClient.getScore(pgsId);
-      if (scoreData.ftp_scoring_file) {
-        sourceHashes[pgsId] = {
-          url: scoreData.ftp_scoring_file,
-          date_released: scoreData.date_release
-        };
-      }
-    } catch (_error) {
-      console.log(`    Warning: Could not get file info for ${pgsId}`);
-    }
-  }
-  return sourceHashes;
-}
-
 export async function countVariantsInFile(filePath) {
-  // Count variants in PGS file without loading into memory
-  try {
-    const buffer = await fs.readFile(filePath);
-    const content = await gunzipAsync(buffer);
-    const lines = content.toString('utf-8').split('\n');
-
-    let count = 0;
-    for (const line of lines) {
-      if (!line.startsWith('#') && line.trim()) {
-        count++;
-      }
-    }
-    return Math.max(0, count - 1); // Subtract header
-  } catch (error) {
-    if (error.message.includes('unexpected end of file')) {
-      console.log(`    Corrupted file ${filePath}, removing from cache`);
-      try {
-        await fs.unlink(filePath);
-      } catch {
-        /* ignore */
-      }
-      throw new Error(`Corrupted file removed: ${filePath}`);
-    }
-    console.log(
-      `    Warning: Could not count variants in ${filePath}: ${error.message}`
-    );
-    return 50000; // Conservative fallback
-  }
-}
-
-export async function runDuckDBQuery(query, dbPath = null) {
-  const duckdbCmd = process.env.DUCKDB_CLI || 'duckdb';
-  const memoryLimit = process.env.DUCKDB_MEMORY_LIMIT || '8GB';
-  const threads =
-    process.env.DUCKDB_THREADS || Math.max(4, Math.floor(os.cpus().length / 2));
-  const tempDir = process.env.LARGE_TMP || '/tmp';
+  const { createReadStream } = await import('fs');
+  const { createGunzip } = await import('zlib');
 
   return new Promise((resolve, reject) => {
-    const args = dbPath ? [dbPath] : [];
-    const duckdb = spawn(duckdbCmd, args, {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      cwd: OUTPUT_DIR,
-      env: {
-        ...process.env,
-        DUCKDB_MEMORY_LIMIT: memoryLimit
-      }
-    });
+    let count = 0;
+    let inHeader = true;
+    let tail = '';
 
-    const timeoutMinutes =
-      query.includes('DISTINCT') && query.includes('ORDER BY') ? 30 : 10;
-    const timeout = setTimeout(
-      () => {
-        duckdb.kill('SIGKILL');
-        reject(new Error(`DuckDB query timeout (${timeoutMinutes} minutes)`));
-      },
-      timeoutMinutes * 60 * 1000
-    );
-
-    const fullQuery = `
-            PRAGMA temp_directory='${tempDir}';
-            PRAGMA memory_limit='${memoryLimit}';
-            PRAGMA threads=${threads};
-            ${query}
-        `;
-
-    duckdb.stdin.write(fullQuery);
-    duckdb.stdin.end();
-
-    let stdout = '';
-    let stderr = '';
-
-    duckdb.stdout.on('data', data => {
-      stdout += data.toString();
-    });
-
-    duckdb.stderr.on('data', data => {
-      stderr += data.toString();
-    });
-
-    duckdb.on('close', code => {
-      clearTimeout(timeout);
-      if (code === 0) {
-        resolve(stdout);
-      } else {
-        reject(new Error(`DuckDB query failed (code ${code}): ${stderr}`));
-      }
-    });
-
-    duckdb.on('error', error => {
-      clearTimeout(timeout);
-      reject(error);
-    });
+    createReadStream(filePath)
+      .pipe(createGunzip())
+      .on('data', chunk => {
+        const str = tail + chunk.toString('utf-8');
+        const lines = str.split('\n');
+        tail = lines.pop();
+        for (const line of lines) {
+          if (inHeader && (line.startsWith('#') || !line.trim())) continue;
+          if (inHeader) {
+            inHeader = false;
+            continue;
+          }
+          if (line.trim()) count++;
+        }
+      })
+      .on('end', () => resolve(count))
+      .on('error', err => {
+        if (err.message.includes('unexpected end of file')) {
+          fs.unlink(filePath).catch(() => {});
+          reject(new Error(`Corrupted file removed: ${filePath}`));
+        } else {
+          reject(err);
+        }
+      });
   });
 }
 
-export function createStandardSchema() {
-  return `
-        CREATE TABLE IF NOT EXISTS pgs_staging (
-            variant_id VARCHAR,
-            chr_name VARCHAR,
-            chr_position BIGINT,
-            effect_allele VARCHAR,
-            other_allele VARCHAR,
-            effect_weight DOUBLE,
-            pgs_id VARCHAR,
-            source_family VARCHAR,
-            source_type VARCHAR,
-            source_subtype VARCHAR,
-            source_weight DOUBLE,
-            weight_type VARCHAR,
-            format_type VARCHAR
-        );
-    `;
+export async function prepareFileForProcessing(filePath) {
+  // Only extract header columns — DuckDB reads the .gz directly via
+  // read_csv(..., comment='#'), so no full decompression needed.
+  const { createReadStream } = await import('fs');
+  const { createGunzip } = await import('zlib');
+  const { createInterface } = await import('readline');
+
+  const columns = await new Promise((resolve, reject) => {
+    let found = false;
+    const stream = createReadStream(filePath);
+    const gunzip = stream.pipe(createGunzip());
+    stream.on('error', reject);
+    gunzip.on('error', reject);
+    const rl = createInterface({ input: gunzip, crlfDelay: Infinity });
+    rl.on('line', line => {
+      if (found) return;
+      if (line.startsWith('#') || !line.trim()) return;
+      found = true;
+      resolve(line.split('\t'));
+      rl.close();
+      stream.destroy();
+    });
+    rl.on('close', () => {
+      if (!found) resolve(null);
+    });
+    rl.on('error', reject);
+  });
+
+  if (!columns) throw new Error('No header found in file');
+
+  // Return the .gz path — DuckDB handles decompression natively
+  return { columns, dataOnlyPath: filePath, dataLineCount: -1 };
 }
 
-export function createStandardizedExportQuery(
-  tableName,
-  outputPath,
-  _normalizationParams = {}
-) {
-  // Keep raw weights - normalization will be applied to final sum
+export function createStandardizedExportQuery(tableName, outputPath) {
+  // allele_key: hash of sorted allele pair from variant_id (chr:pos:A:B).
+  // Sorting ensures A:G and G:A produce the same key, enabling allele-aware
+  // joins without string parsing at query time. This eliminates spurious
+  // cross-product matches at multiallelic sites.
   return `
-        CREATE OR REPLACE TABLE ${tableName}_standardized AS
-        SELECT 
-            COALESCE(variant_id, '') as variant_id,
-            COALESCE(effect_allele, '') as effect_allele,
-            COALESCE(effect_weight, 0.0) as effect_weight,
-            COALESCE(pgs_id, '') as pgs_id,
-            CASE SPLIT_PART(COALESCE(variant_id, ''), ':', 1)
-              WHEN 'X' THEN 23::TINYINT WHEN 'Y' THEN 24::TINYINT WHEN 'MT' THEN 25::TINYINT
-              ELSE TRY_CAST(SPLIT_PART(COALESCE(variant_id, ''), ':', 1) AS TINYINT)
-            END AS chr,
-            TRY_CAST(SPLIT_PART(COALESCE(variant_id, ''), ':', 2) AS INTEGER) AS pos
-        FROM ${tableName}
-        WHERE variant_id IS NOT NULL AND variant_id != ''
-          AND effect_allele IS NOT NULL AND effect_allele != ''
-          AND effect_weight IS NOT NULL;
-        
-        COPY (SELECT 
-            variant_id,
-            effect_allele,
-            effect_weight,
-            pgs_id,
-            chr,
-            pos
-        FROM ${tableName}_standardized ORDER BY variant_id) 
-        TO '${outputPath}' (FORMAT PARQUET, COMPRESSION ZSTD);
-    `;
+    CREATE OR REPLACE TABLE ${tableName}_standardized AS
+    SELECT 
+        COALESCE(variant_id, '') as variant_id,
+        COALESCE(effect_allele, '') as effect_allele,
+        COALESCE(effect_weight, 0.0) as effect_weight,
+        COALESCE(pgs_id, '') as pgs_id,
+        CASE SPLIT_PART(COALESCE(variant_id, ''), ':', 1)
+          WHEN 'X' THEN 23::TINYINT WHEN 'Y' THEN 24::TINYINT WHEN 'MT' THEN 25::TINYINT
+          ELSE TRY_CAST(SPLIT_PART(COALESCE(variant_id, ''), ':', 1) AS TINYINT)
+        END AS chr,
+        TRY_CAST(SPLIT_PART(COALESCE(variant_id, ''), ':', 2) AS INTEGER) AS pos,
+        ('0x' || md5(LEAST(SPLIT_PART(COALESCE(variant_id,''),':',3), SPLIT_PART(COALESCE(variant_id,''),':',4))
+          || ':' ||
+          GREATEST(SPLIT_PART(COALESCE(variant_id,''),':',3), SPLIT_PART(COALESCE(variant_id,''),':',4))
+        )[:15])::BIGINT AS allele_key
+    FROM ${tableName}
+    WHERE variant_id IS NOT NULL AND variant_id != ''
+      AND effect_allele IS NOT NULL AND effect_allele != ''
+      AND effect_weight IS NOT NULL
+      AND NOT contains(SPLIT_PART(variant_id, ':', 1), '_');
+    
+    COPY (SELECT variant_id, effect_allele, effect_weight, pgs_id, chr, pos, allele_key
+    FROM ${tableName}_standardized ORDER BY chr, pos, allele_key) 
+    TO '${outputPath}' (FORMAT PARQUET, COMPRESSION ZSTD);
+  `;
 }
 
 export async function validateParquetFile(filePath) {
+  const stats = await fs.stat(filePath);
+  if (stats.size < 100) throw new Error('File too small');
+
+  const db = new duckdb.Database(':memory:');
+  const conn = db.connect();
   try {
-    const stats = await fs.stat(filePath);
-
-    // Try to count variants - if duckdb not available, just check file size
-    try {
-      const countQuery = `SELECT COUNT(*) as count FROM '${filePath}';`;
-      const result = await runDuckDBQuery(countQuery);
-      const variantCount = parseInt(result.match(/│\s*(\d+)\s*│/)?.[1] || '0');
-
-      return {
-        size: stats.size,
-        variantCount,
-        fileName: path.basename(filePath)
-      };
-    } catch (_error) {
-      // DuckDB not available or query failed - just return file stats
-      return {
-        size: stats.size,
-        variantCount: 0,
-        fileName: path.basename(filePath)
-      };
-    }
-  } catch (error) {
-    throw new Error(`File validation failed: ${error.message}`);
+    const rows = await query(
+      conn,
+      `SELECT COUNT(*) as count FROM '${filePath}'`
+    );
+    const variantCount = Number(rows[0]?.count ?? 0);
+    return {
+      size: stats.size,
+      variantCount,
+      fileName: path.basename(filePath)
+    };
+  } finally {
+    conn.close();
+    db.close();
   }
-}
-
-export async function prepareFileForProcessing(filePath) {
-  // Decompress and prepare file for DuckDB processing
-  const buffer = await fs.readFile(filePath);
-  const content = await gunzipAsync(buffer);
-  const text = content.toString('utf-8');
-  const allLines = text.split('\n');
-
-  // Find first non-comment line (header)
-  let headerLineIndex = -1;
-  let dataStartIndex = -1;
-
-  for (let i = 0; i < allLines.length; i++) {
-    const line = allLines[i].trim();
-    if (!line || line.startsWith('#')) continue;
-
-    if (headerLineIndex === -1) {
-      headerLineIndex = i;
-      dataStartIndex = i + 1;
-      break;
-    }
-  }
-
-  if (headerLineIndex === -1) {
-    throw new Error('No header found in file');
-  }
-
-  const header = allLines[headerLineIndex];
-  const columns = header.split('\t');
-
-  // Create data-only file for DuckDB (no header, no comments)
-  const dataLines = allLines
-    .slice(dataStartIndex)
-    .filter(line => line.trim() && !line.startsWith('#'));
-  const dataOnlyPath = filePath.replace('.gz', '_data.tsv');
-  await fs.writeFile(dataOnlyPath, dataLines.join('\n'));
-
-  return {
-    columns,
-    dataOnlyPath,
-    dataLineCount: dataLines.length
-  };
 }

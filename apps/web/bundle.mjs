@@ -16,6 +16,11 @@ const deps = [
     name: 'duckdb',
     entry: 'node_modules/@duckdb/duckdb-wasm/dist/duckdb-browser.mjs',
     output: 'deps/duckdb.js'
+  },
+  {
+    name: 'chart.js',
+    entry: 'node_modules/chart.js/auto/auto.js',
+    output: 'deps/chart.js'
   }
 ];
 

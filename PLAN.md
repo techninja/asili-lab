@@ -152,25 +152,26 @@ DTC DNA tests (23andMe, AncestryDNA) only genotype ~600K variants, but PGS often
 
 ### Solution
 
-Pre-computed reference panels from 1000 Genomes that enable local imputation:
+Pre-computed reference panels from 1000 Genomes / TOPMed that enable offline imputation:
 
 - **Coverage improvement**: 1-5% → 60-80%
 - **Privacy-preserving**: All processing local, no external APIs
-- **Efficient**: 2-8GB reference panels vs 100GB+ full imputation
-- **Fast**: ~30-60s in browser, ~5-10s on server
+- **Efficient**: Beagle 5.4 + TOPMed panel (150GB) or 1000G (9GB)
+- **Quality-aware**: max(GP) filtering (≥ 0.5) and √(maxGP) scoring weights
 
 ### Implementation Status
 
-- [x] Design imputation architecture (see `docs/IMPUTATION_STRATEGY.md`)
-- [x] Create reference panel builder (`packages/pipeline/build-imputation-panel.js`)
-- [x] Create imputation engine (`packages/core/src/imputation/local-imputer.js`)
-- [ ] Download and process 1000 Genomes data
-- [ ] Build reference panels for EUR population
-- [ ] Integrate with genomic processor
-- [ ] Add UI toggle for imputation
-- [ ] Test coverage improvements on real PGS
-- [ ] Optimize performance and storage
+- [x] Design imputation architecture (see `docs/IMPUTATION_ARCHITECTURE.md`)
+- [x] Beagle 5.4 setup (`scripts/setup-beagle.sh`)
+- [x] TOPMed panel download (`scripts/download_topmed_panel.sh`)
+- [x] User imputation pipeline (`scripts/impute_user.py`)
+- [x] REF allele lookup from reference panel (correct REF/ALT assignment)
+- [x] Strand flip detection for consumer arrays (AncestryDNA, 23andMe)
+- [x] max(GP) quality filtering and √(maxGP) scoring weights
+- [x] Beagle tuning for consumer arrays (ne=20000, err=0.0005)
+- [x] Unified parquet output (genotyped + imputed + imputation_quality)
 - [ ] Add multi-ancestry support (AFR, EAS, SAS, AMR)
+- [ ] Add UI toggle for imputation
 
 ### Usage
 
@@ -194,6 +195,8 @@ done
 ## 📋 Phase 7: Community & Monetization (FUTURE)
 
 **Objective:** Build community and sustainable business model.
+
+See [CLOUD_IMPUTATION_TODO.md](docs/CLOUD_IMPUTATION_TODO.md) for the detailed plan on paid cloud imputation — the primary revenue driver and Tier 2 entry point.
 
 ### Planned Features
 

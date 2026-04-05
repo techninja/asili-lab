@@ -1,21 +1,7 @@
 import { Debug } from '@asili/debug';
 import { useAppStore } from '../lib/store.js';
 import './import-progress.js';
-
-const DEFAULT_EMOJIS = [
-  '👤',
-  '👨',
-  '👩',
-  '🧑',
-  '👶',
-  '👴',
-  '👵',
-  '🧔',
-  '👱',
-  '🦱',
-  '🦳',
-  '🦲'
-];
+import './emoji-builder.js';
 
 export class IndividualManager extends HTMLElement {
   constructor() {
@@ -26,28 +12,21 @@ export class IndividualManager extends HTMLElement {
     this.selectedFile = null;
     this.showingUpload = false;
     this.importAborted = false;
+    this.editingIndividual = null; // individual being edited inline
   }
 
   async connectedCallback() {
     this.render();
     this.setupEventListeners();
 
-    // Subscribe to state changes
     this.unsubscribe = useAppStore.subscribe(state => {
       this.updateUI(state);
     });
-
-    // Don't auto-initialize processor - wait for it to be set externally
-    // await this.initializeProcessor();
-    // setTimeout(() => this.loadIndividuals(), 100);
   }
 
-  // Allow external processor to be set
   setProcessor(processor) {
     this.processor = processor;
     Debug.log('IndividualManager', 'External processor set');
-
-    // Load individuals now that we have a processor
     setTimeout(() => this.loadIndividuals(), 100);
   }
 
@@ -87,15 +66,8 @@ export class IndividualManager extends HTMLElement {
 
       store.setIndividuals(individuals);
 
-      // Auto-select first ready individual if none selected and we have individuals
       const readyIndividuals = individuals.filter(
         ind => ind.status === 'ready' || ind.status === 'complete'
-      );
-
-      Debug.log(
-        2,
-        'IndividualManager',
-        `Found ${readyIndividuals.length} ready individuals`
       );
 
       if (
@@ -116,27 +88,14 @@ export class IndividualManager extends HTMLElement {
   }
 
   updateUI(state) {
-    console.log(
-      'updateUI called, showingUpload:',
-      this.showingUpload,
-      'selectedFile:',
-      this.selectedFile?.name,
-      'individuals:',
-      state.individuals.length,
-      'uploadState:',
-      state.uploadState
-    );
     const container = this.shadowRoot.getElementById('container');
     if (!container) return;
 
     if (state.individuals.length === 0) {
-      console.log('rendering no data state');
       this.renderNoDataState(state);
     } else if (state.individuals.length === 1) {
-      console.log('rendering single user state');
       this.renderSingleUserState(state);
     } else {
-      console.log('rendering multiple users state');
       this.renderMultipleUsersState(state);
     }
 
@@ -151,18 +110,90 @@ export class IndividualManager extends HTMLElement {
       if (progressEl) {
         const progressMatch = state.uploadProgress.match(/(\d+)%/);
         const percent = progressMatch ? parseInt(progressMatch[1]) : 0;
-        // Only invert progress for deletion (start at 100%, go down to 0%)
         const displayPercent =
           state.uploadState === 'deleting' ? 100 - percent : percent;
         progressEl.setProgress(displayPercent, state.uploadProgress);
       }
     }
 
-    // Handle cancel import
     if (state.cancelImport) {
       this.cancelImport();
     }
   }
+
+  // --- Edit panel ---
+
+  renderEditPanel(individual) {
+    return `
+      <div class="edit-panel">
+        <div class="edit-field">
+          <label for="editName">Name</label>
+          <input type="text" id="editName" value="${individual.name}" />
+        </div>
+        <emoji-builder id="emojiBuilder"></emoji-builder>
+        <div class="edit-actions">
+          <button class="danger-btn" id="editRemoveBtn">🗑️ Remove</button>
+          <span class="edit-spacer"></span>
+          <button class="secondary-btn" id="editCancelBtn">Cancel</button>
+          <button class="primary-btn" id="editSaveBtn">Save</button>
+        </div>
+      </div>
+    `;
+  }
+
+  setupEditListeners(individual) {
+    const builder = this.shadowRoot.getElementById('emojiBuilder');
+    if (builder) builder.value = individual.emoji || '👤';
+
+    const nameInput = this.shadowRoot.getElementById('editName');
+    nameInput?.focus();
+    nameInput?.select();
+
+    const saveBtn = this.shadowRoot.getElementById('editSaveBtn');
+    const cancelBtn = this.shadowRoot.getElementById('editCancelBtn');
+    const removeBtn = this.shadowRoot.getElementById('editRemoveBtn');
+
+    if (nameInput) {
+      nameInput.onkeydown = e => {
+        if (e.key === 'Enter') this.saveEdit(individual.id);
+        if (e.key === 'Escape') this.closeEdit();
+      };
+    }
+    if (saveBtn) saveBtn.onclick = () => this.saveEdit(individual.id);
+    if (cancelBtn) cancelBtn.onclick = () => this.closeEdit();
+    if (removeBtn)
+      removeBtn.onclick = () => this.removeIndividual(individual.id);
+  }
+
+  async saveEdit(individualId) {
+    const nameInput = this.shadowRoot.getElementById('editName');
+    const builder = this.shadowRoot.getElementById('emojiBuilder');
+    const name = nameInput?.value.trim();
+    if (!name) return;
+
+    try {
+      await this.processor.storage.updateIndividual(individualId, {
+        name,
+        emoji: builder?.value || '👤'
+      });
+      this.editingIndividual = null;
+      await this.loadIndividuals();
+    } catch (error) {
+      Debug.error('IndividualManager', 'Failed to update individual:', error);
+    }
+  }
+
+  closeEdit() {
+    this.editingIndividual = null;
+    this.updateUI(useAppStore.getState());
+  }
+
+  editIndividual(individual) {
+    this.editingIndividual = individual;
+    this.updateUI(useAppStore.getState());
+  }
+
+  // --- State renderers ---
 
   renderNoDataState(state) {
     const container = this.shadowRoot.getElementById('container');
@@ -176,17 +207,14 @@ export class IndividualManager extends HTMLElement {
       this.setupUploadListeners();
     } else {
       container.innerHTML = `
-                <div class="no-data-state">
-                    <div class="welcome-message">
-                        <h3>Welcome to Asili</h3>
-                        <p>Import your DNA data to get started with personalized genomic risk analysis</p>
-                    </div>
-                    <button class="primary-btn" id="importBtn">
-                        📁 Import DNA Data
-                    </button>
-                </div>
-            `;
-
+        <div class="no-data-state">
+          <div class="welcome-message">
+            <h3>Welcome to Asili</h3>
+            <p>Import your DNA data to get started with personalized genomic risk analysis</p>
+          </div>
+          <button class="primary-btn" id="importBtn">📁 Import DNA Data</button>
+        </div>
+      `;
       this.shadowRoot.getElementById('importBtn').onclick = () =>
         this.startImport();
     }
@@ -203,33 +231,41 @@ export class IndividualManager extends HTMLElement {
         '<import-progress id="deleteProgress" name="Deleting Data" emoji="🗑️"></import-progress>';
     } else if (this.showingUpload) {
       container.innerHTML = `
-                <div class="single-user-state">
-                    <div class="individual-display">
-                        <span class="emoji">${individual.emoji || '👤'}</span>
-                        <span class="name">${individual.name}</span>
-                        <button class="edit-btn" id="editBtn">✏️</button>
-                    </div>
-                    ${this.renderUploadComponent()}
-                </div>
-            `;
+        <div class="single-user-state">
+          <div class="individual-display">
+            <span class="emoji">${individual.emoji || '👤'}</span>
+            <span class="name">${individual.name}</span>
+            <button class="edit-btn" id="editBtn">✏️</button>
+          </div>
+          ${this.renderUploadComponent()}
+        </div>
+      `;
       this.shadowRoot.getElementById('editBtn').onclick = () =>
         this.editIndividual(individual);
       this.setupUploadListeners();
-    } else {
+    } else if (this.editingIndividual?.id === individual.id) {
       container.innerHTML = `
-                <div class="single-user-state">
-                    <div class="individual-display">
-                        <span class="emoji" id="userEmoji">${individual.emoji || '👤'}</span>
-                        <span class="name ${individual.status !== 'complete' && individual.status !== 'ready' ? 'failed' : ''}" id="userName">${individual.name}${individual.status !== 'complete' && individual.status !== 'ready' ? ' (Failed Import)' : ''}</span>
-                        <button class="edit-btn" id="editBtn">✏️</button>
-                    </div>
-                    <div class="actions">
-                        <button class="secondary-btn" id="addBtn">+ Add Another</button>
-                        <button class="danger-btn" id="removeBtn">🗑️ Remove</button>
-                    </div>
-                </div>
-            `;
-
+        <div class="single-user-state">
+          ${this.renderEditPanel(individual)}
+        </div>
+      `;
+      this.setupEditListeners(individual);
+    } else {
+      const failed =
+        individual.status !== 'complete' && individual.status !== 'ready';
+      container.innerHTML = `
+        <div class="single-user-state">
+          <div class="individual-display">
+            <span class="emoji" id="userEmoji">${individual.emoji || '👤'}</span>
+            <span class="name ${failed ? 'failed' : ''}" id="userName">${individual.name}${failed ? ' (Failed Import)' : ''}</span>
+            <button class="edit-btn" id="editBtn">✏️</button>
+          </div>
+          <div class="actions">
+            <button class="secondary-btn" id="addBtn">+ Add Another</button>
+            <button class="danger-btn" id="removeBtn">🗑️ Remove</button>
+          </div>
+        </div>
+      `;
       this.shadowRoot.getElementById('editBtn').onclick = () =>
         this.editIndividual(individual);
       this.shadowRoot.getElementById('addBtn').onclick = () =>
@@ -247,94 +283,88 @@ export class IndividualManager extends HTMLElement {
     } else if (state.uploadState === 'deleting') {
       container.innerHTML =
         '<import-progress id="deleteProgress" name="Deleting Data" emoji="🗑️"></import-progress>';
-    } else if (this.showingUpload) {
-      container.innerHTML = `
-                <div class="multiple-users-state">
-                    <div class="selector-row">
-                        <select id="individualSelect">
-                            ${state.individuals
-                              .map(
-                                ind =>
-                                  `<option value="${ind.id}" ${ind.id === state.selectedIndividual ? 'selected' : ''}>
-                                    ${ind.emoji || '👤'} ${ind.name}
-                                </option>`
-                              )
-                              .join('')}
-                        </select>
-                        <button class="edit-btn" id="editBtn">✏️</button>
-                    </div>
-                    ${this.renderUploadComponent()}
-                </div>
-            `;
-
-      const select = this.shadowRoot.getElementById('individualSelect');
-      select.onchange = e => {
-        const selectedId = e.target.value;
-        const individual = state.individuals.find(i => i.id === selectedId);
-        const isReady =
-          individual &&
-          (individual.status === 'ready' || individual.status === 'complete');
-        useAppStore.getState().setSelectedIndividual(selectedId, isReady);
-      };
-
-      this.shadowRoot.getElementById('editBtn').onclick = () => {
-        const selected = state.individuals.find(
-          i => i.id === state.selectedIndividual
-        );
-        if (selected) this.editIndividual(selected);
-      };
-      this.setupUploadListeners();
     } else {
-      container.innerHTML = `
-                <div class="multiple-users-state">
-                    <div class="selector-row">
-                        <select id="individualSelect">
-                            ${state.individuals
-                              .map(ind => {
-                                const status =
-                                  ind.status === 'complete' ||
-                                  ind.status === 'ready'
-                                    ? ''
-                                    : ' (Failed Import)';
-                                return `<option value="${ind.id}" ${ind.id === state.selectedIndividual ? 'selected' : ''}>
-                                    ${ind.emoji || '👤'} ${ind.name}${status}
-                                </option>`;
-                              })
-                              .join('')}
-                        </select>
-                        <button class="edit-btn" id="editBtn">✏️</button>
-                    </div>
-                    <div class="actions">
-                        <button class="secondary-btn" id="addBtn">+ Add Individual</button>
-                        <button class="danger-btn" id="removeBtn">🗑️ Remove Current</button>
-                    </div>
-                </div>
-            `;
+      const selectedIndividual = state.individuals.find(
+        i => i.id === state.selectedIndividual
+      );
 
-      const select = this.shadowRoot.getElementById('individualSelect');
-      select.onchange = e => {
-        const selectedId = e.target.value;
-        const individual = state.individuals.find(i => i.id === selectedId);
-        const isReady =
-          individual &&
-          (individual.status === 'ready' || individual.status === 'complete');
-        useAppStore.getState().setSelectedIndividual(selectedId, isReady);
-      };
+      const selectorHTML = `
+        <div class="selector-row">
+          <select id="individualSelect">
+            ${state.individuals
+              .map(ind => {
+                const status =
+                  ind.status === 'complete' || ind.status === 'ready'
+                    ? ''
+                    : ' (Failed Import)';
+                return `<option value="${ind.id}" ${ind.id === state.selectedIndividual ? 'selected' : ''}>${ind.emoji || '👤'} ${ind.name}${status}</option>`;
+              })
+              .join('')}
+          </select>
+          <button class="edit-btn" id="editBtn">✏️</button>
+        </div>
+      `;
 
-      this.shadowRoot.getElementById('editBtn').onclick = () => {
-        const selected = state.individuals.find(
-          i => i.id === state.selectedIndividual
-        );
-        if (selected) this.editIndividual(selected);
-      };
-      this.shadowRoot.getElementById('addBtn').onclick = () =>
-        this.startImport();
-      this.shadowRoot.getElementById('removeBtn').onclick = () => {
-        if (state.selectedIndividual)
-          this.removeIndividual(state.selectedIndividual);
-      };
+      if (this.showingUpload) {
+        container.innerHTML = `<div class="multiple-users-state">${selectorHTML}${this.renderUploadComponent()}</div>`;
+        this._bindSelect(state);
+        this.shadowRoot.getElementById('editBtn').onclick = () => {
+          if (selectedIndividual) this.editIndividual(selectedIndividual);
+        };
+        this.setupUploadListeners();
+      } else if (
+        this.editingIndividual &&
+        selectedIndividual?.id === this.editingIndividual.id
+      ) {
+        container.innerHTML = `
+          <div class="multiple-users-state">
+            ${selectorHTML}
+            ${this.renderEditPanel(selectedIndividual)}
+          </div>
+        `;
+        this._bindSelect(state);
+        this.shadowRoot.getElementById('editBtn').onclick = () =>
+          this.closeEdit();
+        this.setupEditListeners(selectedIndividual);
+      } else {
+        container.innerHTML = `
+          <div class="multiple-users-state">
+            ${selectorHTML}
+            <div class="actions">
+              <button class="secondary-btn" id="addBtn">+ Add Individual</button>
+              <button class="danger-btn" id="removeBtn">🗑️ Remove Current</button>
+            </div>
+          </div>
+        `;
+        this._bindSelect(state);
+        this.shadowRoot.getElementById('editBtn').onclick = () => {
+          if (selectedIndividual) this.editIndividual(selectedIndividual);
+        };
+        this.shadowRoot.getElementById('addBtn').onclick = () =>
+          this.startImport();
+        this.shadowRoot.getElementById('removeBtn').onclick = () => {
+          if (state.selectedIndividual)
+            this.removeIndividual(state.selectedIndividual);
+        };
+      }
     }
   }
+
+  _bindSelect(state) {
+    const select = this.shadowRoot.getElementById('individualSelect');
+    if (!select) return;
+    select.onchange = e => {
+      const selectedId = e.target.value;
+      const individual = state.individuals.find(i => i.id === selectedId);
+      const isReady =
+        individual &&
+        (individual.status === 'ready' || individual.status === 'complete');
+      this.editingIndividual = null; // close edit when switching
+      useAppStore.getState().setSelectedIndividual(selectedId, isReady);
+    };
+  }
+
+  // --- Upload ---
 
   renderUploadComponent() {
     const fileName = this.selectedFile ? this.selectedFile.name : '';
@@ -344,42 +374,32 @@ export class IndividualManager extends HTMLElement {
     const defaultName = fileName.replace(/\.[^/.]+$/, '');
 
     return `
-            <div class="upload-component">
-                <div class="file-info">Selected: ${fileName} (${fileSize} MB)</div>
-                <div class="upload-form">
-                    <div class="form-row">
-                        <input type="text" id="nameInput" placeholder="Individual name" value="${defaultName}" />
-                        <div class="emoji-selector">
-                            ${DEFAULT_EMOJIS.map(
-                              (emoji, i) =>
-                                `<button class="emoji-btn ${i === 0 ? 'selected' : ''}" data-emoji="${emoji}">${emoji}</button>`
-                            ).join('')}
-                        </div>
-                    </div>
-                    <div class="form-actions">
-                        <button class="secondary-btn" id="cancelBtn">Cancel</button>
-                        <button class="primary-btn" id="importBtn">Import</button>
-                    </div>
-                </div>
-            </div>
-        `;
+      <div class="upload-component">
+        <div class="file-info">Selected: ${fileName} (${fileSize} MB)</div>
+        <div class="upload-form">
+          <div class="form-row">
+            <input type="text" id="nameInput" placeholder="Individual name" value="${defaultName}" />
+            <emoji-builder id="uploadEmojiBuilder"></emoji-builder>
+          </div>
+          <div class="form-actions">
+            <button class="secondary-btn" id="cancelBtn">Cancel</button>
+            <button class="primary-btn" id="importBtn">Import</button>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   startImport() {
-    console.log('startImport called');
     this.showingUpload = true;
     const fileInput = this.shadowRoot.getElementById('fileInput');
-    console.log('fileInput:', fileInput);
     fileInput.click();
   }
 
   setupEventListeners() {
-    // Use event delegation since file input persists across renders
     this.shadowRoot.addEventListener('change', e => {
-      console.log('change event:', e.target.id, e.target.files);
       if (e.target.id === 'fileInput') {
         const file = e.target.files[0];
-        console.log('file selected:', file?.name);
         if (file) {
           this.selectedFile = file;
           this.updateUI(useAppStore.getState());
@@ -392,25 +412,13 @@ export class IndividualManager extends HTMLElement {
     const nameInput = this.shadowRoot.getElementById('nameInput');
     const importBtn = this.shadowRoot.getElementById('importBtn');
     const cancelBtn = this.shadowRoot.getElementById('cancelBtn');
-    const emojiButtons = this.shadowRoot.querySelectorAll('.emoji-btn');
-
-    emojiButtons.forEach(btn => {
-      btn.onclick = () => {
-        emojiButtons.forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-      };
-    });
 
     if (nameInput) {
       nameInput.onkeydown = e => {
         if (e.key === 'Enter') this.importIndividual();
       };
     }
-
-    if (importBtn) {
-      importBtn.onclick = () => this.importIndividual();
-    }
-
+    if (importBtn) importBtn.onclick = () => this.importIndividual();
     if (cancelBtn) {
       cancelBtn.onclick = () => {
         this.showingUpload = false;
@@ -421,25 +429,7 @@ export class IndividualManager extends HTMLElement {
     }
   }
 
-  editIndividual(individual) {
-    // For now, just show an alert - we can implement inline editing later
-    const newName = prompt('Enter new name:', individual.name);
-    if (newName && newName.trim() && newName.trim() !== individual.name) {
-      this.updateIndividualName(individual.id, newName.trim());
-    }
-  }
-
-  async updateIndividualName(individualId, newName) {
-    try {
-      await this.processor.storage.updateIndividual(individualId, {
-        name: newName
-      });
-      await this.loadIndividuals();
-    } catch (error) {
-      Debug.error('IndividualManager', 'Failed to update individual:', error);
-      alert('Failed to update individual name');
-    }
-  }
+  // --- Actions ---
 
   async removeIndividual(individualId) {
     if (
@@ -452,25 +442,16 @@ export class IndividualManager extends HTMLElement {
     }
 
     const store = useAppStore.getState();
+    this.editingIndividual = null;
     store.setUploadState('deleting', 'Starting deletion...');
 
     try {
-      console.log('removeIndividual - processor:', this.processor);
-
-      if (!this.processor) {
-        throw new Error('Processor not initialized');
-      }
+      if (!this.processor) throw new Error('Processor not initialized');
 
       try {
         await this.processor.storage.deleteIndividual(individualId);
       } catch (error) {
-        // If 404, individual doesn't exist on server - just remove from local state
-        if (!error.message?.includes('404')) {
-          throw error;
-        }
-        console.log(
-          'Individual not found on server, removing from local state only'
-        );
+        if (!error.message?.includes('404')) throw error;
       }
 
       if (store.selectedIndividual === individualId) {
@@ -479,7 +460,6 @@ export class IndividualManager extends HTMLElement {
       store.setUploadState('idle');
       await this.loadIndividuals();
     } catch (error) {
-      console.error('removeIndividual error:', error);
       Debug.error('IndividualManager', 'Failed to remove individual:', error);
       store.setUploadState('idle');
       alert('Failed to remove individual');
@@ -488,33 +468,26 @@ export class IndividualManager extends HTMLElement {
 
   async importIndividual() {
     const nameInput = this.shadowRoot.getElementById('nameInput');
-    const selectedEmoji = this.shadowRoot.querySelector('.emoji-btn.selected');
-    const _progressText = this.shadowRoot.getElementById('progressText');
+    const builder = this.shadowRoot.getElementById('uploadEmojiBuilder');
 
     const name = nameInput?.value.trim();
-    const emoji = selectedEmoji?.dataset.emoji || '👤';
+    const emoji = builder?.value || '👤';
 
     if (!name) {
       alert('Please enter a name');
       return;
     }
-
     if (!this.selectedFile) {
       alert('Please select a file');
       return;
     }
 
-    const store = useAppStore.getState();
     const individualId = `${Date.now()}_${name.replace(/\s+/g, '_')}`;
 
-    // Don't select individual yet - wait until import completes
-    console.log('Setting uploadState to importing');
     useAppStore
       .getState()
       .setUploadState('importing', 'Starting import...', { name, emoji });
-    console.log('uploadState after set:', useAppStore.getState().uploadState);
 
-    // Hide upload form and show progress
     this.showingUpload = false;
     this.updateUI(useAppStore.getState());
 
@@ -526,46 +499,37 @@ export class IndividualManager extends HTMLElement {
         name,
         emoji,
         (message, percent) => {
-          if (this.importAborted) {
-            throw new Error('Import cancelled by user');
-          }
-          const store = useAppStore.getState();
-          store.setUploadState(
-            'importing',
-            `${message} (${Math.round(percent)}%)`,
-            { name, emoji }
-          );
+          if (this.importAborted) throw new Error('Import cancelled by user');
+          useAppStore
+            .getState()
+            .setUploadState(
+              'importing',
+              `${message} (${Math.round(percent)}%)`,
+              { name, emoji }
+            );
         }
       );
 
-      // Clean up
       this.selectedFile = null;
       this.shadowRoot.getElementById('fileInput').value = '';
 
-      // Mark individual as complete first
       await this.processor.storage.updateIndividual(individualId, {
         status: 'complete'
       });
 
-      // Set state to idle before loading individuals
+      const store = useAppStore.getState();
       store.setUploadState('idle');
-
-      // Then update store and select individual
       await this.loadIndividuals();
       store.setSelectedIndividual(individualId, true);
 
       Debug.log('IndividualManager', 'Import completed successfully', result);
     } catch (error) {
       Debug.error('IndividualManager', 'Import error:', error);
-
       if (error.message === 'Import cancelled by user') {
-        // Import was cancelled, clean up silently
         Debug.log('IndividualManager', 'Import cancelled by user');
       } else {
-        // Actual error occurred
+        const store = useAppStore.getState();
         store.setUploadState('idle');
-
-        // Remove the failed individual
         store.setSelectedIndividual(null);
         setTimeout(() => this.updateUI(store), 3000);
       }
@@ -577,14 +541,10 @@ export class IndividualManager extends HTMLElement {
     const store = useAppStore.getState();
     const individualId = store.selectedIndividual;
 
-    // Set abort flag to stop import process
     this.importAborted = true;
-
-    // Reset cancel flag
     store.cancelImport = false;
 
     if (individualId) {
-      // Clean up any partial data for the cancelled individual
       this.removeIndividual(individualId);
     } else {
       store.setUploadState('idle');
@@ -598,85 +558,79 @@ export class IndividualManager extends HTMLElement {
 
   render() {
     this.shadowRoot.innerHTML = `
-            <style>
-                :host { display: block; margin-bottom: 20px; }
-                
-                .no-data-state { text-align: center; padding: 40px 20px; }
-                .welcome-message h3 { margin: 0 0 10px 0; color: #333; }
-                .welcome-message p { margin: 0 0 30px 0; color: #666; }
-                
-                .single-user-state .individual-display,
-                .multiple-users-state .selector-row {
-                    display: flex; align-items: center; gap: 10px; margin-bottom: 15px;
-                }
-                .emoji { font-size: 24px; }
-                .name.failed { color: #dc3545; }
-                .edit-btn { background: none; border: none; cursor: pointer; font-size: 16px; }
-                .edit-btn:hover { opacity: 0.7; }
-                
-                select { padding: 8px; font-size: 14px; min-width: 200px; }
-                select:disabled { opacity: 0.6; }
-                
-                .actions { display: flex; gap: 10px; }
-                
-                .upload-component {
-                    background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px;
-                    padding: 15px; margin-top: 10px;
-                }
-                
-                .file-info {
-                    font-size: 14px; color: #666; margin-bottom: 10px;
-                }
-                
-                .upload-form .form-row {
-                    display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;
-                }
-                
-                .upload-form input {
-                    padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px;
-                }
-                
-                .emoji-selector {
-                    display: flex; gap: 5px; flex-wrap: wrap;
-                }
-                
-                .emoji-btn {
-                    background: #fff; border: 2px solid transparent; padding: 6px;
-                    border-radius: 4px; cursor: pointer; font-size: 18px;
-                }
-                .emoji-btn:hover { background: #e9ecef; }
-                .emoji-btn.selected { border-color: #007acc; background: #e3f2fd; }
-                
-                .form-actions { display: flex; gap: 10px; justify-content: flex-end; }
-                
-                .status-text, .progress-text {
-                    font-size: 14px; color: #666; font-style: italic;
-                }
-                
-                .primary-btn { 
-                    background: #007acc; color: white; border: none; padding: 12px 24px; 
-                    border-radius: 6px; cursor: pointer; font-size: 16px;
-                }
-                .primary-btn:hover { background: #005a99; }
-                
-                .secondary-btn { 
-                    background: #f0f0f0; color: #333; border: 1px solid #ccc; 
-                    padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;
-                }
-                .secondary-btn:hover { background: #e0e0e0; }
-                
-                .danger-btn { 
-                    background: #dc3545; color: white; border: none; 
-                    padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;
-                }
-                .danger-btn:hover { background: #c82333; }
-                
-                input[type="file"] { display: none; }
-            </style>
-            
-            <div id="container"></div>
-            <input type="file" id="fileInput" accept=".txt,.csv">
-        `;
+      <style>
+        :host { display: block; margin-bottom: 20px; }
+
+        .no-data-state { text-align: center; padding: 40px 20px; }
+        .welcome-message h3 { margin: 0 0 10px 0; color: #333; }
+        .welcome-message p { margin: 0 0 30px 0; color: #666; }
+
+        .single-user-state .individual-display,
+        .multiple-users-state .selector-row {
+          display: flex; align-items: center; gap: 10px; margin-bottom: 15px;
+        }
+        .emoji { font-size: 24px; }
+        .name.failed { color: #dc3545; }
+        .edit-btn { background: none; border: none; cursor: pointer; font-size: 16px; }
+        .edit-btn:hover { opacity: 0.7; }
+
+        select { padding: 8px; font-size: 14px; min-width: 200px; }
+        select:disabled { opacity: 0.6; }
+
+        .actions { display: flex; gap: 10px; }
+
+        /* Edit panel */
+        .edit-panel {
+          background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px;
+          padding: 15px; margin-top: 4px;
+        }
+        .edit-field { margin-bottom: 10px; }
+        .edit-field label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; text-transform: uppercase; }
+        .edit-field input {
+          width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;
+          font-size: 14px; box-sizing: border-box;
+        }
+        .edit-actions {
+          display: flex; gap: 8px; align-items: center; margin-top: 12px;
+        }
+        .edit-spacer { flex: 1; }
+
+        /* Upload */
+        .upload-component {
+          background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px;
+          padding: 15px; margin-top: 10px;
+        }
+        .file-info { font-size: 14px; color: #666; margin-bottom: 10px; }
+        .upload-form .form-row {
+          display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;
+        }
+        .upload-form input {
+          padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px;
+        }
+        .form-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+        .primary-btn {
+          background: #007acc; color: white; border: none; padding: 12px 24px;
+          border-radius: 6px; cursor: pointer; font-size: 16px;
+        }
+        .primary-btn:hover { background: #005a99; }
+        .secondary-btn {
+          background: #f0f0f0; color: #333; border: 1px solid #ccc;
+          padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;
+        }
+        .secondary-btn:hover { background: #e0e0e0; }
+        .danger-btn {
+          background: #dc3545; color: white; border: none;
+          padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;
+        }
+        .danger-btn:hover { background: #c82333; }
+
+        input[type="file"] { display: none; }
+      </style>
+
+      <div id="container"></div>
+      <input type="file" id="fileInput" accept=".txt,.csv">
+    `;
   }
 }
 

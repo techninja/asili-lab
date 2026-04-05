@@ -359,6 +359,22 @@ class PGSApiClient {
     const url = `https://www.pgscatalog.org/rest/performance/search?pgs_id=${pgsId}`;
     return this.fetchWithCache(url);
   }
+
+  async getAllTraits(limit = 250) {
+    const allResults = [];
+    let offset = 0;
+    let total = null;
+
+    while (total === null || offset < total) {
+      const url = `https://www.pgscatalog.org/rest/trait/all?limit=${limit}&offset=${offset}`;
+      const page = await this.fetchWithCache(url);
+      total = page.count;
+      allResults.push(...page.results);
+      offset += limit;
+    }
+
+    return allResults;
+  }
 }
 
 // Singleton instance

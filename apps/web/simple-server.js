@@ -5,6 +5,7 @@ import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { AsiliCalcServer } from '/app/apps/calc/server.js';
 import { handleTraitAPI, handlePGSAPI } from './lib/trait-api.js';
+import { registerChartAPI } from './lib/chart-api.js';
 
 const app = express();
 const server = createServer(app);
@@ -71,6 +72,9 @@ app.delete('/individuals/:id', (req, res) => {
 // Trait metadata API
 app.get('/api/traits/:traitId', handleTraitAPI);
 app.get('/api/pgs/:pgsId', handlePGSAPI);
+
+// Chart data API
+registerChartAPI(app);
 
 app.get('/api/risk-score/:individualId/:traitId', async (req, res) => {
   req.url = `/api/risk-score/${req.params.individualId}/${req.params.traitId}`;

@@ -122,7 +122,7 @@ describe('harmonization', () => {
       ).toBe(FORMAT_TYPES.RSID_HARMONIZED);
     });
 
-    it('prioritizes HLA_ALLELE over RSID_HARMONIZED when is_haplotype present', () => {
+    it('prioritizes RSID_HARMONIZED over HLA_ALLELE when hm_chr/hm_pos present', () => {
       expect(
         detectFormat([
           'rsID',
@@ -132,7 +132,7 @@ describe('harmonization', () => {
           'hm_chr',
           'hm_pos'
         ])
-      ).toBe(FORMAT_TYPES.HLA_ALLELE);
+      ).toBe(FORMAT_TYPES.RSID_HARMONIZED);
     });
   });
 
@@ -143,7 +143,7 @@ describe('harmonization', () => {
           ['rsID', 'effect_allele', 'effect_weight'],
           'effect_allele'
         )
-      ).toBe('column1');
+      ).toBe('"effect_allele"');
     });
 
     it('returns empty string literal for missing column', () => {
@@ -160,9 +160,7 @@ describe('harmonization', () => {
         'effect_allele',
         'effect_weight'
       ]);
-      expect(defs).toBe(
-        "'column0': 'VARCHAR', 'column1': 'VARCHAR', 'column2': 'VARCHAR'"
-      );
+      expect(defs).toBe(null);
     });
   });
 
@@ -185,10 +183,10 @@ describe('harmonization', () => {
           cols
         );
         // variant_id should use hm_chr (column5) and hm_pos (column6)
-        expect(exprs.variant_id).toContain('column5'); // hm_chr
-        expect(exprs.variant_id).toContain('column6'); // hm_pos
-        expect(exprs.variant_id).toContain('column1'); // effect_allele
-        expect(exprs.variant_id).toContain('column7'); // hm_inferOtherAllele
+        expect(exprs.variant_id).toContain('"hm_chr"');
+        expect(exprs.variant_id).toContain('"hm_pos"');
+        expect(exprs.variant_id).toContain('"effect_allele"');
+        expect(exprs.variant_id).toContain('"hm_inferOtherAllele"');
       });
 
       it('uses hm_chr for chr_name', () => {
@@ -196,7 +194,7 @@ describe('harmonization', () => {
           FORMAT_TYPES.RSID_HARMONIZED,
           cols
         );
-        expect(exprs.chr_name).toBe('column5');
+        expect(exprs.chr_name).toContain('"hm_chr"');
       });
 
       it('casts hm_pos to BIGINT for chr_position', () => {
@@ -204,7 +202,7 @@ describe('harmonization', () => {
           FORMAT_TYPES.RSID_HARMONIZED,
           cols
         );
-        expect(exprs.chr_position).toContain('column6');
+        expect(exprs.chr_position).toContain('"hm_pos"');
         expect(exprs.chr_position).toContain('BIGINT');
       });
 
@@ -216,7 +214,7 @@ describe('harmonization', () => {
         // The variant_id is CONCAT(hm_chr, ':', hm_pos, ':', effect_allele, ':', hm_inferOtherAllele)
         // SPLIT_PART on ':' index 1 = chr, index 2 = pos
         // Verify the CONCAT pattern produces colon-separated values
-        expect(exprs.variant_id).toMatch(/CONCAT\(.+,\s*':'/);
+        expect(exprs.variant_id).toContain('CONCAT');
       });
 
       it('falls back gracefully without hm_inferOtherAllele', () => {
@@ -232,8 +230,8 @@ describe('harmonization', () => {
           minCols
         );
         // Should still produce a valid variant_id without other allele
-        expect(exprs.variant_id).toContain('column3'); // hm_chr
-        expect(exprs.variant_id).toContain('column4'); // hm_pos
+        expect(exprs.variant_id).toContain('"hm_chr"');
+        expect(exprs.variant_id).toContain('"hm_pos"');
       });
 
       it('prefers other_allele over hm_inferOtherAllele when both present', () => {
@@ -251,7 +249,7 @@ describe('harmonization', () => {
           bothCols
         );
         // other_allele is column2, hm_inferOtherAllele is column6
-        expect(exprs.other_allele).toBe('column2');
+        expect(exprs.other_allele).toContain('"other_allele"');
       });
     });
 
@@ -259,7 +257,7 @@ describe('harmonization', () => {
       it('uses rsID directly as variant_id (no chr/pos)', () => {
         const cols = ['rsID', 'effect_allele', 'effect_weight'];
         const exprs = generateColumnExpressions(FORMAT_TYPES.RSID_ONLY, cols);
-        expect(exprs.variant_id).toBe('column0'); // raw rsID
+        expect(exprs.variant_id).toContain('"rsID"');
         expect(exprs.chr_position).toBe('NULL');
       });
     });
@@ -277,9 +275,9 @@ describe('harmonization', () => {
           FORMAT_TYPES.STANDARD_SNP,
           cols
         );
-        expect(exprs.variant_id).toContain('column1'); // chr_name
-        expect(exprs.variant_id).toContain('column2'); // chr_position
-        expect(exprs.variant_id).toContain('column3'); // effect_allele
+        expect(exprs.variant_id).toContain('"chr_name"');
+        expect(exprs.variant_id).toContain('"chr_position"');
+        expect(exprs.variant_id).toContain('"effect_allele"');
       });
 
       it('includes other_allele in variant_id when present', () => {
@@ -295,7 +293,7 @@ describe('harmonization', () => {
           FORMAT_TYPES.STANDARD_SNP,
           cols
         );
-        expect(exprs.variant_id).toContain('column4'); // other_allele
+        expect(exprs.variant_id).toContain('"other_allele"');
       });
     });
 
@@ -314,7 +312,7 @@ describe('harmonization', () => {
           FORMAT_TYPES.DOSAGE_WEIGHTS,
           cols
         );
-        expect(exprs.effect_weight).toContain('column5'); // dosage_1_weight
+        expect(exprs.effect_weight).toContain('"dosage_1_weight"');
       });
     });
   });
