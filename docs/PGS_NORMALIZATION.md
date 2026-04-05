@@ -33,9 +33,9 @@ Not all PGS variants exist in TOPMed. The normalization quality depends on how m
 
 | TOPMed AF Coverage | Treatment | Count |
 |---|---|---|
-| ≥80% | **Empirical** — mean/SD from real AFs, stored in manifest | ~258 PGS |
-| 5-80% | **Partial** — mean/SD from matched subset, stored in manifest | ~319 PGS |
-| <5% | **NULL** — left empty, calculator uses theoretical fallback | ~721 PGS |
+| ≥80% | **Empirical** — mean/SD from real AFs, stored in manifest | ~4,503 PGS |
+| 5-80% | **Partial** — mean/SD from matched subset, stored in manifest | ~625 PGS |
+| <5% | **NULL** — left empty, calculator uses theoretical fallback | ~28 PGS |
 
 The <5% threshold exists because computing mean/SD from a tiny fraction of variants produces stats that describe a completely different distribution than what gets scored. A PGS with 0.3% AF coverage and `sd=0.00005` would produce z-scores in the thousands.
 
