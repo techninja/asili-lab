@@ -31,11 +31,11 @@ The AF extraction is cached at `cache/topmed_reference/allele_frequencies.tsv` a
 
 Not all PGS variants exist in TOPMed. The normalization quality depends on how many variants matched:
 
-| TOPMed AF Coverage | Treatment | Count |
-|---|---|---|
-| ≥80% | **Empirical** — mean/SD from real AFs, stored in manifest | ~4,503 PGS |
-| 5-80% | **Partial** — mean/SD from matched subset, stored in manifest | ~625 PGS |
-| <5% | **NULL** — left empty, calculator uses theoretical fallback | ~28 PGS |
+| TOPMed AF Coverage | Treatment                                                     | Count      |
+| ------------------ | ------------------------------------------------------------- | ---------- |
+| ≥80%               | **Empirical** — mean/SD from real AFs, stored in manifest     | ~4,503 PGS |
+| 5-80%              | **Partial** — mean/SD from matched subset, stored in manifest | ~625 PGS   |
+| <5%                | **NULL** — left empty, calculator uses theoretical fallback   | ~28 PGS    |
 
 The <5% threshold exists because computing mean/SD from a tiny fraction of variants produces stats that describe a completely different distribution than what gets scored. A PGS with 0.3% AF coverage and `sd=0.00005` would produce z-scores in the thousands.
 
@@ -87,10 +87,10 @@ PGS with |z| > 5 are excluded from the weighted trait-level z-score aggregation.
 
 ## Files
 
-| File | Purpose |
-|---|---|
-| `scripts/calc-pgs-refstats.js` | Orchestrator — reset, batch compute, import to manifest |
-| `scripts/calc-pgs-refstats-topmed.py` | Python worker — extracts TOPMed AF, joins against packs |
-| `data_out/pgs_topmed_stats.json` | Cached per-PGS stats (coverage, mean, SD) |
-| `cache/topmed_reference/allele_frequencies.tsv` | Cached TOPMed AF (~70M variants) |
-| `packages/core/src/genomic-processor/calculator.js` | Runtime z-score calculation + theoretical fallback |
+| File                                                | Purpose                                                 |
+| --------------------------------------------------- | ------------------------------------------------------- |
+| `scripts/calc-pgs-refstats.js`                      | Orchestrator — reset, batch compute, import to manifest |
+| `scripts/calc-pgs-refstats-topmed.py`               | Python worker — extracts TOPMed AF, joins against packs |
+| `data_out/pgs_topmed_stats.json`                    | Cached per-PGS stats (coverage, mean, SD)               |
+| `cache/topmed_reference/allele_frequencies.tsv`     | Cached TOPMed AF (~70M variants)                        |
+| `packages/core/src/genomic-processor/calculator.js` | Runtime z-score calculation + theoretical fallback      |

@@ -68,16 +68,16 @@ See [QUICKSTART.md](QUICKSTART.md) for full setup from a fresh clone.
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [APP_SPEC_V1.md](docs/APP_SPEC_V1.md) | Complete v1.0 application specification |
-| [SCORING_PIPELINE.md](docs/SCORING_PIPELINE.md) | The proven scoring algorithm flow |
-| [DATA_CONTRACTS.md](docs/DATA_CONTRACTS.md) | Parquet schemas, manifest format, result shapes |
-| [ALLELE_KEY.md](docs/ALLELE_KEY.md) | Deterministic allele hashing for variant matching |
-| [PGS_QUALITY_SCORE.md](docs/PGS_QUALITY_SCORE.md) | How PGS are ranked and selected |
-| [PGS_NORMALIZATION.md](docs/PGS_NORMALIZATION.md) | TOPMed-derived z-score normalization |
-| [TIER_ARCHITECTURE.md](docs/TIER_ARCHITECTURE.md) | Business model and deployment tiers |
-| [CLOUD_IMPUTATION_TODO.md](docs/CLOUD_IMPUTATION_TODO.md) | Paid imputation service plan |
+| Document                                                  | Description                                       |
+| --------------------------------------------------------- | ------------------------------------------------- |
+| [APP_SPEC_V1.md](docs/APP_SPEC_V1.md)                     | Complete v1.0 application specification           |
+| [SCORING_PIPELINE.md](docs/SCORING_PIPELINE.md)           | The proven scoring algorithm flow                 |
+| [DATA_CONTRACTS.md](docs/DATA_CONTRACTS.md)               | Parquet schemas, manifest format, result shapes   |
+| [ALLELE_KEY.md](docs/ALLELE_KEY.md)                       | Deterministic allele hashing for variant matching |
+| [PGS_QUALITY_SCORE.md](docs/PGS_QUALITY_SCORE.md)         | How PGS are ranked and selected                   |
+| [PGS_NORMALIZATION.md](docs/PGS_NORMALIZATION.md)         | TOPMed-derived z-score normalization              |
+| [TIER_ARCHITECTURE.md](docs/TIER_ARCHITECTURE.md)         | Business model and deployment tiers               |
+| [CLOUD_IMPUTATION_TODO.md](docs/CLOUD_IMPUTATION_TODO.md) | Paid imputation service plan                      |
 
 ## Privacy
 

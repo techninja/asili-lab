@@ -350,10 +350,19 @@ export class RiskDashboard extends HTMLElement {
       const sign = x >= 0 ? 1 : -1;
       x = Math.abs(x);
       const t = 1.0 / (1.0 + 0.3275911 * x);
-      const y = 1.0 - (((((1.061405429 * t + -1.453152027) * t + 1.421413741) * t + -0.284496736) * t + 0.254829592) * t * Math.exp(-x * x));
+      const y =
+        1.0 -
+        ((((1.061405429 * t + -1.453152027) * t + 1.421413741) * t +
+          -0.284496736) *
+          t +
+          0.254829592) *
+          t *
+          Math.exp(-x * x);
       return sign * y;
     };
-    return Math.round(Math.max(1, Math.min(99, 0.5 * (1 + erf(z / Math.sqrt(2))) * 100)));
+    return Math.round(
+      Math.max(1, Math.min(99, 0.5 * (1 + erf(z / Math.sqrt(2))) * 100))
+    );
   }
 
   calculateZScore(pgsDetails) {
@@ -381,7 +390,8 @@ export class RiskDashboard extends HTMLElement {
     const individualEmoji = individual?.emoji || '👤';
 
     if (traits.length === 0) {
-      grid.innerHTML = '<div class="loading">No traits match your filters</div>';
+      grid.innerHTML =
+        '<div class="loading">No traits match your filters</div>';
       return;
     }
 
@@ -402,7 +412,13 @@ export class RiskDashboard extends HTMLElement {
       loadMore.className = 'load-more-btn';
       loadMore.textContent = `Load ${Math.min(this.windowSize, traits.length - windowEnd)} more traits...`;
       loadMore.onclick = () =>
-        this.loadMoreTraits(flatGrid, traits, windowEnd, individualId, individualEmoji);
+        this.loadMoreTraits(
+          flatGrid,
+          traits,
+          windowEnd,
+          individualId,
+          individualEmoji
+        );
       flatGrid.appendChild(loadMore);
     }
 
@@ -575,7 +591,10 @@ export class RiskDashboard extends HTMLElement {
 
   loadMoreTraits(grid, allTraits, currentIndex, individualId, individualEmoji) {
     const loadMoreBtn = grid.querySelector('.load-more-btn');
-    const nextWindow = Math.min(currentIndex + this.windowSize, allTraits.length);
+    const nextWindow = Math.min(
+      currentIndex + this.windowSize,
+      allTraits.length
+    );
 
     for (let i = currentIndex; i < nextWindow; i++) {
       const card = document.createElement('trait-card');
@@ -588,7 +607,13 @@ export class RiskDashboard extends HTMLElement {
     } else {
       loadMoreBtn.textContent = `Load ${Math.min(this.windowSize, allTraits.length - nextWindow)} more traits...`;
       loadMoreBtn.onclick = () =>
-        this.loadMoreTraits(grid, allTraits, nextWindow, individualId, individualEmoji);
+        this.loadMoreTraits(
+          grid,
+          allTraits,
+          nextWindow,
+          individualId,
+          individualEmoji
+        );
     }
   }
 

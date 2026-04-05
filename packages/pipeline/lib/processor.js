@@ -24,7 +24,11 @@ export { shouldExcludePGS } from './pgs-filter.js';
 
 import { generateTraitPackBatched } from './batched-processor.js';
 
-export async function generateTraitPack(traitName, config, allMetadataCache = null) {
+export async function generateTraitPack(
+  traitName,
+  config,
+  allMetadataCache = null
+) {
   if (
     config.pgs_ids.length > 10 ||
     (config.expected_variants && config.expected_variants > 1000000)
@@ -88,7 +92,9 @@ async function streamProcessWithDuckDB(traitName, config) {
       );
       const existing = Number(rows[0]?.count ?? 0);
       if (existing > 0) {
-        console.log(`    ✓ Resuming: ${existing} variants from ${rows[0].pgs_count} PGS`);
+        console.log(
+          `    ✓ Resuming: ${existing} variants from ${rows[0].pgs_count} PGS`
+        );
         resuming = true;
       }
     } catch {
@@ -98,7 +104,9 @@ async function streamProcessWithDuckDB(traitName, config) {
     }
 
     if (!resuming) {
-      await exec(duckHandle.conn, `
+      await exec(
+        duckHandle.conn,
+        `
         DROP TABLE IF EXISTS pgs_staging;
         CREATE TABLE pgs_staging (
           variant_id VARCHAR,
@@ -115,7 +123,8 @@ async function streamProcessWithDuckDB(traitName, config) {
           weight_type VARCHAR,
           format_type VARCHAR
         );
-      `);
+      `
+      );
       console.log('    ✓ Database initialized');
     }
 
@@ -133,18 +142,33 @@ async function streamProcessWithDuckDB(traitName, config) {
         const t0 = Date.now();
         const scoreData = await pgsApiClient.getScore(pgsId);
         if (!scoreData.ftp_scoring_file) return null;
-        const filePath = await pgsApiClient.downloadPGSFile(pgsId, scoreData.ftp_scoring_file);
+        const filePath = await pgsApiClient.downloadPGSFile(
+          pgsId,
+          scoreData.ftp_scoring_file
+        );
         const dlTime = Date.now() - t0;
         const t1 = Date.now();
-        const { columns, dataOnlyPath } = await prepareFileForProcessing(filePath);
+        const { columns, dataOnlyPath } =
+          await prepareFileForProcessing(filePath);
         const prepTime = Date.now() - t1;
         const formatType = detectFormat(columns);
         if (!formatType) {
-          console.log(`        ⚠ ${pgsId}: unsupported format (${columns.join(',')})`);
+          console.log(
+            `        ⚠ ${pgsId}: unsupported format (${columns.join(',')})`
+          );
           return null;
         }
-        const importSQL = generateInsertSQL(formatType, columns, dataOnlyPath, pgsId, config, traitName);
-        console.log(`        📦 ${pgsId}: ${formatType} (dl:${dlTime}ms prep:${prepTime}ms)`);
+        const importSQL = generateInsertSQL(
+          formatType,
+          columns,
+          dataOnlyPath,
+          pgsId,
+          config,
+          traitName
+        );
+        console.log(
+          `        📦 ${pgsId}: ${formatType} (dl:${dlTime}ms prep:${prepTime}ms)`
+        );
         return { dataOnlyPath, formatType, importSQL };
       } catch (error) {
         console.log(`        ✗ ${pgsId} prepare failed: ${error.message}`);
@@ -178,7 +202,9 @@ async function streamProcessWithDuckDB(traitName, config) {
         );
         const existing = Number(rows[0]?.count ?? 0);
         if (existing > 0) {
-          console.log(`        ✓ Skipping ${pgsId} (${existing} variants already in DB)`);
+          console.log(
+            `        ✓ Skipping ${pgsId} (${existing} variants already in DB)`
+          );
           totalVariants += existing;
           pgsIds.push(pgsId);
           continue;
@@ -190,7 +216,9 @@ async function streamProcessWithDuckDB(traitName, config) {
       preparing.delete(pgsId);
 
       if (!prep) {
-        console.log(`        Skipping ${pgsId} (no data or unsupported format)`);
+        console.log(
+          `        Skipping ${pgsId} (no data or unsupported format)`
+        );
         continue;
       }
 
@@ -205,7 +233,9 @@ async function streamProcessWithDuckDB(traitName, config) {
           `SELECT COUNT(*) as count FROM pgs_staging WHERE pgs_id = '${pgsId}'`
         );
         const variantCount = Number(rows[0]?.count ?? 0);
-        console.log(`        ✓ ${pgsId}: ${variantCount.toLocaleString()} variants (${Date.now() - t2}ms)`);
+        console.log(
+          `        ✓ ${pgsId}: ${variantCount.toLocaleString()} variants (${Date.now() - t2}ms)`
+        );
 
         totalVariants += variantCount;
         pgsIds.push(pgsId);
@@ -245,12 +275,16 @@ async function streamProcessWithDuckDB(traitName, config) {
       for (const file of files) {
         if (
           file.includes(safeFileName) &&
-          (file.endsWith('.sql') || file.endsWith('.tsv') || file.endsWith('_data.tsv'))
+          (file.endsWith('.sql') ||
+            file.endsWith('.tsv') ||
+            file.endsWith('_data.tsv'))
         ) {
           await fs.unlink(path.join(OUTPUT_DIR, file)).catch(() => {});
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     console.log(`  - Created unified file (${totalVariants} variants)`);
     return { totalVariants, fileName: `${safeFileName}_hg38.parquet`, pgsIds };

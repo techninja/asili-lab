@@ -4,10 +4,10 @@
 
 Asili runs in two modes with different storage backends:
 
-| Mode | Storage | Scoring | Deployment |
-|------|---------|---------|------------|
-| **Browser (Public)** | IndexedDB + DuckDB WASM | Client-side Web Worker | Static CDN |
-| **Hybrid (Self-hosted)** | DuckDB native + filesystem | Server-side calc server | Docker |
+| Mode                     | Storage                    | Scoring                 | Deployment |
+| ------------------------ | -------------------------- | ----------------------- | ---------- |
+| **Browser (Public)**     | IndexedDB + DuckDB WASM    | Client-side Web Worker  | Static CDN |
+| **Hybrid (Self-hosted)** | DuckDB native + filesystem | Server-side calc server | Docker     |
 
 The UI components need the same data regardless of mode. Without abstraction, every component would need `if (hybrid) { fetch(...) } else { indexedDB.get(...) }` branching.
 
@@ -50,19 +50,19 @@ Every method returns a Promise. The interface is the same in both modes.
 
 ```js
 /** @returns {Promise<Individual[]>} */
-dataLayer.getIndividuals()
+dataLayer.getIndividuals();
 
 /** @returns {Promise<Individual>} */
-dataLayer.getIndividual(id)
+dataLayer.getIndividual(id);
 
 /** @returns {Promise<Individual>} */
-dataLayer.addIndividual({ name, emoji, relationship, familyName })
+dataLayer.addIndividual({ name, emoji, relationship, familyName });
 
 /** @returns {Promise<Individual>} */
-dataLayer.updateIndividual(id, updates)
+dataLayer.updateIndividual(id, updates);
 
 /** @returns {Promise<void>} */
-dataLayer.deleteIndividual(id)
+dataLayer.deleteIndividual(id);
 ```
 
 ### DNA
@@ -74,10 +74,10 @@ dataLayer.deleteIndividual(id)
  * Hybrid: upload to server, server stores as JSON + runs imputation
  * @returns {Promise<{ variantCount: number, format: string }>}
  */
-dataLayer.uploadDNA(individualId, file, onProgress)
+dataLayer.uploadDNA(individualId, file, onProgress);
 
 /** @returns {Promise<boolean>} */
-dataLayer.hasImputedData(individualId)
+dataLayer.hasImputedData(individualId);
 ```
 
 ### Scoring
@@ -89,7 +89,7 @@ dataLayer.hasImputedData(individualId)
  * Hybrid: POST /calculate/risk → server scores via native DuckDB
  * @returns {Promise<RiskScoreResult>}
  */
-dataLayer.scoreTrait(individualId, traitId, onProgress)
+dataLayer.scoreTrait(individualId, traitId, onProgress);
 
 /**
  * Score all traits for an individual (queue-based).
@@ -97,59 +97,63 @@ dataLayer.scoreTrait(individualId, traitId, onProgress)
  * Hybrid: WebSocket queue with progress
  * @returns {Promise<void>}
  */
-dataLayer.scoreAllTraits(individualId, { skipExisting, onProgress, onComplete })
+dataLayer.scoreAllTraits(individualId, {
+  skipExisting,
+  onProgress,
+  onComplete
+});
 
 /** Cancel an in-progress scoring queue */
-dataLayer.cancelScoring()
+dataLayer.cancelScoring();
 ```
 
 ### Results
 
 ```js
 /** @returns {Promise<RiskScoreResult | null>} */
-dataLayer.getRiskScore(individualId, traitId)
+dataLayer.getRiskScore(individualId, traitId);
 
 /** @returns {Promise<TraitResultSummary[]>} all scored traits for an individual */
-dataLayer.getAllResults(individualId)
+dataLayer.getAllResults(individualId);
 
 /** @returns {Promise<ChartSummary[]>} summary data for charts/grid */
-dataLayer.getResultsSummary(individualId)
+dataLayer.getResultsSummary(individualId);
 ```
 
 ### Traits
 
 ```js
 /** @returns {Promise<TraitManifest>} full manifest (loaded once on startup) */
-dataLayer.getTraitManifest()
+dataLayer.getTraitManifest();
 
 /** @returns {Promise<TraitMetadata>} detailed trait info including PGS list */
-dataLayer.getTraitDetail(traitId)
+dataLayer.getTraitDetail(traitId);
 
 /** @returns {Promise<PGSMetadata>} PGS info including performance metrics */
-dataLayer.getPGSDetail(pgsId)
+dataLayer.getPGSDetail(pgsId);
 ```
 
 ### Cache
 
 ```js
 /** @returns {Promise<Blob>} exportable cache file */
-dataLayer.exportCache(individualId)
+dataLayer.exportCache(individualId);
 
 /** @returns {Promise<void>} */
-dataLayer.importCache(individualId, blob)
+dataLayer.importCache(individualId, blob);
 
 /** @returns {Promise<void>} */
-dataLayer.clearCache(individualId)
+dataLayer.clearCache(individualId);
 ```
 
 ### System
 
 ```js
 /** @returns {Promise<{ tier: number, mode: 'browser' | 'hybrid', duckdbReady: boolean }>} */
-dataLayer.getStatus()
+dataLayer.getStatus();
 
 /** @returns {Promise<void>} initialize the data layer (load WASM, connect to server, etc.) */
-dataLayer.initialize()
+dataLayer.initialize();
 ```
 
 ## Adapter Implementations
@@ -283,6 +287,7 @@ packages/core/src/
 ```
 
 Each adapter file stays under 150 lines by delegating:
+
 - Scoring logic → `genomic-processor/`
 - Data transformation → `queries/`
 - Storage operations → platform-specific (IndexedDB API / fetch API)

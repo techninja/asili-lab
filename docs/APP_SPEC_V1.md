@@ -98,19 +98,20 @@ The genomic processing library is **shared between browser and server**. It is t
 
 ### Key Interfaces
 
-| Module | Purpose | Platform |
-|--------|---------|----------|
-| `genomic-processor/scorer.js` | PGS scoring loop | Both |
-| `genomic-processor/calculator.js` | Quality score, z-score, percentile | Both |
-| `genomic-processor/dna-source/unified.js` | DuckDB SQL pushdown scoring | Server |
-| `genomic-processor/dna-source/genotyped-only.js` | In-memory Map scoring | Browser |
-| `genomic-processor/matcher.js` | Allele matching utilities | Both |
-| `constants/allele-key.js` | Deterministic allele_key SQL expression | Both |
-| `constants/paths.js` | File path resolution | Both |
+| Module                                           | Purpose                                 | Platform |
+| ------------------------------------------------ | --------------------------------------- | -------- |
+| `genomic-processor/scorer.js`                    | PGS scoring loop                        | Both     |
+| `genomic-processor/calculator.js`                | Quality score, z-score, percentile      | Both     |
+| `genomic-processor/dna-source/unified.js`        | DuckDB SQL pushdown scoring             | Server   |
+| `genomic-processor/dna-source/genotyped-only.js` | In-memory Map scoring                   | Browser  |
+| `genomic-processor/matcher.js`                   | Allele matching utilities               | Both     |
+| `constants/allele-key.js`                        | Deterministic allele_key SQL expression | Both     |
+| `constants/paths.js`                             | File path resolution                    | Both     |
 
 ### Data Contracts
 
 **Trait Manifest** (`trait_manifest.json`):
+
 ```json
 {
   "traits": {
@@ -130,6 +131,7 @@ The genomic processing library is **shared between browser and server**. It is t
 ```
 
 **Risk Score Result** (stored in IndexedDB per individual+trait):
+
 ```json
 {
   "zScore": 1.23,
@@ -150,6 +152,7 @@ The genomic processing library is **shared between browser and server**. It is t
 ```
 
 **Parquet Schema** (trait packs):
+
 ```
 variant_id    VARCHAR   — chr:pos:ref:alt
 effect_allele VARCHAR   — effect allele
@@ -161,6 +164,7 @@ allele_key    BIGINT    — md5-based hash of sorted allele pair
 ```
 
 **Unified DNA Parquet** (server-side):
+
 ```
 variant_id          VARCHAR
 genotype_dosage     FLOAT
@@ -290,7 +294,7 @@ Each script uses `prompts` for interactive selection and `process.argv.slice(2)`
 const args = process.argv.slice(2);
 const cmd = args[0];
 if (cmd && COMMANDS[cmd]) {
-  COMMANDS[cmd].fn(args.slice(1));  // pass remaining args
+  COMMANDS[cmd].fn(args.slice(1)); // pass remaining args
 } else if (!cmd) {
   // interactive menu
 }
@@ -395,17 +399,20 @@ Hybrids store models. Each model is a separate file in `src/store/`.
 All heavy computation runs off the main thread:
 
 ### DNA Parser Worker
+
 - Input: File blob + detected format
 - Output: Parsed variant array (streamed in chunks)
 - Formats: 23andMe (v3/v4/v5), AncestryDNA, MyHeritage, FamilyTreeDNA, VCF
 
 ### Scoring Worker
+
 - Input: Individual ID + trait ID + parquet URL
 - Output: RiskScoreResult
 - Uses DuckDB WASM for parquet reading and variant matching
 - Imports `@asili/core` calculator for normalization and quality scoring
 
 ### Queue Worker
+
 - Manages background scoring of all traits for an individual
 - Processes one trait at a time (DuckDB WASM is single-connection)
 - Reports progress back to main thread
@@ -415,35 +422,36 @@ All heavy computation runs off the main thread:
 
 ## Performance Requirements
 
-| Metric | Target |
-|--------|--------|
-| Initial load (CDN, cached WASM) | < 2s |
-| DNA file parse (700K variants) | < 5s |
-| Single trait score (browser) | < 3s |
-| Full 44-trait score (browser) | < 2 min |
-| Trait grid scroll (600+ cards) | 60fps |
-| Memory usage (scoring) | < 500MB |
+| Metric                          | Target  |
+| ------------------------------- | ------- |
+| Initial load (CDN, cached WASM) | < 2s    |
+| DNA file parse (700K variants)  | < 5s    |
+| Single trait score (browser)    | < 3s    |
+| Full 44-trait score (browser)   | < 2 min |
+| Trait grid scroll (600+ cards)  | 60fps   |
+| Memory usage (scoring)          | < 500MB |
 
 ---
 
 ## Technology Stack
 
-| Layer | Choice | Rationale |
-|-------|--------|-----------|
-| Package manager | pnpm | Workspace support, fast, disk efficient |
-| UI framework | Web Components (Hybrids.js) | No build step for components, functional/declarative, proven spec |
-| State | Hybrids store | Built-in, framework-native, async storage connectors |
-| Build | None (no-build) | ES modules served directly, import maps for bare specifiers |
-| DB (browser) | DuckDB WASM | Parquet reading, SQL JOINs, proven in current app |
-| DB (server) | DuckDB (native Node) | Same queries, 10x faster than WASM |
-| Charts | Chart.js (lazy loaded) | Only loaded when trait detail is opened |
-| CSS | Vanilla CSS with custom properties | No framework, design tokens via CSS variables |
+| Layer           | Choice                             | Rationale                                                         |
+| --------------- | ---------------------------------- | ----------------------------------------------------------------- |
+| Package manager | pnpm                               | Workspace support, fast, disk efficient                           |
+| UI framework    | Web Components (Hybrids.js)        | No build step for components, functional/declarative, proven spec |
+| State           | Hybrids store                      | Built-in, framework-native, async storage connectors              |
+| Build           | None (no-build)                    | ES modules served directly, import maps for bare specifiers       |
+| DB (browser)    | DuckDB WASM                        | Parquet reading, SQL JOINs, proven in current app                 |
+| DB (server)     | DuckDB (native Node)               | Same queries, 10x faster than WASM                                |
+| Charts          | Chart.js (lazy loaded)             | Only loaded when trait detail is opened                           |
+| CSS             | Vanilla CSS with custom properties | No framework, design tokens via CSS variables                     |
 
 ---
 
 ## What Stays, What Gets Rewritten
 
 ### KEEP (proven, tested, working)
+
 - `packages/core/` — genomic processing library
 - `packages/pipeline/` — ETL pipeline
 - `scripts/` — CLI tools (scores, etl, imputation, refstats)
@@ -452,6 +460,7 @@ All heavy computation runs off the main thread:
 - `docs/` — architecture and algorithm documentation
 
 ### REWRITE (apps/web/)
+
 - All components — decompose into <150 line files
 - State management — clean Zustand store with clear actions
 - Services — scoring orchestration, data loading, caching
@@ -459,6 +468,7 @@ All heavy computation runs off the main thread:
 - Build — Vite-based with proper bundling
 
 ### DELETE (dead code from experiments)
+
 - `packages/core/src/unified-processor.js` (998 lines, superseded by scorer.js)
 - `packages/core/src/unified-processor-browser.js` (578 lines, same)
 - `packages/core/src/risk-calculator/basic.js` (137 lines, superseded by calculator.js)

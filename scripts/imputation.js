@@ -10,7 +10,10 @@ const PIPELINE_DIR = './packages/pipeline';
 const DATA_DIR = './data_out/imputation';
 
 const COMMANDS = {
-  setup: { fn: setupImputation, desc: 'Download Beagle, Eagle2, and TOPMed reference panel' },
+  setup: {
+    fn: setupImputation,
+    desc: 'Download Beagle, Eagle2, and TOPMed reference panel'
+  },
 
   impute: { fn: imputeUser, desc: 'Run full imputation pipeline for user' },
   'verify-panel': {
@@ -26,10 +29,14 @@ const COMMANDS = {
 };
 
 async function setupImputation() {
-  console.log('\n📦 Setting up imputation system (Eagle2 + Beagle + TOPMed)...\n');
+  console.log(
+    '\n📦 Setting up imputation system (Eagle2 + Beagle + TOPMed)...\n'
+  );
 
   await new Promise((resolve, reject) => {
-    const proc = spawn('./scripts/setup-imputation.sh', [], { stdio: 'inherit' });
+    const proc = spawn('./scripts/setup-imputation.sh', [], {
+      stdio: 'inherit'
+    });
     proc.on('close', code =>
       code === 0 ? resolve() : reject(new Error(`Exit code ${code}`))
     );
@@ -37,10 +44,14 @@ async function setupImputation() {
 }
 
 async function optimizePanel() {
-  console.log('\n⚡ Converting reference panel VCFs to BCF for faster I/O...\n');
+  console.log(
+    '\n⚡ Converting reference panel VCFs to BCF for faster I/O...\n'
+  );
 
   return new Promise((resolve, reject) => {
-    const proc = spawn('./scripts/convert_panel_bcf.sh', [], { stdio: 'inherit' });
+    const proc = spawn('./scripts/convert_panel_bcf.sh', [], {
+      stdio: 'inherit'
+    });
     proc.on('close', code =>
       code === 0 ? resolve() : reject(new Error(`Exit code ${code}`))
     );
@@ -113,7 +124,9 @@ async function imputeUser() {
 
   if (!selected) return;
 
-  console.log(`\n🧬 Running Eagle2 phasing + Beagle imputation for ${selected.name}`);
+  console.log(
+    `\n🧬 Running Eagle2 phasing + Beagle imputation for ${selected.name}`
+  );
   console.log('📊 Panel: TOPMed (60-80% coverage)');
   console.log('⏱️  Estimated time: 1-2 hours\n');
 

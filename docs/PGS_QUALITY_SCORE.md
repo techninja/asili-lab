@@ -38,12 +38,12 @@ A PGS with independently validated R² from the PGS Catalog is fundamentally mor
 
 Formula: `min(R² / 0.44, 1) × 15` (only when R² > 0.05 default)
 
-| R²     | Bonus | Notes                                    |
-| ------ | ----- | ---------------------------------------- |
-| 0.05   | 0     | Default R² — no validation data          |
-| 0.10   | 3.4   | Modest validation                        |
-| 0.20   | 6.8   | Good validation                          |
-| 0.44+  | 15.0  | Excellent validation (capped)            |
+| R²    | Bonus | Notes                           |
+| ----- | ----- | ------------------------------- |
+| 0.05  | 0     | Default R² — no validation data |
+| 0.10  | 3.4   | Modest validation               |
+| 0.20  | 6.8   | Good validation                 |
+| 0.44+ | 15.0  | Excellent validation (capped)   |
 
 **Why this matters**: Without this bonus, a PGS with default R²=0.05 and 1.2M matched variants (quality ~36) would outrank a PGS with validated R²=0.44 and 18 matched variants (quality ~30). The validated PGS is scientifically superior — its predictive power was confirmed in an independent cohort study. The bonus corrects this ranking.
 
@@ -119,7 +119,7 @@ The Validation Bonus ensures that a PGS which has been tested in an independent 
 
 ### Why Signal was reduced from 20% to 10%
 
-Signal Strength is personalized — it measures how informative a result is for *this* individual. But at 20%, it dominated the score for unvalidated PGS: a PGS with z=4.9σ (just under the penalty threshold) got 20 signal points, making it rank higher than a validated PGS with a moderate z=1.5σ. Reducing to 10% keeps signal as a tiebreaker without letting it override scientific validity.
+Signal Strength is personalized — it measures how informative a result is for _this_ individual. But at 20%, it dominated the score for unvalidated PGS: a PGS with z=4.9σ (just under the penalty threshold) got 20 signal points, making it rank higher than a validated PGS with a moderate z=1.5σ. Reducing to 10% keeps signal as a tiebreaker without letting it override scientific validity.
 
 ## Normalization: How Z-Scores Are Calculated
 
@@ -132,6 +132,7 @@ Mean and SD are computed from the theoretical distribution using allele frequenc
 ### >5σ Exclusion from Trait Z-Score
 
 PGS with |z| > 5 are:
+
 1. Given **0 signal points** in the quality score
 2. **Excluded from the weighted trait-level z-score**
 
@@ -150,12 +151,12 @@ Has empirical mean/SD in manifest?
 
 ## Interpretation
 
-| Score | Rating    | Characteristics                                              |
-| ----- | --------- | ------------------------------------------------------------ |
-| 65+   | Excellent | High validated R², good coverage, strong signal              |
-| 50-65 | Good      | Validated R² with decent coverage, or high coverage default  |
-| 35-50 | Moderate  | Some validation or good coverage without validation          |
-| 0-35  | Limited   | No validation, low coverage, or insufficient data            |
+| Score | Rating    | Characteristics                                             |
+| ----- | --------- | ----------------------------------------------------------- |
+| 65+   | Excellent | High validated R², good coverage, strong signal             |
+| 50-65 | Good      | Validated R² with decent coverage, or high coverage default |
+| 35-50 | Moderate  | Some validation or good coverage without validation         |
+| 0-35  | Limited   | No validation, low coverage, or insufficient data           |
 
 ## Testing
 

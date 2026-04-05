@@ -471,8 +471,9 @@ function validate() {
 
   // Check 5b: No PGS with matched > expected (multiallelic cross-product bug)
   const overMatched =
-    qr(`SELECT COUNT(*) as n FROM pgs_results WHERE matched_variants > expected_variants AND expected_variants > 0`)[0]
-      ?.n || 0;
+    qr(
+      `SELECT COUNT(*) as n FROM pgs_results WHERE matched_variants > expected_variants AND expected_variants > 0`
+    )[0]?.n || 0;
   checks.push({
     name: 'No PGS with matched > expected variants',
     pass: overMatched === 0,
@@ -567,7 +568,8 @@ const COMMANDS = {
     }
   },
   calc: {
-    label: '🧮 Calc — Calculate scores (all | <traitId> | <individualId> <traitId>)',
+    label:
+      '🧮 Calc — Calculate scores (all | <traitId> | <individualId> <traitId>)',
     fn: args => {
       const calcArgs = args.length > 0 ? args.join(' ') : '';
       try {

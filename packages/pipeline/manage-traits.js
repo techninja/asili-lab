@@ -7,8 +7,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import pgsApiClient from './pgs-api-client.js';
-import { shouldExcludePGS, WEIGHT_THRESHOLDS as _WEIGHT_THRESHOLDS } from './lib/pgs-filter.js';
-import { calculateWeightStats, terminateWorkerPool } from './lib/weight-stats.js';
+import {
+  shouldExcludePGS,
+  WEIGHT_THRESHOLDS as _WEIGHT_THRESHOLDS
+} from './lib/pgs-filter.js';
+import {
+  calculateWeightStats,
+  terminateWorkerPool
+} from './lib/weight-stats.js';
 import { analyzeTraitPGSQuality } from './lib/pgs-enhanced-filter.js';
 import * as pgsDB from './lib/pgs-db.js';
 import * as traitDB from './lib/trait-db.js';
@@ -66,7 +72,9 @@ async function collectTraitDescription(traitId) {
 async function getExistingTraitIds() {
   const conn = await getConnection();
   const rows = await new Promise((resolve, reject) => {
-    conn.all('SELECT DISTINCT trait_id FROM trait_pgs', (err, rows) => (err ? reject(err) : resolve(rows)));
+    conn.all('SELECT DISTINCT trait_id FROM trait_pgs', (err, rows) =>
+      err ? reject(err) : resolve(rows)
+    );
   });
   return new Set(rows.map(r => r.trait_id));
 }
@@ -84,8 +92,9 @@ async function seedFromAPI() {
 
   for (const trait of apiTraits) {
     // Skip traits with no PGS scores — nothing to process
-    const hasPGS = (trait.associated_pgs_ids?.length > 0) ||
-      (trait.child_associated_pgs_ids?.length > 0);
+    const hasPGS =
+      trait.associated_pgs_ids?.length > 0 ||
+      trait.child_associated_pgs_ids?.length > 0;
     if (!hasPGS) continue;
 
     const isNew = !existingIds.has(trait.id);
@@ -99,13 +108,20 @@ async function seedFromAPI() {
   }
 
   closeConnection();
-  console.log(chalk.green(`\n✓ Seed complete: ${added} added, ${updated} updated, ${apiTraits.length} total`));
+  console.log(
+    chalk.green(
+      `\n✓ Seed complete: ${added} added, ${updated} updated, ${apiTraits.length} total`
+    )
+  );
 }
 
 // Trait ID patterns and handlers
 const TRAIT_ID_PATTERNS = {
   MONDO: { regex: /^MONDO_[0-9]{7}$/, format: id => id },
-  MONDO_COLON: { regex: /^MONDO:[0-9]{7}$/, format: id => id.replace(':', '_') },
+  MONDO_COLON: {
+    regex: /^MONDO:[0-9]{7}$/,
+    format: id => id.replace(':', '_')
+  },
   EFO: { regex: /^EFO_[0-9]{7}$/, format: id => id },
   HP: { regex: /^HP_[0-9]{7}$/, format: id => id },
   OBA_VT: { regex: /^OBA_VT[0-9]{7}$/, format: id => id },
@@ -375,18 +391,22 @@ async function analyzeTraitQuality(traitId) {
   }
 }
 
-
 async function refreshTraitData(traitFilter = null) {
   const refreshStart = Date.now();
   const tier = process.env.ASILI_TIER || 'tier1_public';
 
   // Parse comma-separated trait IDs if provided
   const requestedIds = traitFilter
-    ? traitFilter.split(',').map(s => s.trim()).filter(Boolean)
+    ? traitFilter
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
     : null;
 
   if (requestedIds) {
-    console.log(chalk.cyan(`\n=== Refresh ${requestedIds.length} Trait(s) ===\n`));
+    console.log(
+      chalk.cyan(`\n=== Refresh ${requestedIds.length} Trait(s) ===\n`)
+    );
   } else {
     console.log(chalk.cyan(`\n=== Refresh Trait Data (tier: ${tier}) ===\n`));
   }
@@ -409,10 +429,15 @@ async function refreshTraitData(traitFilter = null) {
     const conn = await getConnection();
     for (const id of requestedIds) {
       await new Promise((resolve, reject) => {
-        conn.run(`DELETE FROM trait_pgs WHERE trait_id = '${id}'`, err => (err ? reject(err) : resolve()));
+        conn.run(`DELETE FROM trait_pgs WHERE trait_id = '${id}'`, err =>
+          err ? reject(err) : resolve()
+        );
       });
       await new Promise((resolve, reject) => {
-        conn.run(`DELETE FROM trait_excluded_pgs WHERE trait_id = '${id}'`, err => (err ? reject(err) : resolve()));
+        conn.run(
+          `DELETE FROM trait_excluded_pgs WHERE trait_id = '${id}'`,
+          err => (err ? reject(err) : resolve())
+        );
       });
     }
     // Build trait objects — use DB rows if they exist, otherwise create stubs
@@ -428,18 +453,25 @@ async function refreshTraitData(traitFilter = null) {
       ? dbTraits.filter(t => allowlist.has(t.trait_id))
       : dbTraits;
 
-    console.log(chalk.blue(`${targetTraits.length}/${dbTraits.length} traits in tier ${tier}`));
+    console.log(
+      chalk.blue(
+        `${targetTraits.length}/${dbTraits.length} traits in tier ${tier}`
+      )
+    );
 
     const conn = await getConnection();
     const traitsWithPGS = await new Promise((resolve, reject) => {
-      conn.all(
-        'SELECT DISTINCT trait_id FROM trait_pgs',
-        (err, rows) => (err ? reject(err) : resolve(new Set(rows.map(r => r.trait_id))))
+      conn.all('SELECT DISTINCT trait_id FROM trait_pgs', (err, rows) =>
+        err ? reject(err) : resolve(new Set(rows.map(r => r.trait_id)))
       );
     });
 
     needsRefresh = targetTraits.filter(t => !traitsWithPGS.has(t.trait_id));
-    console.log(chalk.blue(`${traitsWithPGS.size} already have PGS data, ${needsRefresh.length} need processing\n`));
+    console.log(
+      chalk.blue(
+        `${traitsWithPGS.size} already have PGS data, ${needsRefresh.length} need processing\n`
+      )
+    );
 
     if (needsRefresh.length === 0) {
       console.log(chalk.green('✓ All tier traits up to date'));
@@ -449,7 +481,10 @@ async function refreshTraitData(traitFilter = null) {
   let processed = 0;
   let errors = 0;
 
-  const MAX_CONCURRENT_TRAITS = Math.max(1, Math.min(4, Math.floor(os.cpus().length / 2)));
+  const MAX_CONCURRENT_TRAITS = Math.max(
+    1,
+    Math.min(4, Math.floor(os.cpus().length / 2))
+  );
   console.log(chalk.blue(`Trait concurrency: ${MAX_CONCURRENT_TRAITS}\n`));
 
   const active = new Set();
@@ -458,7 +493,11 @@ async function refreshTraitData(traitFilter = null) {
 
     const task = (async () => {
       const idx = ++processed;
-      console.log(chalk.cyan(`\n[${idx}/${needsRefresh.length}] ${trait.name} (${trait.trait_id})`));
+      console.log(
+        chalk.cyan(
+          `\n[${idx}/${needsRefresh.length}] ${trait.name} (${trait.trait_id})`
+        )
+      );
       try {
         await processSingleTrait(trait.trait_id, existingIds);
       } catch (error) {
@@ -467,7 +506,10 @@ async function refreshTraitData(traitFilter = null) {
       }
     })();
 
-    const tracked = task.then(() => active.delete(tracked), () => active.delete(tracked));
+    const tracked = task.then(
+      () => active.delete(tracked),
+      () => active.delete(tracked)
+    );
     active.add(tracked);
   }
   await Promise.allSettled(active);
@@ -477,7 +519,11 @@ async function refreshTraitData(traitFilter = null) {
   const dur = Math.round((Date.now() - refreshStart) / 1000);
   const min = Math.floor(dur / 60);
   const sec = dur % 60;
-  console.log(chalk.green(`\n✓ Refresh complete: ${processed - errors} succeeded, ${errors} errors (${min > 0 ? `${min}m ${sec}s` : `${sec}s`})`));
+  console.log(
+    chalk.green(
+      `\n✓ Refresh complete: ${processed - errors} succeeded, ${errors} errors (${min > 0 ? `${min}m ${sec}s` : `${sec}s`})`
+    )
+  );
 
   // Clean up only traits we attempted that still have no PGS
   if (!requestedIds && needsRefresh.length > 0) {
@@ -492,15 +538,18 @@ async function refreshTraitData(traitFilter = null) {
       );
     });
     if (orphans.length > 0) {
-      console.log(chalk.yellow(`\n🧹 Removing ${orphans.length} traits with no valid PGS after processing:`));
+      console.log(
+        chalk.yellow(
+          `\n🧹 Removing ${orphans.length} traits with no valid PGS after processing:`
+        )
+      );
       for (const o of orphans) {
         console.log(chalk.gray(`   ${o.trait_id} (${o.name})`));
       }
       const orphanIds = orphans.map(o => `'${o.trait_id}'`).join(',');
       await new Promise((resolve, reject) => {
-        conn2.run(
-          `DELETE FROM traits WHERE trait_id IN (${orphanIds})`,
-          err => (err ? reject(err) : resolve())
+        conn2.run(`DELETE FROM traits WHERE trait_id IN (${orphanIds})`, err =>
+          err ? reject(err) : resolve()
         );
       });
       console.log(chalk.green(`✓ Cleaned up ${orphans.length} orphan traits`));
@@ -700,13 +749,19 @@ async function processSingleTrait(input, existingIds) {
     const MAX_CONCURRENT = 8;
     const uniquePgsIds = [...new Set(pgsIds)];
 
-    const processPGS = async (pgsId) => {
+    const processPGS = async pgsId => {
       try {
         const data = await pgsApiClient.getScore(pgsId);
         const filterResult = await shouldExcludePGS(pgsId, data, pgsApiClient);
 
         if (filterResult.exclude) {
-          return { type: 'excluded', pgsId, reason: filterResult.reason, method: data.method_name || 'Not specified', weight_type: data.weight_type || 'Not specified' };
+          return {
+            type: 'excluded',
+            pgsId,
+            reason: filterResult.reason,
+            method: data.method_name || 'Not specified',
+            weight_type: data.weight_type || 'Not specified'
+          };
         }
 
         const stats = await calculateWeightStats(pgsId, pgsApiClient);
@@ -722,7 +777,12 @@ async function processSingleTrait(input, existingIds) {
           entry.norm_mean = stats.mean;
           entry.norm_sd = stats.sd;
         }
-        return { type: 'included', pgsId, entry, variants: data.variants_number || 0 };
+        return {
+          type: 'included',
+          pgsId,
+          entry,
+          variants: data.variants_number || 0
+        };
       } catch (error) {
         return { type: 'error', pgsId, error: error.message };
       }
@@ -733,7 +793,11 @@ async function processSingleTrait(input, existingIds) {
     const results = [];
     for (const pgsId of uniquePgsIds) {
       while (active.size >= MAX_CONCURRENT) await Promise.race(active);
-      const p = processPGS(pgsId).then(r => { active.delete(p); results.push(r); return r; });
+      const p = processPGS(pgsId).then(r => {
+        active.delete(p);
+        results.push(r);
+        return r;
+      });
       active.add(p);
     }
     await Promise.all(active);
@@ -744,10 +808,19 @@ async function processSingleTrait(input, existingIds) {
         pgsWithNorm.push(r.entry);
         totalVariants += r.variants;
         uniqueVariants += Math.floor(r.variants * 0.7);
-        console.log(chalk.green(`  \u2713 ${r.pgsId}: ${r.variants?.toLocaleString()} variants (perf: ${(r.entry.performance_weight).toFixed(2)})`));
+        console.log(
+          chalk.green(
+            `  \u2713 ${r.pgsId}: ${r.variants?.toLocaleString()} variants (perf: ${r.entry.performance_weight.toFixed(2)})`
+          )
+        );
       } else if (r.type === 'excluded') {
         excludedPgsIds.push(r.pgsId);
-        excludedPgsDetails.push({ pgs_id: r.pgsId, reason: r.reason, method: r.method, weight_type: r.weight_type });
+        excludedPgsDetails.push({
+          pgs_id: r.pgsId,
+          reason: r.reason,
+          method: r.method,
+          weight_type: r.weight_type
+        });
       } else {
         console.log(chalk.yellow(`  \u26a0 ${r.pgsId}: ${r.error}`));
         pgsWithNorm.push({ id: r.pgsId });
@@ -776,9 +849,7 @@ async function processSingleTrait(input, existingIds) {
     );
     if (excludedPgsIds.length > 0) {
       console.log(
-        chalk.yellow(
-          `   All ${excludedPgsIds.length} PGS scores were excluded`
-        )
+        chalk.yellow(`   All ${excludedPgsIds.length} PGS scores were excluded`)
       );
     }
     return;
@@ -865,11 +936,22 @@ async function freshStart() {
   });
   if (!confirm) return;
 
-  const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(__dirname, '..', '..', 'data_out');
+  const OUTPUT_DIR =
+    process.env.OUTPUT_DIR || path.join(__dirname, '..', '..', 'data_out');
   const dbPath = path.join(OUTPUT_DIR, 'trait_manifest.db');
-  try { await fs.unlink(dbPath); } catch { /* ignore */ }
-  try { await fs.unlink(dbPath + '.wal'); } catch { /* ignore */ }
-  console.log(chalk.green('✓ Database removed — will be recreated on next run'));
+  try {
+    await fs.unlink(dbPath);
+  } catch {
+    /* ignore */
+  }
+  try {
+    await fs.unlink(dbPath + '.wal');
+  } catch {
+    /* ignore */
+  }
+  console.log(
+    chalk.green('✓ Database removed — will be recreated on next run')
+  );
 }
 
 async function syncOverrides() {
@@ -1043,7 +1125,10 @@ async function main() {
       { title: '🔬 Analyze trait quality (analyze <id>)', value: 'analyze' },
       { title: '🔄 Sync overrides to DB (sync)', value: 'sync' },
       { title: '📊 Phenotype references (phenotype)', value: 'phenotype' },
-      { title: '📈 Quantitative analysis (quantitative)', value: 'quantitative' },
+      {
+        title: '📈 Quantitative analysis (quantitative)',
+        value: 'quantitative'
+      },
       { title: '🆕 Fresh start (fresh)', value: 'fresh' },
       { title: '🚪 Exit (exit)', value: 'exit' }
     ]

@@ -26,16 +26,16 @@ GROUP BY categories
 
 Collapse the 25+ raw categories into ~8 display categories:
 
-| Display Category | Source Categories |
-|-----------------|-------------------|
-| Cancer | Cancer, Cancer+* |
-| Cardiovascular | Cardiovascular disease, Cardiovascular measurement |
-| Metabolic | Metabolic disorder, Lipid or lipoprotein measurement |
-| Neurological | Neurological disorder |
-| Immune | Immune system disorder |
-| Digestive | Digestive system disorder |
-| Blood | Hematological measurement |
-| Body | Body measurement, Other measurement (anthropometric subset) |
+| Display Category | Source Categories                                           |
+| ---------------- | ----------------------------------------------------------- |
+| Cancer           | Cancer, Cancer+\*                                           |
+| Cardiovascular   | Cardiovascular disease, Cardiovascular measurement          |
+| Metabolic        | Metabolic disorder, Lipid or lipoprotein measurement        |
+| Neurological     | Neurological disorder                                       |
+| Immune           | Immune system disorder                                      |
+| Digestive        | Digestive system disorder                                   |
+| Blood            | Hematological measurement                                   |
+| Body             | Body measurement, Other measurement (anthropometric subset) |
 
 ### Radar Chart
 
@@ -103,11 +103,11 @@ No server-side PDF generation needed. The report is a route in the app (`/report
 
 ### Upsell Opportunity
 
-| Tier | Report Access |
-|------|--------------|
+| Tier                   | Report Access                                        |
+| ---------------------- | ---------------------------------------------------- |
 | Public (free, browser) | Summary page only (radar chart + top 5 elevated/low) |
-| Public + imputation | Full report with all categories and variant details |
-| Self-hosted (Docker) | Full report, all 600+ traits |
+| Public + imputation    | Full report with all categories and variant details  |
+| Self-hosted (Docker)   | Full report, all 600+ traits                         |
 
 The summary page is the teaser. "Want the full 12-page report with variant-level detail? Impute your DNA for $7.99."
 
@@ -168,13 +168,13 @@ Page 3: Shared Genetics
 
 ## Implementation Priority
 
-| Feature | Complexity | Revenue Impact | v1.0? |
-|---------|-----------|---------------|-------|
-| Category radar chart | Medium | High (visual hook) | ✅ Yes |
-| Print-friendly report page | Medium | High (consultation use case) | ✅ Yes |
-| Summary teaser (public) | Low | Medium (upsell driver) | ✅ Yes |
-| Full report (post-imputation) | Medium | High (justifies $7.99) | ✅ Yes |
-| Temporal tracking | Low | Low (already stored) | ✅ Yes |
-| Family comparison report | High | Medium | Post-launch |
-| Version comparison | High | Low | Post-launch |
-| Re-scoring notifications | Medium | Medium | Post-launch |
+| Feature                       | Complexity | Revenue Impact               | v1.0?       |
+| ----------------------------- | ---------- | ---------------------------- | ----------- |
+| Category radar chart          | Medium     | High (visual hook)           | ✅ Yes      |
+| Print-friendly report page    | Medium     | High (consultation use case) | ✅ Yes      |
+| Summary teaser (public)       | Low        | Medium (upsell driver)       | ✅ Yes      |
+| Full report (post-imputation) | Medium     | High (justifies $7.99)       | ✅ Yes      |
+| Temporal tracking             | Low        | Low (already stored)         | ✅ Yes      |
+| Family comparison report      | High       | Medium                       | Post-launch |
+| Version comparison            | High       | Low                          | Post-launch |
+| Re-scoring notifications      | Medium     | Medium                       | Post-launch |

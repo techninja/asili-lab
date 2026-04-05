@@ -17,7 +17,9 @@ export async function loadAllowlist(tier) {
     return new Set(allowlist.traits);
   } catch (error) {
     if (error.code === 'ENOENT') {
-      console.warn(`⚠ Allowlist not found: ${allowlistPath}, processing all traits`);
+      console.warn(
+        `⚠ Allowlist not found: ${allowlistPath}, processing all traits`
+      );
       return null;
     }
     throw error;
@@ -29,9 +31,16 @@ export async function getTraitConfigs(tier) {
   const conn = await getConnection();
   const singleTrait = process.env.SINGLE_TRAIT;
 
-  const query = (sql, params = []) => new Promise((resolve, reject) => {
-    conn.all(sql, ...([params.length ? params : [], (err, rows) => err ? reject(err) : resolve(rows)].flat()));
-  });
+  const query = (sql, params = []) =>
+    new Promise((resolve, reject) => {
+      conn.all(
+        sql,
+        ...[
+          params.length ? params : [],
+          (err, rows) => (err ? reject(err) : resolve(rows))
+        ].flat()
+      );
+    });
 
   // Load traits — single query, filtered at DB level when possible
   let allTraits;
@@ -55,14 +64,15 @@ export async function getTraitConfigs(tier) {
   const traitIds = filtered.map(t => t.trait_id);
   const inClause = traitIds.map(id => `'${id}'`).join(',');
 
-  const allPgs = traitIds.length > 0
-    ? await query(`SELECT tp.trait_id, tp.pgs_id, tp.performance_weight,
+  const allPgs =
+    traitIds.length > 0
+      ? await query(`SELECT tp.trait_id, tp.pgs_id, tp.performance_weight,
         ps.norm_mean, ps.norm_sd, ps.weight_type, ps.method_name, ps.variants_number
       FROM trait_pgs tp
       LEFT JOIN pgs_scores ps ON tp.pgs_id = ps.pgs_id
       WHERE tp.trait_id IN (${inClause})
       ORDER BY tp.trait_id, tp.pgs_id`)
-    : [];
+      : [];
 
   // Group by trait
   const pgsByTrait = new Map();
@@ -83,7 +93,9 @@ export async function getTraitConfigs(tier) {
           weight_type: row.weight_type,
           method: row.method_name,
           performance_weight: row.performance_weight || 0.5,
-          variants_number: row.variants_number ? Number(row.variants_number) : null
+          variants_number: row.variants_number
+            ? Number(row.variants_number)
+            : null
         };
       }
     }

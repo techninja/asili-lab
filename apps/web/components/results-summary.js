@@ -3,7 +3,14 @@ import { useAppStore } from '../lib/store.js';
 import { useTraitStore } from '../lib/trait-store.js';
 import { fetchChartData, invalidateCache } from '../lib/results-data.js';
 
-const COLORS = ['#007acc', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c'];
+const COLORS = [
+  '#007acc',
+  '#e74c3c',
+  '#2ecc71',
+  '#f39c12',
+  '#9b59b6',
+  '#1abc9c'
+];
 const COLORS_A = COLORS.map(c => c + '88');
 
 export class ResultsSummary extends HTMLElement {
@@ -21,9 +28,15 @@ export class ResultsSummary extends HTMLElement {
 
   connectedCallback() {
     this.render();
-    this.shadowRoot.getElementById('toggle').addEventListener('click', () => this.toggleCollapse());
-    this.shadowRoot.getElementById('chartType').addEventListener('change', () => this.drawChart());
-    this.shadowRoot.getElementById('categorySelect')?.addEventListener('change', () => this.drawChart());
+    this.shadowRoot
+      .getElementById('toggle')
+      .addEventListener('click', () => this.toggleCollapse());
+    this.shadowRoot
+      .getElementById('chartType')
+      .addEventListener('change', () => this.drawChart());
+    this.shadowRoot
+      .getElementById('categorySelect')
+      ?.addEventListener('change', () => this.drawChart());
     this.unsubApp = useAppStore.subscribe(state => {
       if (this.lastIndividual !== state.selectedIndividual) {
         this.lastIndividual = state.selectedIndividual;
@@ -66,10 +79,13 @@ export class ResultsSummary extends HTMLElement {
     const sel = this.shadowRoot.getElementById('categorySelect');
     if (!sel || !this.data) return;
     const cats = new Set();
-    for (const rows of this.data.values()) rows.forEach(r => r.categories && cats.add(r.categories));
+    for (const rows of this.data.values())
+      rows.forEach(r => r.categories && cats.add(r.categories));
     const sorted = [...cats].sort();
     const prev = sel.value;
-    sel.innerHTML = sorted.map(c => `<option value="${c}">${c}</option>`).join('');
+    sel.innerHTML = sorted
+      .map(c => `<option value="${c}">${c}</option>`)
+      .join('');
     if (sorted.includes(prev)) sel.value = prev;
   }
 
@@ -98,40 +114,60 @@ export class ResultsSummary extends HTMLElement {
     const ctx = canvas.getContext('2d');
 
     switch (type) {
-      case 'profile': this.drawProfile(ctx, appState); break;
-      case 'scatter': this.drawScatter(ctx, appState); break;
-      case 'family': this.drawFamily(ctx, appState); break;
-      case 'quality': this.drawQuality(ctx, appState); break;
+      case 'profile':
+        this.drawProfile(ctx, appState);
+        break;
+      case 'scatter':
+        this.drawScatter(ctx, appState);
+        break;
+      case 'family':
+        this.drawFamily(ctx, appState);
+        break;
+      case 'quality':
+        this.drawQuality(ctx, appState);
+        break;
     }
   }
 
   // --- Trait Profile: horizontal bars of all traits for current individual ---
   drawProfile(ctx, appState) {
     const rows = this.data.get(appState.selectedIndividual) || [];
-    const sorted = [...rows].filter(r => r.percentile != null).sort((a, b) => b.percentile - a.percentile);
+    const sorted = [...rows]
+      .filter(r => r.percentile != null)
+      .sort((a, b) => b.percentile - a.percentile);
     const labels = sorted.map(r => r.trait_name);
     const data = sorted.map(r => Math.round(r.percentile));
-    const colors = data.map(p => p < 20 ? '#28a745' : p > 80 ? '#dc3545' : '#007acc');
-    const ind = appState.individuals.find(i => i.id === appState.selectedIndividual);
+    const colors = data.map(p =>
+      p < 20 ? '#28a745' : p > 80 ? '#dc3545' : '#007acc'
+    );
+    const ind = appState.individuals.find(
+      i => i.id === appState.selectedIndividual
+    );
 
     this.chart = new Chart(ctx, {
       type: 'bar',
       data: {
         labels,
-        datasets: [{
-          label: `${ind?.emoji || ''} ${ind?.name || ''} Percentile`,
-          data,
-          backgroundColor: colors.map(c => c + '99'),
-          borderColor: colors,
-          borderWidth: 1,
-        }]
+        datasets: [
+          {
+            label: `${ind?.emoji || ''} ${ind?.name || ''} Percentile`,
+            data,
+            backgroundColor: colors.map(c => c + '99'),
+            borderColor: colors,
+            borderWidth: 1
+          }
+        ]
       },
       options: {
         indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-          x: { min: 0, max: 100, title: { display: true, text: 'Percentile', font: { size: 13 } } },
+          x: {
+            min: 0,
+            max: 100,
+            title: { display: true, text: 'Percentile', font: { size: 13 } }
+          },
           y: { ticks: { font: { size: 11 } } }
         },
         plugins: {
@@ -149,45 +185,72 @@ export class ResultsSummary extends HTMLElement {
   // --- Scatter: coverage vs percentile with genotyped % as point size ---
   drawScatter(ctx, appState) {
     const rows = this.data.get(appState.selectedIndividual) || [];
-    const ind = appState.individuals.find(i => i.id === appState.selectedIndividual);
+    const ind = appState.individuals.find(
+      i => i.id === appState.selectedIndividual
+    );
 
-    const data = rows.filter(r => r.percentile != null).map(r => {
-      const coverage = r.expected > 0 ? (r.matched / r.expected) * 100 : 0;
-      const pctGenotyped = r.best_matched > 0 ? (r.best_genotyped / r.best_matched) * 100 : 0;
-      return {
-        x: Math.round(coverage * 10) / 10,
-        y: Math.round(r.percentile * 10) / 10,
-        r: Math.max(4, Math.min(14, pctGenotyped / 8)),
-        traitName: r.trait_name,
-        pctGenotyped: Math.round(pctGenotyped),
-      };
-    });
+    const data = rows
+      .filter(r => r.percentile != null)
+      .map(r => {
+        const coverage = r.expected > 0 ? (r.matched / r.expected) * 100 : 0;
+        const pctGenotyped =
+          r.best_matched > 0 ? (r.best_genotyped / r.best_matched) * 100 : 0;
+        return {
+          x: Math.round(coverage * 10) / 10,
+          y: Math.round(r.percentile * 10) / 10,
+          r: Math.max(4, Math.min(14, pctGenotyped / 8)),
+          traitName: r.trait_name,
+          pctGenotyped: Math.round(pctGenotyped)
+        };
+      });
 
     this.shadowRoot.querySelector('.chart-wrap').style.height = '350px';
     this.chart = new Chart(ctx, {
       type: 'bubble',
       data: {
-        datasets: [{
-          label: `${ind?.emoji || ''} ${ind?.name || ''}`,
-          data,
-          backgroundColor: data.map(d => d.y < 20 ? '#28a74566' : d.y > 80 ? '#dc354566' : '#007acc66'),
-          borderColor: data.map(d => d.y < 20 ? '#28a745' : d.y > 80 ? '#dc3545' : '#007acc'),
-          borderWidth: 1.5,
-        }]
+        datasets: [
+          {
+            label: `${ind?.emoji || ''} ${ind?.name || ''}`,
+            data,
+            backgroundColor: data.map(d =>
+              d.y < 20 ? '#28a74566' : d.y > 80 ? '#dc354566' : '#007acc66'
+            ),
+            borderColor: data.map(d =>
+              d.y < 20 ? '#28a745' : d.y > 80 ? '#dc3545' : '#007acc'
+            ),
+            borderWidth: 1.5
+          }
+        ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-          x: { title: { display: true, text: 'Variant Coverage %', font: { size: 13 } }, min: 0, max: 100 },
-          y: { title: { display: true, text: 'Percentile', font: { size: 13 } }, min: 0, max: 100 }
+          x: {
+            title: {
+              display: true,
+              text: 'Variant Coverage %',
+              font: { size: 13 }
+            },
+            min: 0,
+            max: 100
+          },
+          y: {
+            title: { display: true, text: 'Percentile', font: { size: 13 } },
+            min: 0,
+            max: 100
+          }
         },
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: item => {
-            const d = item.raw;
-            return `${d.traitName}: ${d.y}th pctl, ${d.x}% coverage, ${d.pctGenotyped}% genotyped`;
-          }}}
+          tooltip: {
+            callbacks: {
+              label: item => {
+                const d = item.raw;
+                return `${d.traitName}: ${d.y}th pctl, ${d.x}% coverage, ${d.pctGenotyped}% genotyped`;
+              }
+            }
+          }
         }
       }
     });
@@ -213,14 +276,18 @@ export class ResultsSummary extends HTMLElement {
       const byTrait = new Map(rows.map(r => [r.trait_id, r]));
       return {
         label: `${ind.emoji} ${ind.name}`,
-        data: traitIds.map(id => { const r = byTrait.get(id); return r?.percentile != null ? Math.round(r.percentile) : null; }),
+        data: traitIds.map(id => {
+          const r = byTrait.get(id);
+          return r?.percentile != null ? Math.round(r.percentile) : null;
+        }),
         backgroundColor: COLORS_A[i % COLORS.length],
         borderColor: COLORS[i % COLORS.length],
-        borderWidth: 1,
+        borderWidth: 1
       };
     });
 
-    this.shadowRoot.querySelector('.chart-wrap').style.height = Math.max(300, traitNames.length * 35) + 'px';
+    this.shadowRoot.querySelector('.chart-wrap').style.height =
+      Math.max(300, traitNames.length * 35) + 'px';
     this.chart = new Chart(ctx, {
       type: 'bar',
       data: { labels: traitNames, datasets },
@@ -229,12 +296,32 @@ export class ResultsSummary extends HTMLElement {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-          x: { ...(traitNames.length > 4 ? { min: 0, max: 100, title: { display: true, text: 'Percentile' } } : {}) },
-          y: { ...(traitNames.length <= 4 ? { min: 0, max: 100, title: { display: true, text: 'Percentile' } } : { ticks: { font: { size: 11 } } }) }
+          x: {
+            ...(traitNames.length > 4
+              ? {
+                  min: 0,
+                  max: 100,
+                  title: { display: true, text: 'Percentile' }
+                }
+              : {})
+          },
+          y: {
+            ...(traitNames.length <= 4
+              ? {
+                  min: 0,
+                  max: 100,
+                  title: { display: true, text: 'Percentile' }
+                }
+              : { ticks: { font: { size: 11 } } })
+          }
         },
         plugins: {
           legend: { position: 'bottom', labels: { font: { size: 13 } } },
-          tooltip: { callbacks: { label: item => `${item.dataset.label}: ${item.raw}th pctl` } }
+          tooltip: {
+            callbacks: {
+              label: item => `${item.dataset.label}: ${item.raw}th pctl`
+            }
+          }
         }
       }
     });
@@ -243,25 +330,46 @@ export class ResultsSummary extends HTMLElement {
   // --- Data Quality: genotyped vs imputed stacked bars per trait ---
   drawQuality(ctx, appState) {
     const rows = this.data.get(appState.selectedIndividual) || [];
-    const sorted = [...rows].filter(r => r.best_matched > 0).sort((a, b) => {
-      const aG = a.best_genotyped / a.best_matched;
-      const bG = b.best_genotyped / b.best_matched;
-      return bG - aG;
-    });
+    const sorted = [...rows]
+      .filter(r => r.best_matched > 0)
+      .sort((a, b) => {
+        const aG = a.best_genotyped / a.best_matched;
+        const bG = b.best_genotyped / b.best_matched;
+        return bG - aG;
+      });
 
     const labels = sorted.map(r => r.trait_name);
-    const genotypedPct = sorted.map(r => Math.round(r.best_genotyped / r.best_matched * 100));
-    const imputedPct = sorted.map(r => Math.round(r.best_imputed / r.best_matched * 100));
-    const ind = appState.individuals.find(i => i.id === appState.selectedIndividual);
+    const genotypedPct = sorted.map(r =>
+      Math.round((r.best_genotyped / r.best_matched) * 100)
+    );
+    const imputedPct = sorted.map(r =>
+      Math.round((r.best_imputed / r.best_matched) * 100)
+    );
+    const ind = appState.individuals.find(
+      i => i.id === appState.selectedIndividual
+    );
 
-    this.shadowRoot.querySelector('.chart-wrap').style.height = Math.max(300, sorted.length * 24) + 'px';
+    this.shadowRoot.querySelector('.chart-wrap').style.height =
+      Math.max(300, sorted.length * 24) + 'px';
     this.chart = new Chart(ctx, {
       type: 'bar',
       data: {
         labels,
         datasets: [
-          { label: 'Genotyped', data: genotypedPct, backgroundColor: '#28a74599', borderColor: '#28a745', borderWidth: 1 },
-          { label: 'Imputed', data: imputedPct, backgroundColor: '#ffc10799', borderColor: '#ffc107', borderWidth: 1 },
+          {
+            label: 'Genotyped',
+            data: genotypedPct,
+            backgroundColor: '#28a74599',
+            borderColor: '#28a745',
+            borderWidth: 1
+          },
+          {
+            label: 'Imputed',
+            data: imputedPct,
+            backgroundColor: '#ffc10799',
+            borderColor: '#ffc107',
+            borderWidth: 1
+          }
         ]
       },
       options: {
@@ -269,13 +377,27 @@ export class ResultsSummary extends HTMLElement {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-          x: { stacked: true, max: 100, title: { display: true, text: '% of Matched Variants', font: { size: 13 } } },
+          x: {
+            stacked: true,
+            max: 100,
+            title: {
+              display: true,
+              text: '% of Matched Variants',
+              font: { size: 13 }
+            }
+          },
           y: { stacked: true, ticks: { font: { size: 11 } } }
         },
         plugins: {
           legend: { position: 'bottom', labels: { font: { size: 13 } } },
-          title: { display: true, text: `${ind?.emoji || ''} ${ind?.name || ''} — Best PGS Variant Source`, font: { size: 14 } },
-          tooltip: { callbacks: { label: item => `${item.dataset.label}: ${item.raw}%` } }
+          title: {
+            display: true,
+            text: `${ind?.emoji || ''} ${ind?.name || ''} — Best PGS Variant Source`,
+            font: { size: 14 }
+          },
+          tooltip: {
+            callbacks: { label: item => `${item.dataset.label}: ${item.raw}%` }
+          }
         }
       }
     });

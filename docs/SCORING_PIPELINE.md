@@ -80,17 +80,17 @@ For each PGS variant in the trait parquet (read in chunks via DuckDB):
 
 For each PGS, accumulate from matched variants:
 
-| Accumulator | Formula |
-|-------------|---------|
-| `raw_score` | `Σ(contribution)` |
-| `matched_variants` | count of matches |
-| `genotyped_variants` | count where `imputed=false` |
-| `imputed_variants` | count where `imputed=true` |
-| `positive_count` | count where `contribution > 0` |
-| `positive_sum` | `Σ(contribution)` where `contribution > 0` |
-| `negative_count` | count where `contribution < 0` |
-| `negative_sum` | `Σ(contribution)` where `contribution < 0` |
-| `weight_sum_squared` | `Σ(effect_weight²)` |
+| Accumulator          | Formula                                    |
+| -------------------- | ------------------------------------------ |
+| `raw_score`          | `Σ(contribution)`                          |
+| `matched_variants`   | count of matches                           |
+| `genotyped_variants` | count where `imputed=false`                |
+| `imputed_variants`   | count where `imputed=true`                 |
+| `positive_count`     | count where `contribution > 0`             |
+| `positive_sum`       | `Σ(contribution)` where `contribution > 0` |
+| `negative_count`     | count where `contribution < 0`             |
+| `negative_sum`       | `Σ(contribution)` where `contribution < 0` |
+| `weight_sum_squared` | `Σ(effect_weight²)`                        |
 
 ---
 
@@ -155,6 +155,7 @@ Quality = R² × 35 × CoveragePenalty
 ```
 
 Key behaviors:
+
 - PGS with validated R² (from `pgs_performance` table) get a bonus over default R²=0.05
 - PGS with |z| > 5 get 0 signal points (likely bad normalization)
 - Minimum 8 matched variants required (`insufficientData` flag)
@@ -191,6 +192,7 @@ Where R² is the best PGS's validated performance metric. This converts the z-sc
 ## Step 8: Store Result
 
 The complete result object (see `docs/DATA_CONTRACTS.md` for schema) is stored:
+
 - **Browser**: IndexedDB, keyed by `{individualId}:{traitId}`
 - **Server**: `risk_scores.db` DuckDB file, `trait_results` + `pgs_results` tables
 
@@ -198,13 +200,13 @@ The complete result object (see `docs/DATA_CONTRACTS.md` for schema) is stored:
 
 ## Performance Characteristics
 
-| Metric | Browser (genotyped) | Browser (imputed) | Server (imputed) |
-|--------|--------------------|--------------------|-------------------|
-| Variant matching | Map lookup, ~5K matches/trait | DuckDB WASM JOIN | DuckDB native JOIN |
-| Single trait | 1-3s | 2-5s | 0.5-2s |
-| 44 traits | 1-2 min | 2-4 min | 30-60s |
-| Memory | ~100MB | ~300MB | ~500MB |
-| Coverage | 2-5% | 60-80% | 60-80% |
+| Metric           | Browser (genotyped)           | Browser (imputed) | Server (imputed)   |
+| ---------------- | ----------------------------- | ----------------- | ------------------ |
+| Variant matching | Map lookup, ~5K matches/trait | DuckDB WASM JOIN  | DuckDB native JOIN |
+| Single trait     | 1-3s                          | 2-5s              | 0.5-2s             |
+| 44 traits        | 1-2 min                       | 2-4 min           | 30-60s             |
+| Memory           | ~100MB                        | ~300MB            | ~500MB             |
+| Coverage         | 2-5%                          | 60-80%            | 60-80%             |
 
 ### Browser Threading
 
@@ -216,17 +218,18 @@ All scoring runs in a Web Worker to keep the UI responsive. DuckDB WASM is singl
 
 The app should communicate data quality to the user:
 
-| Coverage | Confidence | User Message |
-|----------|-----------|--------------|
-| ≥50% | High | Result shown normally |
-| 20-50% | Medium | "Based on partial genetic data" |
-| 5-20% | Low | "Limited data — consider imputation for better accuracy" |
-| <5% | Insufficient | "Not enough data to score reliably" |
-| 0% | None | Trait card shows "No data" state |
+| Coverage | Confidence   | User Message                                             |
+| -------- | ------------ | -------------------------------------------------------- |
+| ≥50%     | High         | Result shown normally                                    |
+| 20-50%   | Medium       | "Based on partial genetic data"                          |
+| 5-20%    | Low          | "Limited data — consider imputation for better accuracy" |
+| <5%      | Insufficient | "Not enough data to score reliably"                      |
+| 0%       | None         | Trait card shows "No data" state                         |
 
 ### Imputation Upsell (Public app)
 
 When a user has only genotyped data (2-5% coverage), the app should:
+
 1. Show results with appropriate confidence badges
 2. Display a banner: "Your DNA covers X% of variants. Unlock 60-80% coverage with imputation →"
 3. Link to the cloud imputation service (when available) or self-hosted instructions
@@ -242,6 +245,7 @@ All JOINs use `chr + pos + allele_key` (three integers). The `allele_key` is a d
 ```
 
 This handles:
+
 - **Allele flips**: `A:G` and `G:A` produce the same key
 - **Multiallelic sites**: Only the matching allele pair joins, not all alleles at that position
 - **Cross-runtime consistency**: Same value from CLI DuckDB, Node DuckDB, and Python DuckDB

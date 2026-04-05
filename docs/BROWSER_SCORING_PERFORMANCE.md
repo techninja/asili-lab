@@ -5,6 +5,7 @@
 DuckDB WASM reads parquet files from the CDN using HTTP Range Requests. It does NOT download the entire file — it reads the parquet footer (metadata, a few KB), then fetches only the row groups needed for the query.
 
 For scoring, the query is:
+
 ```sql
 SELECT pgs_id, SUM(effect_weight * genotype_dosage) as score, COUNT(*) as matched
 FROM '{cdn_url}' t
@@ -18,17 +19,18 @@ The `_dna` table (user's variants) is in-memory. The parquet is remote. DuckDB W
 
 Tested with native DuckDB over HTTP (WASM will be ~3-5x slower):
 
-| Pack Size | Rows | Native Time | Est. WASM Time | User Experience |
-|-----------|------|-------------|----------------|-----------------|
-| < 1 MB | < 100K | < 100ms | < 500ms | Instant |
-| 1-10 MB | 100K-1M | 100-500ms | 0.5-2s | Fast |
-| 10-100 MB | 1-10M | 0.5-3s | 2-10s | Acceptable |
-| 100-500 MB | 10-50M | 3-10s | 10-30s | Show progress |
-| 500 MB-2 GB | 50-120M | 10-30s | 30-90s | Show progress + "this is a big one" |
+| Pack Size   | Rows    | Native Time | Est. WASM Time | User Experience                     |
+| ----------- | ------- | ----------- | -------------- | ----------------------------------- |
+| < 1 MB      | < 100K  | < 100ms     | < 500ms        | Instant                             |
+| 1-10 MB     | 100K-1M | 100-500ms   | 0.5-2s         | Fast                                |
+| 10-100 MB   | 1-10M   | 0.5-3s      | 2-10s          | Acceptable                          |
+| 100-500 MB  | 10-50M  | 3-10s       | 10-30s         | Show progress                       |
+| 500 MB-2 GB | 50-120M | 10-30s      | 30-90s         | Show progress + "this is a big one" |
 
 ## Public App Pack Size Distribution
 
 Current 44 public traits:
+
 - 5 traits > 1 GB (BMI, height, blood pressure variants)
 - 10 traits 100 MB - 1 GB
 - 15 traits 10-100 MB
@@ -57,6 +59,7 @@ For genotyped-only users, consider pre-filtering: extract the user's chr:pos set
 ### 4. Split large packs by chromosome
 
 Instead of one 1.8GB BMI parquet, split into 22 per-chromosome files:
+
 ```
 packs/EFO_0004340/chr1.parquet  (150MB)
 packs/EFO_0004340/chr2.parquet  (140MB)
@@ -64,6 +67,7 @@ packs/EFO_0004340/chr2.parquet  (140MB)
 ```
 
 Score each chromosome independently, merge results. This enables:
+
 - Parallel Range Requests (browser can fetch multiple chromosomes simultaneously)
 - Progressive results ("Chromosome 1 scored... Chromosome 2 scored...")
 - Smaller memory footprint per query
@@ -77,18 +81,21 @@ Pre-compute a bloom filter or position index per pack that tells the browser "th
 ## What This Means for the Product
 
 ### Free tier (browser-only, genotyped)
+
 - Small traits: instant results, great experience
 - Large traits: 30-90 seconds each, needs progress UI
 - 44 traits total: 5-15 minutes for full scoring run
 - Wake Lock + chunked resume handles mobile
 
 ### After imputation (browser with unified parquet)
+
 - Same DuckDB WASM, but the `_dna` table has 70M variants instead of 700K
 - More matches per trait = more data to process
 - But coverage is 80%+ so results are meaningful
 - Total scoring time: 10-30 minutes for 44 traits
 
 ### Hybrid server (self-hosted)
+
 - Native DuckDB, 3-5x faster than WASM
 - Parquet files are local (no Range Requests)
 - 44 traits: 1-2 minutes

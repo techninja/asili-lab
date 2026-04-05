@@ -5,9 +5,21 @@ const FEMALE = `\u2640${VS16}`;
 
 // Skin tone modifiers (Fitzpatrick scale)
 const SKINS = [
-  '', '\u{1F3FB}', '\u{1F3FC}', '\u{1F3FD}', '\u{1F3FE}', '\u{1F3FF}',
+  '',
+  '\u{1F3FB}',
+  '\u{1F3FC}',
+  '\u{1F3FD}',
+  '\u{1F3FE}',
+  '\u{1F3FF}'
 ];
-const SKIN_COLORS = ['#FFCC4D', '#FADCBC', '#E0BB95', '#BF8B68', '#9B643D', '#594539'];
+const SKIN_COLORS = [
+  '#FFCC4D',
+  '#FADCBC',
+  '#E0BB95',
+  '#BF8B68',
+  '#9B643D',
+  '#594539'
+];
 
 // Gender: 0=man, 1=woman, 2=neutral
 const _GENDER_LABELS = ['Man', 'Woman', 'Neutral'];
@@ -21,26 +33,26 @@ const LOOKS = [
     icon: '🧑',
     // [man, woman, neutral] base codepoints
     bases: ['\u{1F468}', '\u{1F469}', '\u{1F9D1}'],
-    usesGenderSign: false,
+    usesGenderSign: false
   },
   {
     label: 'Blond',
     icon: '👱',
     bases: ['\u{1F471}', '\u{1F471}', '\u{1F471}'],
-    usesGenderSign: true, // 👱‍♂️ 👱‍♀️ 👱
+    usesGenderSign: true // 👱‍♂️ 👱‍♀️ 👱
   },
   {
     label: 'Beard',
     icon: '🧔',
     bases: ['\u{1F9D4}', '\u{1F9D4}', '\u{1F9D4}'],
-    usesGenderSign: true, // 🧔‍♂️ 🧔‍♀️ 🧔
+    usesGenderSign: true // 🧔‍♂️ 🧔‍♀️ 🧔
   },
   {
     label: 'Older',
     icon: '🧓',
     bases: ['\u{1F474}', '\u{1F475}', '\u{1F9D3}'],
-    usesGenderSign: false, // 👴 👵 🧓 are distinct codepoints
-  },
+    usesGenderSign: false // 👴 👵 🧓 are distinct codepoints
+  }
 ];
 
 // --- ZWJ hair components (these produce busts with shoulders) ---
@@ -48,7 +60,7 @@ const HAIR_MODS = [
   { label: 'Red Hair', icon: '🦰', mod: '\u{1F9B0}' },
   { label: 'Curly', icon: '🦱', mod: '\u{1F9B1}' },
   { label: 'White Hair', icon: '🦳', mod: '\u{1F9B3}' },
-  { label: 'Bald', icon: '🦲', mod: '\u{1F9B2}' },
+  { label: 'Bald', icon: '🦲', mod: '\u{1F9B2}' }
 ];
 
 const GENDER_SIGNS = [MALE, FEMALE, null];
@@ -74,13 +86,17 @@ export class EmojiBuilder extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this._gender = 0;
     this._skin = 0;
-    this._look = 0;   // index into LOOKS
-    this._hair = -1;   // -1 = none, 0+ = index into HAIR_MODS
+    this._look = 0; // index into LOOKS
+    this._hair = -1; // -1 = none, 0+ = index into HAIR_MODS
   }
 
-  connectedCallback() { this.render(); }
+  connectedCallback() {
+    this.render();
+  }
 
-  get value() { return buildEmoji(this._gender, this._skin, this._look, this._hair); }
+  get value() {
+    return buildEmoji(this._gender, this._skin, this._look, this._hair);
+  }
 
   set value(emoji) {
     if (!emoji) return;
@@ -106,7 +122,10 @@ export class EmojiBuilder extends HTMLElement {
     this._hair = -1;
 
     // Detect look + gender from base character (strip skin tone for matching)
-    const stripped = emoji.replace(new RegExp(`[${SKINS.slice(1).join('')}]`, 'u'), '');
+    const stripped = emoji.replace(
+      new RegExp(`[${SKINS.slice(1).join('')}]`, 'u'),
+      ''
+    );
     for (let li = 0; li < LOOKS.length; li++) {
       for (let gi = 0; gi < 3; gi++) {
         const candidate = LOOKS[li].bases[gi];
@@ -132,8 +151,10 @@ export class EmojiBuilder extends HTMLElement {
   _set(key, val) {
     if (key === 'gender') this._gender = val;
     else if (key === 'skin') this._skin = val;
-    else if (key === 'look') { this._look = val; this._hair = -1; }
-    else if (key === 'hair') {
+    else if (key === 'look') {
+      this._look = val;
+      this._hair = -1;
+    } else if (key === 'hair') {
       // Toggle: clicking same hair again deselects it
       this._hair = this._hair === val ? -1 : val;
       if (this._hair >= 0) this._look = 0; // reset look when hair selected

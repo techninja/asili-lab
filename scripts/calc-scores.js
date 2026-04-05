@@ -40,12 +40,20 @@ async function calcTrait(traitId, individualId, duckdb, storage, manifest) {
   const trait = manifest.traits?.[traitId];
   if (!trait) throw new Error(`Trait ${traitId} not found in manifest`);
 
-  const unifiedPath = path.join(STORAGE_DIR, 'unified', `${individualId}.parquet`);
-  const imputedPath = path.join(STORAGE_DIR, 'imputed', `${individualId}_imputed.parquet`);
+  const unifiedPath = path.join(
+    STORAGE_DIR,
+    'unified',
+    `${individualId}.parquet`
+  );
+  const imputedPath = path.join(
+    STORAGE_DIR,
+    'imputed',
+    `${individualId}_imputed.parquet`
+  );
   const traitUrl = PATHS.getTraitFile(traitId);
 
   const hasUnified = await duckdb.fileExists(unifiedPath);
-  const hasImputed = !hasUnified && await duckdb.fileExists(imputedPath);
+  const hasImputed = !hasUnified && (await duckdb.fileExists(imputedPath));
 
   let genotypedVariants = null;
   if (!hasUnified && !hasImputed) {
@@ -64,7 +72,9 @@ async function calcTrait(traitId, individualId, duckdb, storage, manifest) {
   const pgsCountRows = await duckdb.query(
     `SELECT pgs_id, COUNT(*) as n FROM '${traitUrl}' GROUP BY pgs_id`
   );
-  const pgsVariantCounts = new Map(pgsCountRows.map(r => [r.pgs_id, Number(r.n)]));
+  const pgsVariantCounts = new Map(
+    pgsCountRows.map(r => [r.pgs_id, Number(r.n)])
+  );
 
   // Normalization params
   const normalizationParams = {};
@@ -75,18 +85,25 @@ async function calcTrait(traitId, individualId, duckdb, storage, manifest) {
     const pgs = await getPGS(pgs_id);
     if (!pgs) continue;
     const perfMetrics = await getPGSPerformance(pgs_id);
-    const r2Metrics = perfMetrics.filter(m =>
-      m.metric_type === 'R²' || m.metric_type === 'PGS R2 (no covariates)'
+    const r2Metrics = perfMetrics.filter(
+      m => m.metric_type === 'R²' || m.metric_type === 'PGS R2 (no covariates)'
     );
-    const bestR2 = r2Metrics.length > 0
-      ? Math.max(...r2Metrics.map(m => m.metric_value > 1 ? m.metric_value / 100 : m.metric_value))
-      : 0.05;
+    const bestR2 =
+      r2Metrics.length > 0
+        ? Math.max(
+            ...r2Metrics.map(m =>
+              m.metric_value > 1 ? m.metric_value / 100 : m.metric_value
+            )
+          )
+        : 0.05;
 
     normalizationParams[pgs_id] = {
       norm_mean: pgs.norm_mean,
       norm_sd: pgs.norm_sd,
       performance_weight: bestR2,
-      variants_number: pgsVariantCounts.get(pgs_id) || (pgs.variants_number ? Number(pgs.variants_number) : null)
+      variants_number:
+        pgsVariantCounts.get(pgs_id) ||
+        (pgs.variants_number ? Number(pgs.variants_number) : null)
     };
     pgsPerformanceMetrics[pgs_id] = { r2: bestR2 };
   }
@@ -100,7 +117,8 @@ async function calcTrait(traitId, individualId, duckdb, storage, manifest) {
   } else {
     if (!hasUnified) {
       const origMatch = dnaSource.matchVariants.bind(dnaSource);
-      dnaSource.matchVariants = (url, opts = {}) => origMatch(url, { ...opts, duckdb });
+      dnaSource.matchVariants = (url, opts = {}) =>
+        origMatch(url, { ...opts, duckdb });
     }
     await scorer.score(dnaSource, traitUrl, pgsVariantCounts);
   }
@@ -138,26 +156,41 @@ async function calcTrait(traitId, individualId, duckdb, storage, manifest) {
       if (positions.length > 0) {
         for (const ind of allIndividuals) {
           if (ind.id === individualId) continue;
-          const otherPath = path.join(STORAGE_DIR, 'unified', `${ind.id}.parquet`);
+          const otherPath = path.join(
+            STORAGE_DIR,
+            'unified',
+            `${ind.id}.parquet`
+          );
           if (!(await duckdb.fileExists(otherPath))) continue;
-          const posFilter = positions.map(p => {
-            const [c, pos] = p.split(':');
-            return `(chr=${c} AND pos=${pos})`;
-          }).join(' OR ');
+          const posFilter = positions
+            .map(p => {
+              const [c, pos] = p.split(':');
+              return `(chr=${c} AND pos=${pos})`;
+            })
+            .join(' OR ');
           const rows = await duckdb.query(
             `SELECT variant_id FROM '${otherPath}' WHERE ${posFilter}`
           );
-          const genoMap = new Map(rows.map(r => {
-            const parts = r.variant_id.split(':');
-            return [`${parts[0]}:${parts[1]}`, parts.length >= 4 ? `${parts[2]}${parts[3]}` : '?'];
-          }));
+          const genoMap = new Map(
+            rows.map(r => {
+              const parts = r.variant_id.split(':');
+              return [
+                `${parts[0]}:${parts[1]}`,
+                parts.length >= 4 ? `${parts[2]}${parts[3]}` : '?'
+              ];
+            })
+          );
           for (const [, details] of scorer.calculator.pgsDetails) {
             for (const v of details.topVariants || []) {
               const key = v.rsid.split(':').slice(0, 2).join(':');
               const geno = genoMap.get(key);
               if (geno) {
                 if (!v.otherGenotypes) v.otherGenotypes = {};
-                v.otherGenotypes[ind.id] = { emoji: ind.emoji, name: ind.name, genotype: geno };
+                v.otherGenotypes[ind.id] = {
+                  emoji: ind.emoji,
+                  name: ind.name,
+                  genotype: geno
+                };
               }
             }
           }
@@ -214,9 +247,17 @@ async function main() {
     // all individuals × all traits — no change needed
   } else if (args[0] && args[1]) {
     // individual + trait
-    const ind = individuals.find(i => i.id === args[0] || `${i.id}_${i.name}` === args[0]);
-    if (!ind) { console.error(chalk.red(`Individual not found: ${args[0]}`)); process.exit(1); }
-    if (!manifest.traits?.[args[1]]) { console.error(chalk.red(`Trait not found: ${args[1]}`)); process.exit(1); }
+    const ind = individuals.find(
+      i => i.id === args[0] || `${i.id}_${i.name}` === args[0]
+    );
+    if (!ind) {
+      console.error(chalk.red(`Individual not found: ${args[0]}`));
+      process.exit(1);
+    }
+    if (!manifest.traits?.[args[1]]) {
+      console.error(chalk.red(`Trait not found: ${args[1]}`));
+      process.exit(1);
+    }
     targetIndividuals = [ind];
     targetTraits = [args[1]];
   } else if (args[0] && manifest.traits?.[args[0]]) {
@@ -234,7 +275,8 @@ async function main() {
       ]
     });
     if (!indChoice) return;
-    if (indChoice !== 'all') targetIndividuals = individuals.filter(i => i.id === indChoice);
+    if (indChoice !== 'all')
+      targetIndividuals = individuals.filter(i => i.id === indChoice);
 
     const { traitChoice } = await prompts({
       type: 'select',
@@ -242,7 +284,10 @@ async function main() {
       message: 'Select trait:',
       choices: [
         { title: 'All traits', value: 'all' },
-        ...traitIds.map(id => ({ title: `${manifest.traits[id].name} (${id})`, value: id }))
+        ...traitIds.map(id => ({
+          title: `${manifest.traits[id].name} (${id})`,
+          value: id
+        }))
       ]
     });
     if (!traitChoice) return;
@@ -260,16 +305,26 @@ async function main() {
   for (const individual of targetIndividuals) {
     for (const traitId of targetTraits) {
       if (!forceRecalc) {
-        const existing = await storage.getCachedRiskScore(individual.id, traitId).catch(() => null);
-        if (existing) { skipped++; continue; }
+        const existing = await storage
+          .getCachedRiskScore(individual.id, traitId)
+          .catch(() => null);
+        if (existing) {
+          skipped++;
+          continue;
+        }
       }
       calcPlan.push({ individual, traitId });
     }
   }
 
   const total = calcPlan.length;
-  const skipMsg = skipped > 0 ? chalk.gray(` (${skipped} already scored, skipping)`) : '';
-  console.log(chalk.cyan(`\n🧬 Calculating ${total} scores for ${targetIndividuals.length} individual(s) × ${targetTraits.length} trait(s)${skipMsg}\n`));
+  const skipMsg =
+    skipped > 0 ? chalk.gray(` (${skipped} already scored, skipping)`) : '';
+  console.log(
+    chalk.cyan(
+      `\n🧬 Calculating ${total} scores for ${targetIndividuals.length} individual(s) × ${targetTraits.length} trait(s)${skipMsg}\n`
+    )
+  );
 
   if (total === 0) {
     console.log(chalk.green('✅ All scores up to date.\n'));
@@ -291,7 +346,9 @@ async function main() {
     if (indId !== currentIndId) {
       currentIndId = indId;
       const indIdx = targetIndividuals.indexOf(individual) + 1;
-      console.log(chalk.bold(`\n👤 [${indIdx}/${targetIndividuals.length}] ${indName}`));
+      console.log(
+        chalk.bold(`\n👤 [${indIdx}/${targetIndividuals.length}] ${indName}`)
+      );
     }
     const traitName = manifest.traits[traitId]?.name || traitId;
     done++;
@@ -300,13 +357,19 @@ async function main() {
       process.stdout.write(chalk.gray(`  ⏳ ${traitName} (${traitId})...`));
       const result = await calcTrait(traitId, indId, duckdb, storage, manifest);
       const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
-      const pct = result.percentile != null ? `${result.percentile.toFixed(1)}%ile` : 'N/A';
-      const z = result.zScore != null ? `z=${result.zScore.toFixed(2)}` : 'z=N/A';
+      const pct =
+        result.percentile != null
+          ? `${result.percentile.toFixed(1)}%ile`
+          : 'N/A';
+      const z =
+        result.zScore != null ? `z=${result.zScore.toFixed(2)}` : 'z=N/A';
       const matched = result.matchedVariants?.toLocaleString() || '?';
       process.stdout.clearLine?.(0);
       process.stdout.cursorTo?.(0);
       console.log(
-        chalk.green(`  ✓ [${done}/${total}] ${traitName}: ${z} ${pct} | ${matched} variants | ${elapsed}s`)
+        chalk.green(
+          `  ✓ [${done}/${total}] ${traitName}: ${z} ${pct} | ${matched} variants | ${elapsed}s`
+        )
       );
     } catch (err) {
       errors++;
@@ -325,8 +388,12 @@ async function main() {
   const s = Math.floor(totalElapsed % 60);
   const elapsed = h > 0 ? `${h}h ${m}m ${s}s` : m > 0 ? `${m}m ${s}s` : `${s}s`;
 
-  console.log(chalk.cyan(`\n✅ Done: ${done - errors} succeeded, ${errors} failed`));
-  console.log(chalk.cyan(`   Total: ${elapsed} (${avgPer}s avg per calculation)\n`));
+  console.log(
+    chalk.cyan(`\n✅ Done: ${done - errors} succeeded, ${errors} failed`)
+  );
+  console.log(
+    chalk.cyan(`   Total: ${elapsed} (${avgPer}s avg per calculation)\n`)
+  );
 
   closeConnection();
   process.exit(0);

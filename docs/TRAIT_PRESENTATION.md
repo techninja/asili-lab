@@ -9,12 +9,14 @@ The scoring pipeline produces rich per-PGS data — chromosome coverage maps, to
 From a single scored trait, we have:
 
 ### Trait Level
+
 - z-score, percentile, confidence
 - Best PGS ID and its quality score
 - Total matched vs expected variants
 - Predicted quantitative value (when applicable)
 
 ### Per PGS (multiple PGS per trait, ranked by quality)
+
 - Raw score, z-score, percentile
 - Matched / expected / genotyped / imputed variant counts
 - R² (validated predictive accuracy)
@@ -24,6 +26,7 @@ From a single scored trait, we have:
 - Weight distribution histogram
 
 ### Per Variant (top 20 per PGS)
+
 - Variant ID (chr:pos:ref:alt)
 - Effect allele and weight
 - User's genotype and dosage
@@ -169,16 +172,16 @@ After imputation:
 
 ## What's Feasible for v1.0
 
-| Feature | Data Ready? | Complexity | v1.0? |
-|---------|------------|------------|-------|
-| Family comparison | ✅ Yes | Low | ✅ Yes |
-| Chromosome heatmap | ✅ Yes | Medium | ✅ Yes |
-| Variant spotlight | ✅ Yes | Medium | ✅ Yes |
-| Risk/protective balance | ✅ Yes | Low | ✅ Yes |
-| PGS comparison table | ✅ Yes | Low | ✅ Yes |
-| Shared variants across traits | ⚠️ Needs cross-query | Medium | Maybe |
-| Coverage quality | ✅ Yes | Low | ✅ Yes |
-| Trait connections | ⚠️ Needs pre-computation | High | Post-launch |
+| Feature                       | Data Ready?              | Complexity | v1.0?       |
+| ----------------------------- | ------------------------ | ---------- | ----------- |
+| Family comparison             | ✅ Yes                   | Low        | ✅ Yes      |
+| Chromosome heatmap            | ✅ Yes                   | Medium     | ✅ Yes      |
+| Variant spotlight             | ✅ Yes                   | Medium     | ✅ Yes      |
+| Risk/protective balance       | ✅ Yes                   | Low        | ✅ Yes      |
+| PGS comparison table          | ✅ Yes                   | Low        | ✅ Yes      |
+| Shared variants across traits | ⚠️ Needs cross-query     | Medium     | Maybe       |
+| Coverage quality              | ✅ Yes                   | Low        | ✅ Yes      |
+| Trait connections             | ⚠️ Needs pre-computation | High       | Post-launch |
 
 ## The Trail That Doesn't End
 

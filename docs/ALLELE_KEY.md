@@ -39,21 +39,21 @@ Given a `variant_id` of `chr:pos:alleleA:alleleB`:
 
 ## Where it's computed
 
-| Stage | File | When |
-|-------|------|------|
-| ETL (direct) | `packages/pipeline/lib/processor-core.js` | `createStandardizedExportQuery()` |
-| ETL (batched) | `packages/pipeline/lib/batched-processor.js` | Batch standardization SQL |
-| Imputation (per-chr) | `scripts/impute_user.py` | `bcf_to_chr_parquet()` |
-| Imputation (merge) | `scripts/impute_user.py` | `merge_with_genotyped()` |
-| Rebuild utility | `scripts/rebuild-unified.py` | Standalone re-merge |
+| Stage                | File                                         | When                              |
+| -------------------- | -------------------------------------------- | --------------------------------- |
+| ETL (direct)         | `packages/pipeline/lib/processor-core.js`    | `createStandardizedExportQuery()` |
+| ETL (batched)        | `packages/pipeline/lib/batched-processor.js` | Batch standardization SQL         |
+| Imputation (per-chr) | `scripts/impute_user.py`                     | `bcf_to_chr_parquet()`            |
+| Imputation (merge)   | `scripts/impute_user.py`                     | `merge_with_genotyped()`          |
+| Rebuild utility      | `scripts/rebuild-unified.py`                 | Standalone re-merge               |
 
 ## Where it's consumed
 
-| Stage | File | How |
-|-------|------|-----|
+| Stage                  | File                                                        | How                       |
+| ---------------------- | ----------------------------------------------------------- | ------------------------- |
 | Scoring (SQL pushdown) | `packages/core/src/genomic-processor/dna-source/unified.js` | `_runScoreQueries()` JOIN |
-| Top variants | `packages/core/src/genomic-processor/dna-source/unified.js` | `fetchTopVariants()` JOIN |
-| Batch matching | `packages/core/src/genomic-processor/dna-source/unified.js` | `matchVariants()` JOIN |
+| Top variants           | `packages/core/src/genomic-processor/dna-source/unified.js` | `fetchTopVariants()` JOIN |
+| Batch matching         | `packages/core/src/genomic-processor/dna-source/unified.js` | `matchVariants()` JOIN    |
 
 ## Parquet schema
 

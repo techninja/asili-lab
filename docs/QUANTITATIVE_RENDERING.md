@@ -12,70 +12,70 @@ Each unit maps to a rendering strategy. The app uses this mapping to decide how 
 
 These have well-defined units that users can understand:
 
-| Unit | Display | Precision | Example |
-|------|---------|-----------|---------|
-| mg/dL | `{v} mg/dL` | 1 decimal | "142.3 mg/dL" |
-| mg/L | `{v} mg/L` | 2 decimals | "1.45 mg/L" |
-| ng/mL | `{v} ng/mL` | 2 decimals | "32.10 ng/mL" |
-| pg/mL | `{v} pg/mL` | 1 decimal | "4.2 pg/mL" |
-| μmol/L | `{v} μmol/L` | 1 decimal | "312.5 μmol/L" |
-| μg/dL | `{v} μg/dL` | 1 decimal | "95.3 μg/dL" |
-| mEq/L | `{v} mEq/L` | 1 decimal | "4.2 mEq/L" |
-| mIU/L | `{v} mIU/L` | 2 decimals | "2.45 mIU/L" |
-| U/L | `{v} U/L` | 0 decimals | "28 U/L" |
-| mmHg | `{v} mmHg` | 0 decimals | "120 mmHg" |
-| kg | `{v} kg` | 1 decimal | "78.5 kg" |
-| g/cm² | `{v} g/cm²` | 3 decimals | "1.045 g/cm²" |
-| mm³ | `{v} mm³` | 0 decimals | "7,234 mm³" |
-| fL | `{v} fL` | 1 decimal | "87.2 fL" |
-| liters | `{v} L` | 2 decimals | "3.45 L" |
+| Unit          | Display             | Precision  | Example            |
+| ------------- | ------------------- | ---------- | ------------------ |
+| mg/dL         | `{v} mg/dL`         | 1 decimal  | "142.3 mg/dL"      |
+| mg/L          | `{v} mg/L`          | 2 decimals | "1.45 mg/L"        |
+| ng/mL         | `{v} ng/mL`         | 2 decimals | "32.10 ng/mL"      |
+| pg/mL         | `{v} pg/mL`         | 1 decimal  | "4.2 pg/mL"        |
+| μmol/L        | `{v} μmol/L`        | 1 decimal  | "312.5 μmol/L"     |
+| μg/dL         | `{v} μg/dL`         | 1 decimal  | "95.3 μg/dL"       |
+| mEq/L         | `{v} mEq/L`         | 1 decimal  | "4.2 mEq/L"        |
+| mIU/L         | `{v} mIU/L`         | 2 decimals | "2.45 mIU/L"       |
+| U/L           | `{v} U/L`           | 0 decimals | "28 U/L"           |
+| mmHg          | `{v} mmHg`          | 0 decimals | "120 mmHg"         |
+| kg            | `{v} kg`            | 1 decimal  | "78.5 kg"          |
+| g/cm²         | `{v} g/cm²`         | 3 decimals | "1.045 g/cm²"      |
+| mm³           | `{v} mm³`           | 0 decimals | "7,234 mm³"        |
+| fL            | `{v} fL`            | 1 decimal  | "87.2 fL"          |
+| liters        | `{v} L`             | 2 decimals | "3.45 L"           |
 | mL/min/1.73m² | `{v} mL/min/1.73m²` | 0 decimals | "92 mL/min/1.73m²" |
-| picograms | `{v} pg` | 1 decimal | "29.4 pg" |
-| beats/min | `{v} bpm` | 0 decimals | "72 bpm" |
-| milliseconds | `{v} ms` | 0 decimals | "420 ms" |
-| years | `{v} years` | 1 decimal | "12.3 years" |
-| kcal/day | `{v} kcal/day` | 0 decimals | "2,100 kcal/day" |
-| g/day | `{v} g/day` | 1 decimal | "12.5 g/day" |
-| drinks/week | `{v} drinks/week` | 1 decimal | "4.2 drinks/week" |
-| thousand/μL | `{v} ×10³/μL` | 2 decimals | "6.45 ×10³/μL" |
-| cells/μL | `{v} cells/μL` | 0 decimals | "1,200 cells/μL" |
+| picograms     | `{v} pg`            | 1 decimal  | "29.4 pg"          |
+| beats/min     | `{v} bpm`           | 0 decimals | "72 bpm"           |
+| milliseconds  | `{v} ms`            | 0 decimals | "420 ms"           |
+| years         | `{v} years`         | 1 decimal  | "12.3 years"       |
+| kcal/day      | `{v} kcal/day`      | 0 decimals | "2,100 kcal/day"   |
+| g/day         | `{v} g/day`         | 1 decimal  | "12.5 g/day"       |
+| drinks/week   | `{v} drinks/week`   | 1 decimal  | "4.2 drinks/week"  |
+| thousand/μL   | `{v} ×10³/μL`       | 2 decimals | "6.45 ×10³/μL"     |
+| cells/μL      | `{v} cells/μL`      | 0 decimals | "1,200 cells/μL"   |
 
 ### Percentage — display as `{value}%`
 
 | Unit | Display | Precision | Example |
-|------|---------|-----------|---------|
-| % | `{v}%` | 1 decimal | "45.2%" |
+| ---- | ------- | --------- | ------- |
+| %    | `{v}%`  | 1 decimal | "45.2%" |
 
 ### Ratio — display value only, no unit suffix
 
-| Unit | Display | Precision | Example |
-|------|---------|-----------|---------|
-| ratio | `{v}` | 2 decimals | "0.87" |
+| Unit  | Display | Precision  | Example |
+| ----- | ------- | ---------- | ------- |
+| ratio | `{v}`   | 2 decimals | "0.87"  |
 
 ### Composite — unit needs translation
 
-| Unit | Display | Precision | Example |
-|------|---------|-----------|---------|
-| BMI | `{v} kg/m²` | 1 decimal | "27.4 kg/m²" |
-| cm or inches | `{v} cm` | 1 decimal | "90.2 cm" (use metric) |
-| mm or % | `{v} mm` | 1 decimal | "30.2 mm" (use mm) |
+| Unit         | Display     | Precision | Example                |
+| ------------ | ----------- | --------- | ---------------------- |
+| BMI          | `{v} kg/m²` | 1 decimal | "27.4 kg/m²"           |
+| cm or inches | `{v} cm`    | 1 decimal | "90.2 cm" (use metric) |
+| mm or %      | `{v} mm`    | 1 decimal | "30.2 mm" (use mm)     |
 
 ### Score-like — display with context
 
-| Unit | Display | Precision | Notes |
-|------|---------|-----------|-------|
-| score | `{v}` | 1 decimal | Needs editorial context per trait |
-| pattern scale | `{v}` | 1 decimal | e.g., Hamilton baldness scale |
-| grade | `{v}` | 1 decimal | |
-| count | `{v}` | 0 decimals | Integer display |
+| Unit          | Display | Precision  | Notes                             |
+| ------------- | ------- | ---------- | --------------------------------- |
+| score         | `{v}`   | 1 decimal  | Needs editorial context per trait |
+| pattern scale | `{v}`   | 1 decimal  | e.g., Hamilton baldness scale     |
+| grade         | `{v}`   | 1 decimal  |                                   |
+| count         | `{v}`   | 0 decimals | Integer display                   |
 
 ### Broken — should NOT render a quantitative value
 
-| Unit | Problem | Fix |
-|------|---------|-----|
-| binary | Not quantitative — it's yes/no | Override `trait_type` to `disease_risk` |
-| genotype | Categorical, not continuous | Override `trait_type` to `disease_risk` |
-| varies | Meaningless unit | Override with specific unit or change to `disease_risk` |
+| Unit     | Problem                        | Fix                                                     |
+| -------- | ------------------------------ | ------------------------------------------------------- |
+| binary   | Not quantitative — it's yes/no | Override `trait_type` to `disease_risk`                 |
+| genotype | Categorical, not continuous    | Override `trait_type` to `disease_risk`                 |
+| varies   | Meaningless unit               | Override with specific unit or change to `disease_risk` |
 
 These need editorial overrides in `trait_overrides.json` to fix the `trait_type` or `unit`.
 

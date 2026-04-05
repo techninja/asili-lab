@@ -31,7 +31,8 @@ const OUTPUT_JSON = path.join(ROOT, 'data_out', 'pgs_topmed_stats.json');
 const MANIFEST_DB = path.join(ROOT, 'data_out', 'trait_manifest.db');
 const PACKS_DIR = path.join(ROOT, 'data_out', 'packs');
 
-const PANEL_DIR = process.env.REF_PANEL_DIR || path.join(ROOT, 'cache', 'topmed_reference');
+const PANEL_DIR =
+  process.env.REF_PANEL_DIR || path.join(ROOT, 'cache', 'topmed_reference');
 
 // Minimum AF coverage to trust empirical normalization.
 // Below this, the mean/SD describe a different distribution than what gets scored.
@@ -74,7 +75,14 @@ function dbQuery(conn, sql) {
 function openManifest() {
   const db = new duckdb.Database(MANIFEST_DB);
   const conn = db.connect();
-  return { db, conn, close() { conn.close(); db.close(); } };
+  return {
+    db,
+    conn,
+    close() {
+      conn.close();
+      db.close();
+    }
+  };
 }
 
 async function importToManifest() {
@@ -89,7 +97,10 @@ async function importToManifest() {
   const manifest = openManifest();
   const conn = manifest.conn;
 
-  const allPgs = await dbQuery(conn, 'SELECT pgs_id, norm_mean, norm_sd FROM pgs_scores');
+  const allPgs = await dbQuery(
+    conn,
+    'SELECT pgs_id, norm_mean, norm_sd FROM pgs_scores'
+  );
   console.log(`Total PGS in manifest: ${allPgs.length}`);
   console.log(`TOPMed stats available: ${Object.keys(stats).length}\n`);
 
@@ -104,15 +115,25 @@ async function importToManifest() {
   for (const row of allPgs) {
     const data = stats[row.pgs_id];
 
-    if (data && data.coverage_pct >= MIN_COVERAGE_PCT && data.stddev_score > 0) {
+    if (
+      data &&
+      data.coverage_pct >= MIN_COVERAGE_PCT &&
+      data.stddev_score > 0
+    ) {
       // Good TOPMed coverage — use empirical stats
-      await dbQuery(conn,
+      await dbQuery(
+        conn,
         `UPDATE pgs_scores SET norm_mean = ${data.mean_score}, norm_sd = ${data.stddev_score}, last_updated = CURRENT_TIMESTAMP WHERE pgs_id = '${row.pgs_id}'`
       );
       empirical++;
-    } else if (data && data.coverage_pct >= MIN_USABLE_PCT && data.stddev_score > 0) {
+    } else if (
+      data &&
+      data.coverage_pct >= MIN_USABLE_PCT &&
+      data.stddev_score > 0
+    ) {
       // Partial but usable coverage
-      await dbQuery(conn,
+      await dbQuery(
+        conn,
         `UPDATE pgs_scores SET norm_mean = ${data.mean_score}, norm_sd = ${data.stddev_score}, last_updated = CURRENT_TIMESTAMP WHERE pgs_id = '${row.pgs_id}'`
       );
       theoretical++;
@@ -127,9 +148,15 @@ async function importToManifest() {
   }
 
   console.log(`\n\n✅ Updated ${allPgs.length} PGS scores in manifest`);
-  console.log(`   ${empirical} with TOPMed AF (≥${MIN_COVERAGE_PCT}% coverage)`);
-  console.log(`   ${theoretical} with partial TOPMed AF (${MIN_USABLE_PCT}-${MIN_COVERAGE_PCT}% coverage)`);
-  console.log(`   ${skipped} with defaults (<${MIN_USABLE_PCT}% coverage or no data)`);
+  console.log(
+    `   ${empirical} with TOPMed AF (≥${MIN_COVERAGE_PCT}% coverage)`
+  );
+  console.log(
+    `   ${theoretical} with partial TOPMed AF (${MIN_USABLE_PCT}-${MIN_COVERAGE_PCT}% coverage)`
+  );
+  console.log(
+    `   ${skipped} with defaults (<${MIN_USABLE_PCT}% coverage or no data)`
+  );
 
   manifest.close();
 }
@@ -137,7 +164,10 @@ async function importToManifest() {
 async function resetStats() {
   console.log('🔄 Resetting all PGS normalization statistics...');
   const manifest = openManifest();
-  await dbQuery(manifest.conn, 'UPDATE pgs_scores SET norm_mean = NULL, norm_sd = NULL');
+  await dbQuery(
+    manifest.conn,
+    'UPDATE pgs_scores SET norm_mean = NULL, norm_sd = NULL'
+  );
   console.log('✅ Reset complete\n');
   manifest.close();
 }
@@ -158,7 +188,8 @@ async function runBatch() {
   // Get list of all PGS that need processing
   const manifest = openManifest();
 
-  const allPgs = await dbQuery(manifest.conn,
+  const allPgs = await dbQuery(
+    manifest.conn,
     'SELECT DISTINCT pgs_id FROM pgs_scores'
   );
   const pgsToProcess = allPgs.map(r => r.pgs_id);
@@ -186,7 +217,9 @@ async function runBatch() {
 
   await setupPython();
 
-  console.log(`\n🧬 Computing normalization from TOPMed AF for ${pgsToProcess.length} PGS...`);
+  console.log(
+    `\n🧬 Computing normalization from TOPMed AF for ${pgsToProcess.length} PGS...`
+  );
   console.log('   Press Ctrl+C to cancel\n');
   await runCommand(PYTHON_BIN, [
     SCRIPT_PATH,

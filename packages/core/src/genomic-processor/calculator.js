@@ -83,7 +83,9 @@ export class SharedRiskCalculator {
     }
   }
 
-  static get DEFAULT_R2() { return 0.05; }
+  static get DEFAULT_R2() {
+    return 0.05;
+  }
 
   /**
    * Quality score formula — see docs/PGS_QUALITY_SCORE.md
@@ -111,7 +113,8 @@ export class SharedRiskCalculator {
     const genotypedRatio =
       matchedVariants > 0 ? genotypedVariants / matchedVariants : 0;
     const r2 = performanceMetric || SharedRiskCalculator.DEFAULT_R2;
-    const hasValidatedR2 = performanceMetric && performanceMetric > SharedRiskCalculator.DEFAULT_R2;
+    const hasValidatedR2 =
+      performanceMetric && performanceMetric > SharedRiskCalculator.DEFAULT_R2;
 
     let coveragePenalty = 1.0;
     if (coverage < 0.05) coveragePenalty = Math.pow(coverage / 0.05, 2);
@@ -169,7 +172,8 @@ export class SharedRiskCalculator {
 
     const coverage = Math.min(matchedVariants / totalVariants, 1);
     const r2 = performanceMetric || SharedRiskCalculator.DEFAULT_R2;
-    const hasValidatedR2 = performanceMetric && performanceMetric > SharedRiskCalculator.DEFAULT_R2;
+    const hasValidatedR2 =
+      performanceMetric && performanceMetric > SharedRiskCalculator.DEFAULT_R2;
     const genotypedRatio =
       matchedVariants > 0 ? genotypedVariants / matchedVariants : 0;
     const imputedVariants = matchedVariants - genotypedVariants;

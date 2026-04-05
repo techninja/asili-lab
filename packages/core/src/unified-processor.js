@@ -285,9 +285,18 @@ export class UnifiedProcessor {
     for (const line of lines) {
       if (!line.startsWith('#')) break;
       const lower = line.toLowerCase();
-      if (lower.includes('build 36') || lower.includes('grch36')) { build = 'hg18'; break; }
-      if (lower.includes('build 37') || lower.includes('grch37')) { build = 'hg19'; break; }
-      if (lower.includes('build 38') || lower.includes('grch38')) { build = 'hg38'; break; }
+      if (lower.includes('build 36') || lower.includes('grch36')) {
+        build = 'hg18';
+        break;
+      }
+      if (lower.includes('build 37') || lower.includes('grch37')) {
+        build = 'hg19';
+        break;
+      }
+      if (lower.includes('build 38') || lower.includes('grch38')) {
+        build = 'hg38';
+        break;
+      }
     }
 
     const dataLines = lines.filter(

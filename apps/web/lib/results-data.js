@@ -13,12 +13,15 @@ export async function fetchChartData() {
 
     const byIndividual = new Map();
     for (const row of rows) {
-      if (!byIndividual.has(row.individual_id)) byIndividual.set(row.individual_id, []);
+      if (!byIndividual.has(row.individual_id))
+        byIndividual.set(row.individual_id, []);
       byIndividual.get(row.individual_id).push(row);
     }
     summaryCache = byIndividual;
     return byIndividual;
-  } catch { return new Map(); }
+  } catch {
+    return new Map();
+  }
 }
 
 export function invalidateCache() {

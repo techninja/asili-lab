@@ -86,12 +86,12 @@ Steps 3-5 run in parallel across chromosomes (2 concurrent by default).
 
 ## Performance
 
-| Chromosome | Time  | Variants Out |
-| ---------- | ----- | ------------ |
-| chr1       | 8m    | ~40,000      |
-| chr10      | 6m    | ~25,000      |
-| chr22      | 4m    | ~10,000      |
-| **Total**  | 1-2h  | ~500,000     |
+| Chromosome | Time | Variants Out |
+| ---------- | ---- | ------------ |
+| chr1       | 8m   | ~40,000      |
+| chr10      | 6m   | ~25,000      |
+| chr22      | 4m   | ~10,000      |
+| **Total**  | 1-2h | ~500,000     |
 
 With `optimize-panel` (BCF) and 2-chromosome parallelism, expect ~1 hour total.
 

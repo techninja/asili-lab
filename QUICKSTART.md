@@ -60,6 +60,7 @@ pnpm etl local
 ```
 
 This generates:
+
 - `data_out/packs/*.parquet` — one file per trait (hg38 coordinates)
 - `data_out/trait_manifest.json` — frontend trait list (only includes traits with built parquet files)
 
@@ -103,11 +104,11 @@ pnpm start
 
 Asili uses allowlists to control which traits are built and served. The default is `tier1_public` — safe, non-disease quantitative traits.
 
-| Tier | Env Value | Traits | Description |
-|---|---|---|---|
-| Free Public | `tier1_public` | ~44 | Quantitative only, no disease risk |
-| Researcher | `tier2_researcher` | All | Full catalog |
-| Local/Docker | `local` | All | No filtering |
+| Tier         | Env Value          | Traits | Description                        |
+| ------------ | ------------------ | ------ | ---------------------------------- |
+| Free Public  | `tier1_public`     | ~44    | Quantitative only, no disease risk |
+| Researcher   | `tier2_researcher` | All    | Full catalog                       |
+| Local/Docker | `local`            | All    | No filtering                       |
 
 Set the tier via `ASILI_TIER` environment variable:
 

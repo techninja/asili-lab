@@ -37,7 +37,11 @@ export class IndividualManager extends HTMLElement {
       await this.processor.initialize();
       Debug.log('IndividualManager', 'Processor initialized');
     } catch (error) {
-      Debug.error('IndividualManager', 'Failed to initialize processor:', error);
+      Debug.error(
+        'IndividualManager',
+        'Failed to initialize processor:',
+        error
+      );
     }
   }
 
@@ -53,8 +57,12 @@ export class IndividualManager extends HTMLElement {
       const individuals = await this.processor.storage.getIndividuals();
       const store = useAppStore.getState();
 
-      Debug.log(1, 'IndividualManager', `Loaded ${individuals.length} individuals:`,
-        individuals.map(ind => `${ind.name} (${ind.status})`));
+      Debug.log(
+        1,
+        'IndividualManager',
+        `Loaded ${individuals.length} individuals:`,
+        individuals.map(ind => `${ind.name} (${ind.status})`)
+      );
 
       store.setIndividuals(individuals);
 
@@ -62,8 +70,16 @@ export class IndividualManager extends HTMLElement {
         ind => ind.status === 'ready' || ind.status === 'complete'
       );
 
-      if (readyIndividuals.length > 0 && !store.selectedIndividual && store.uploadState === 'idle') {
-        Debug.log(1, 'IndividualManager', `Auto-selecting individual: ${readyIndividuals[0].name}`);
+      if (
+        readyIndividuals.length > 0 &&
+        !store.selectedIndividual &&
+        store.uploadState === 'idle'
+      ) {
+        Debug.log(
+          1,
+          'IndividualManager',
+          `Auto-selecting individual: ${readyIndividuals[0].name}`
+        );
         store.setSelectedIndividual(readyIndividuals[0].id);
       }
     } catch (error) {
@@ -84,14 +100,18 @@ export class IndividualManager extends HTMLElement {
     }
 
     // Update progress if importing or deleting
-    if ((state.uploadState === 'importing' || state.uploadState === 'deleting') && state.uploadProgress) {
+    if (
+      (state.uploadState === 'importing' || state.uploadState === 'deleting') &&
+      state.uploadProgress
+    ) {
       const progressEl = this.shadowRoot.getElementById(
         state.uploadState === 'importing' ? 'importProgress' : 'deleteProgress'
       );
       if (progressEl) {
         const progressMatch = state.uploadProgress.match(/(\d+)%/);
         const percent = progressMatch ? parseInt(progressMatch[1]) : 0;
-        const displayPercent = state.uploadState === 'deleting' ? 100 - percent : percent;
+        const displayPercent =
+          state.uploadState === 'deleting' ? 100 - percent : percent;
         progressEl.setProgress(displayPercent, state.uploadProgress);
       }
     }
@@ -141,7 +161,8 @@ export class IndividualManager extends HTMLElement {
     }
     if (saveBtn) saveBtn.onclick = () => this.saveEdit(individual.id);
     if (cancelBtn) cancelBtn.onclick = () => this.closeEdit();
-    if (removeBtn) removeBtn.onclick = () => this.removeIndividual(individual.id);
+    if (removeBtn)
+      removeBtn.onclick = () => this.removeIndividual(individual.id);
   }
 
   async saveEdit(individualId) {
@@ -153,7 +174,7 @@ export class IndividualManager extends HTMLElement {
     try {
       await this.processor.storage.updateIndividual(individualId, {
         name,
-        emoji: builder?.value || '👤',
+        emoji: builder?.value || '👤'
       });
       this.editingIndividual = null;
       await this.loadIndividuals();
@@ -194,7 +215,8 @@ export class IndividualManager extends HTMLElement {
           <button class="primary-btn" id="importBtn">📁 Import DNA Data</button>
         </div>
       `;
-      this.shadowRoot.getElementById('importBtn').onclick = () => this.startImport();
+      this.shadowRoot.getElementById('importBtn').onclick = () =>
+        this.startImport();
     }
   }
 
@@ -205,7 +227,8 @@ export class IndividualManager extends HTMLElement {
     if (state.uploadState === 'importing') {
       container.innerHTML = `<import-progress id="importProgress" name="${state.importingIndividual?.name || ''}" emoji="${state.importingIndividual?.emoji || '👤'}"></import-progress>`;
     } else if (state.uploadState === 'deleting') {
-      container.innerHTML = '<import-progress id="deleteProgress" name="Deleting Data" emoji="🗑️"></import-progress>';
+      container.innerHTML =
+        '<import-progress id="deleteProgress" name="Deleting Data" emoji="🗑️"></import-progress>';
     } else if (this.showingUpload) {
       container.innerHTML = `
         <div class="single-user-state">
@@ -217,7 +240,8 @@ export class IndividualManager extends HTMLElement {
           ${this.renderUploadComponent()}
         </div>
       `;
-      this.shadowRoot.getElementById('editBtn').onclick = () => this.editIndividual(individual);
+      this.shadowRoot.getElementById('editBtn').onclick = () =>
+        this.editIndividual(individual);
       this.setupUploadListeners();
     } else if (this.editingIndividual?.id === individual.id) {
       container.innerHTML = `
@@ -227,7 +251,8 @@ export class IndividualManager extends HTMLElement {
       `;
       this.setupEditListeners(individual);
     } else {
-      const failed = individual.status !== 'complete' && individual.status !== 'ready';
+      const failed =
+        individual.status !== 'complete' && individual.status !== 'ready';
       container.innerHTML = `
         <div class="single-user-state">
           <div class="individual-display">
@@ -241,9 +266,12 @@ export class IndividualManager extends HTMLElement {
           </div>
         </div>
       `;
-      this.shadowRoot.getElementById('editBtn').onclick = () => this.editIndividual(individual);
-      this.shadowRoot.getElementById('addBtn').onclick = () => this.startImport();
-      this.shadowRoot.getElementById('removeBtn').onclick = () => this.removeIndividual(individual.id);
+      this.shadowRoot.getElementById('editBtn').onclick = () =>
+        this.editIndividual(individual);
+      this.shadowRoot.getElementById('addBtn').onclick = () =>
+        this.startImport();
+      this.shadowRoot.getElementById('removeBtn').onclick = () =>
+        this.removeIndividual(individual.id);
     }
   }
 
@@ -253,17 +281,25 @@ export class IndividualManager extends HTMLElement {
     if (state.uploadState === 'importing') {
       container.innerHTML = `<import-progress id="importProgress" name="${state.importingIndividual?.name || ''}" emoji="${state.importingIndividual?.emoji || '👤'}"></import-progress>`;
     } else if (state.uploadState === 'deleting') {
-      container.innerHTML = '<import-progress id="deleteProgress" name="Deleting Data" emoji="🗑️"></import-progress>';
+      container.innerHTML =
+        '<import-progress id="deleteProgress" name="Deleting Data" emoji="🗑️"></import-progress>';
     } else {
-      const selectedIndividual = state.individuals.find(i => i.id === state.selectedIndividual);
+      const selectedIndividual = state.individuals.find(
+        i => i.id === state.selectedIndividual
+      );
 
       const selectorHTML = `
         <div class="selector-row">
           <select id="individualSelect">
-            ${state.individuals.map(ind => {
-              const status = (ind.status === 'complete' || ind.status === 'ready') ? '' : ' (Failed Import)';
-              return `<option value="${ind.id}" ${ind.id === state.selectedIndividual ? 'selected' : ''}>${ind.emoji || '👤'} ${ind.name}${status}</option>`;
-            }).join('')}
+            ${state.individuals
+              .map(ind => {
+                const status =
+                  ind.status === 'complete' || ind.status === 'ready'
+                    ? ''
+                    : ' (Failed Import)';
+                return `<option value="${ind.id}" ${ind.id === state.selectedIndividual ? 'selected' : ''}>${ind.emoji || '👤'} ${ind.name}${status}</option>`;
+              })
+              .join('')}
           </select>
           <button class="edit-btn" id="editBtn">✏️</button>
         </div>
@@ -276,7 +312,10 @@ export class IndividualManager extends HTMLElement {
           if (selectedIndividual) this.editIndividual(selectedIndividual);
         };
         this.setupUploadListeners();
-      } else if (this.editingIndividual && selectedIndividual?.id === this.editingIndividual.id) {
+      } else if (
+        this.editingIndividual &&
+        selectedIndividual?.id === this.editingIndividual.id
+      ) {
         container.innerHTML = `
           <div class="multiple-users-state">
             ${selectorHTML}
@@ -284,7 +323,8 @@ export class IndividualManager extends HTMLElement {
           </div>
         `;
         this._bindSelect(state);
-        this.shadowRoot.getElementById('editBtn').onclick = () => this.closeEdit();
+        this.shadowRoot.getElementById('editBtn').onclick = () =>
+          this.closeEdit();
         this.setupEditListeners(selectedIndividual);
       } else {
         container.innerHTML = `
@@ -300,9 +340,11 @@ export class IndividualManager extends HTMLElement {
         this.shadowRoot.getElementById('editBtn').onclick = () => {
           if (selectedIndividual) this.editIndividual(selectedIndividual);
         };
-        this.shadowRoot.getElementById('addBtn').onclick = () => this.startImport();
+        this.shadowRoot.getElementById('addBtn').onclick = () =>
+          this.startImport();
         this.shadowRoot.getElementById('removeBtn').onclick = () => {
-          if (state.selectedIndividual) this.removeIndividual(state.selectedIndividual);
+          if (state.selectedIndividual)
+            this.removeIndividual(state.selectedIndividual);
         };
       }
     }
@@ -314,7 +356,9 @@ export class IndividualManager extends HTMLElement {
     select.onchange = e => {
       const selectedId = e.target.value;
       const individual = state.individuals.find(i => i.id === selectedId);
-      const isReady = individual && (individual.status === 'ready' || individual.status === 'complete');
+      const isReady =
+        individual &&
+        (individual.status === 'ready' || individual.status === 'complete');
       this.editingIndividual = null; // close edit when switching
       useAppStore.getState().setSelectedIndividual(selectedId, isReady);
     };
@@ -324,7 +368,9 @@ export class IndividualManager extends HTMLElement {
 
   renderUploadComponent() {
     const fileName = this.selectedFile ? this.selectedFile.name : '';
-    const fileSize = this.selectedFile ? (this.selectedFile.size / 1024 / 1024).toFixed(1) : '';
+    const fileSize = this.selectedFile
+      ? (this.selectedFile.size / 1024 / 1024).toFixed(1)
+      : '';
     const defaultName = fileName.replace(/\.[^/.]+$/, '');
 
     return `
@@ -386,7 +432,9 @@ export class IndividualManager extends HTMLElement {
   // --- Actions ---
 
   async removeIndividual(individualId) {
-    if (!confirm('Remove all data for this individual? This cannot be undone.')) {
+    if (
+      !confirm('Remove all data for this individual? This cannot be undone.')
+    ) {
       const store = useAppStore.getState();
       store.cancelImport = false;
       this.importAborted = false;
@@ -425,12 +473,20 @@ export class IndividualManager extends HTMLElement {
     const name = nameInput?.value.trim();
     const emoji = builder?.value || '👤';
 
-    if (!name) { alert('Please enter a name'); return; }
-    if (!this.selectedFile) { alert('Please select a file'); return; }
+    if (!name) {
+      alert('Please enter a name');
+      return;
+    }
+    if (!this.selectedFile) {
+      alert('Please select a file');
+      return;
+    }
 
     const individualId = `${Date.now()}_${name.replace(/\s+/g, '_')}`;
 
-    useAppStore.getState().setUploadState('importing', 'Starting import...', { name, emoji });
+    useAppStore
+      .getState()
+      .setUploadState('importing', 'Starting import...', { name, emoji });
 
     this.showingUpload = false;
     this.updateUI(useAppStore.getState());
@@ -438,17 +494,28 @@ export class IndividualManager extends HTMLElement {
     try {
       this.importAborted = false;
       const result = await this.processor.importDNA(
-        this.selectedFile, individualId, name, emoji,
+        this.selectedFile,
+        individualId,
+        name,
+        emoji,
         (message, percent) => {
           if (this.importAborted) throw new Error('Import cancelled by user');
-          useAppStore.getState().setUploadState('importing', `${message} (${Math.round(percent)}%)`, { name, emoji });
+          useAppStore
+            .getState()
+            .setUploadState(
+              'importing',
+              `${message} (${Math.round(percent)}%)`,
+              { name, emoji }
+            );
         }
       );
 
       this.selectedFile = null;
       this.shadowRoot.getElementById('fileInput').value = '';
 
-      await this.processor.storage.updateIndividual(individualId, { status: 'complete' });
+      await this.processor.storage.updateIndividual(individualId, {
+        status: 'complete'
+      });
 
       const store = useAppStore.getState();
       store.setUploadState('idle');

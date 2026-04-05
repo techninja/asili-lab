@@ -44,8 +44,16 @@ export function exec(conn, sql) {
 
 /** Close a { db, conn } pair */
 export function closeDuckDB({ db, conn }) {
-  try { conn.close(); } catch { /* ignore */ }
-  try { db.close(); } catch { /* ignore */ }
+  try {
+    conn.close();
+  } catch {
+    /* ignore */
+  }
+  try {
+    db.close();
+  } catch {
+    /* ignore */
+  }
 }
 
 // --- File utilities ---
@@ -80,7 +88,10 @@ export async function countVariantsInFile(filePath) {
         tail = lines.pop();
         for (const line of lines) {
           if (inHeader && (line.startsWith('#') || !line.trim())) continue;
-          if (inHeader) { inHeader = false; continue; }
+          if (inHeader) {
+            inHeader = false;
+            continue;
+          }
           if (line.trim()) count++;
         }
       })
@@ -118,7 +129,9 @@ export async function prepareFileForProcessing(filePath) {
       rl.close();
       stream.destroy();
     });
-    rl.on('close', () => { if (!found) resolve(null); });
+    rl.on('close', () => {
+      if (!found) resolve(null);
+    });
     rl.on('error', reject);
   });
 
@@ -168,9 +181,16 @@ export async function validateParquetFile(filePath) {
   const db = new duckdb.Database(':memory:');
   const conn = db.connect();
   try {
-    const rows = await query(conn, `SELECT COUNT(*) as count FROM '${filePath}'`);
+    const rows = await query(
+      conn,
+      `SELECT COUNT(*) as count FROM '${filePath}'`
+    );
     const variantCount = Number(rows[0]?.count ?? 0);
-    return { size: stats.size, variantCount, fileName: path.basename(filePath) };
+    return {
+      size: stats.size,
+      variantCount,
+      fileName: path.basename(filePath)
+    };
   } finally {
     conn.close();
     db.close();

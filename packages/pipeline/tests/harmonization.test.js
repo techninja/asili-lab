@@ -160,9 +160,7 @@ describe('harmonization', () => {
         'effect_allele',
         'effect_weight'
       ]);
-      expect(defs).toBe(
-        null
-      );
+      expect(defs).toBe(null);
     });
   });
 

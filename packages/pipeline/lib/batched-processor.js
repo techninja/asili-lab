@@ -50,8 +50,11 @@ async function createBatches(pgsIds, maxVariantsPerBatch = null) {
   for (const pgsId of pgsIds) {
     try {
       const row = await getPGS(pgsId);
-      if (row?.variants_number) dbCounts.set(pgsId, Number(row.variants_number));
-    } catch { /* ignore */ }
+      if (row?.variants_number)
+        dbCounts.set(pgsId, Number(row.variants_number));
+    } catch {
+      /* ignore */
+    }
   }
 
   // Resolve file paths + variant counts
@@ -59,18 +62,27 @@ async function createBatches(pgsIds, maxVariantsPerBatch = null) {
   const toStream = []; // PGS IDs that need streaming count
 
   // Resolve all file paths in parallel
-  const pathResults = await Promise.all(pgsIds.map(async pgsId => {
-    try {
-      const scoreData = await pgsApiClient.getScore(pgsId);
-      if (!scoreData.ftp_scoring_file) return null;
-      const filePath = await pgsApiClient.downloadPGSFile(pgsId, scoreData.ftp_scoring_file);
-      if (!filePath) return null;
-      return { pgs_id: pgsId, file_path: filePath, url: scoreData.ftp_scoring_file };
-    } catch (error) {
-      console.log(`    ${pgsId}: Error - ${error.message}`);
-      return null;
-    }
-  }));
+  const pathResults = await Promise.all(
+    pgsIds.map(async pgsId => {
+      try {
+        const scoreData = await pgsApiClient.getScore(pgsId);
+        if (!scoreData.ftp_scoring_file) return null;
+        const filePath = await pgsApiClient.downloadPGSFile(
+          pgsId,
+          scoreData.ftp_scoring_file
+        );
+        if (!filePath) return null;
+        return {
+          pgs_id: pgsId,
+          file_path: filePath,
+          url: scoreData.ftp_scoring_file
+        };
+      } catch (error) {
+        console.log(`    ${pgsId}: Error - ${error.message}`);
+        return null;
+      }
+    })
+  );
 
   for (const result of pathResults) {
     if (!result) continue;
@@ -84,7 +96,9 @@ async function createBatches(pgsIds, maxVariantsPerBatch = null) {
 
   // Stream-count only the ones missing from DB
   if (toStream.length > 0) {
-    console.log(`    Streaming variant count for ${toStream.length} files not in DB...`);
+    console.log(
+      `    Streaming variant count for ${toStream.length} files not in DB...`
+    );
     for (const file of toStream) {
       try {
         const variantCount = await countVariantsInFile(file.file_path);
@@ -108,7 +122,10 @@ async function createBatches(pgsIds, maxVariantsPerBatch = null) {
   let currentCount = 0;
 
   for (const file of fileInfo) {
-    if (currentCount + file.variants > maxVariantsPerBatch && currentBatch.length > 0) {
+    if (
+      currentCount + file.variants > maxVariantsPerBatch &&
+      currentBatch.length > 0
+    ) {
       batches.push(currentBatch);
       currentBatch = [];
       currentCount = 0;
@@ -155,8 +172,9 @@ async function processBatchWithDuckDB(
     }
 
     try {
-      const { columns, dataOnlyPath } =
-        await prepareFileForProcessing(file.file_path);
+      const { columns, dataOnlyPath } = await prepareFileForProcessing(
+        file.file_path
+      );
 
       // Use harmonization logic to detect format and get proper column expressions
       const formatType = detectFormat(columns);
@@ -216,7 +234,9 @@ async function processBatchWithDuckDB(
               AND csv.${weightCol} != '';
             `);
       } else {
-        const extraFilter = expressions._filter ? `AND ${expressions._filter}` : '';
+        const extraFilter = expressions._filter
+          ? `AND ${expressions._filter}`
+          : '';
         fileQueries.push(`
             -- Process ${file.pgs_id} (${formatType} format, ${columns.length} columns)
             INSERT INTO batch_variants
@@ -380,7 +400,8 @@ async function mergeBatchResults(batchFiles, traitName) {
     return true;
   });
 
-  if (validBatchFiles.length === 0) throw new Error('No valid batch files to merge');
+  if (validBatchFiles.length === 0)
+    throw new Error('No valid batch files to merge');
 
   const safeFileName = traitName.replace(':', '_');
   const finalOutputPath = path.join(PACKS_DIR, `${safeFileName}_hg38.parquet`);
@@ -389,7 +410,8 @@ async function mergeBatchResults(batchFiles, traitName) {
   const fileList = validBatchFiles.map(f => `'${f}'`).join(', ');
   const { execSync } = await import('child_process');
   const memoryLimit = process.env.DUCKDB_MEMORY_LIMIT || '16GB';
-  const threads = process.env.DUCKDB_THREADS || Math.max(4, Math.floor(os.cpus().length / 2));
+  const threads =
+    process.env.DUCKDB_THREADS || Math.max(4, Math.floor(os.cpus().length / 2));
 
   const sql = `
     PRAGMA memory_limit='${memoryLimit}';
@@ -489,7 +511,9 @@ export async function generateTraitPackBatched(
       if (dbData) {
         pgsMetadata.set(pgsId, {});
       }
-    } catch (_error) { /* ignore */ }
+    } catch (_error) {
+      /* ignore */
+    }
   }
 
   // Process batches in parallel with proper Promise handling

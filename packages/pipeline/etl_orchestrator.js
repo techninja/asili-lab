@@ -40,20 +40,24 @@ async function main() {
       const requested = process.env.SINGLE_TRAIT.split(',').map(s => s.trim());
       sortedTraits = sortedTraits.filter(
         ([traitName, config]) =>
-          requested.includes(traitName) ||
-          requested.includes(config.trait_id)
+          requested.includes(traitName) || requested.includes(config.trait_id)
       );
       if (sortedTraits.length === 0) {
-        logger.error(`❌ No traits found matching: ${process.env.SINGLE_TRAIT}`);
+        logger.error(
+          `❌ No traits found matching: ${process.env.SINGLE_TRAIT}`
+        );
         logger.close();
         process.exit(1);
       }
-      logger.log(`🎯 Processing ${sortedTraits.length} trait(s): ${requested.join(', ')}`);
+      logger.log(
+        `🎯 Processing ${sortedTraits.length} trait(s): ${requested.join(', ')}`
+      );
       logger.log('');
     }
 
     // Concurrent trait processing with bounded parallelism
-    const maxConcurrent = parseInt(process.env.MAX_PARALLEL_TRAITS) ||
+    const maxConcurrent =
+      parseInt(process.env.MAX_PARALLEL_TRAITS) ||
       Math.max(1, Math.min(4, Math.floor(os.cpus().length / 2)));
     logger.log(`⚡ Trait concurrency: ${maxConcurrent}`);
     logger.log('');
@@ -77,14 +81,18 @@ async function main() {
           const dur = Math.round((Date.now() - traitStartTime) / 1000);
 
           if (!result.metadata_only) {
-            logger.log(`   ✅ Generated ${displayName} (${result.variant_count} variants, ${dur}s)`);
+            logger.log(
+              `   ✅ Generated ${displayName} (${result.variant_count} variants, ${dur}s)`
+            );
           } else {
             logger.log(`   ✅ Skipped ${displayName} - up to date (${dur}s)`);
           }
           processedCount++;
         } catch (error) {
           const dur = Math.round((Date.now() - traitStartTime) / 1000);
-          logger.error(`   ❌ Error processing ${displayName}: ${error.message} (${dur}s)`);
+          logger.error(
+            `   ❌ Error processing ${displayName}: ${error.message} (${dur}s)`
+          );
           errors.push({
             trait_id: config.trait_id || traitName,
             title: config.title || config.name || traitName,
