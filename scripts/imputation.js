@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import prompts from 'prompts';
 import fs from 'fs/promises';
+import { mkdirSync, rmSync, writeFileSync, readdirSync } from 'fs';
 import path from 'path';
 import '../packages/pipeline/lib/env.js';
 
@@ -24,6 +25,7 @@ const COMMANDS = {
     fn: optimizePanel,
     desc: 'Convert reference panel to BCF for faster imputation'
   },
+  export: { fn: exportAsili, desc: 'Export unified parquet to .asili archive' },
   status: { fn: showStatus, desc: 'Show system status' },
   clean: { fn: cleanData, desc: 'Clean imputation data' }
 };
@@ -143,6 +145,104 @@ async function imputeUser() {
       code === 0 ? resolve() : reject(new Error(`Exit code ${code}`))
     );
   });
+}
+
+async function exportAsili() {
+  const __dir = path.dirname(new URL(import.meta.url).pathname);
+  const UNIFIED_DIR = path.join(__dir, '../server-data/unified');
+  const EXPORT_DIR = path.join(__dir, '../server-data/export');
+
+  const parquetFiles = readdirSync(UNIFIED_DIR).filter(f => f.endsWith('.parquet'));
+  if (parquetFiles.length === 0) {
+    console.log('\n❌ No parquet files found in server-data/unified/\n');
+    return;
+  }
+
+  // Check for CLI name filter: pnpm imputation export [name]
+  const nameFilter = process.argv[3];
+  let toExport;
+
+  if (nameFilter) {
+    toExport = parquetFiles.filter(f => f.toLowerCase().includes(nameFilter.toLowerCase()));
+    if (toExport.length === 0) {
+      console.log(`\n❌ No parquet files matching "${nameFilter}"\n`);
+      return;
+    }
+  } else {
+    const choices = parquetFiles.map(f => {
+      const name = path.basename(f, '.parquet').split('_').slice(1).join('_');
+      return { title: name, value: f };
+    });
+    choices.unshift({ title: 'All individuals', value: '__all__' });
+
+    const { selected } = await prompts({
+      type: 'select',
+      name: 'selected',
+      message: 'Export which individual?',
+      choices
+    });
+    if (!selected) return;
+    toExport = selected === '__all__' ? parquetFiles : [selected];
+  }
+
+  mkdirSync(EXPORT_DIR, { recursive: true });
+
+  for (const parquetFile of toExport) {
+    const name = path.basename(parquetFile, '.parquet').split('_').slice(1).join('_');
+    const inputPath = path.join(UNIFIED_DIR, parquetFile);
+    const tmpDir = path.join(EXPORT_DIR, `_tmp_${name}`);
+    const outputFile = path.join(EXPORT_DIR, `${name}_imputed.asili`);
+
+    console.log(`\n🧬 Exporting ${name}...`);
+
+    rmSync(tmpDir, { recursive: true, force: true });
+    mkdirSync(tmpDir, { recursive: true });
+
+    const statsJson = execSync(
+      `duckdb -json -c "SELECT chr, COUNT(*) as variants, SUM(CASE WHEN imputed THEN 1 ELSE 0 END) as imputed_count, SUM(CASE WHEN NOT imputed THEN 1 ELSE 0 END) as genotyped_count FROM '${inputPath}' GROUP BY chr ORDER BY chr"`,
+      { encoding: 'utf8', maxBuffer: 100 * 1024 * 1024 }
+    );
+    const stats = JSON.parse(statsJson);
+
+    const chromosomes = {};
+    let totalVariants = 0, totalGenotyped = 0, totalImputed = 0;
+
+    for (const row of stats) {
+      const chr = String(row.chr);
+      const file = `chr${chr}.parquet`;
+      console.log(`  chr${chr}: ${row.variants.toLocaleString()} variants`);
+
+      execSync(
+        `duckdb -c "COPY (SELECT * FROM '${inputPath}' WHERE chr = ${row.chr}) TO '${path.join(tmpDir, file)}' (FORMAT PARQUET, COMPRESSION ZSTD)"`,
+        { maxBuffer: 100 * 1024 * 1024 }
+      );
+
+      chromosomes[chr] = { file, variants: row.variants };
+      totalVariants += row.variants;
+      totalGenotyped += row.genotyped_count;
+      totalImputed += row.imputed_count;
+    }
+
+    writeFileSync(path.join(tmpDir, 'manifest.json'), JSON.stringify({
+      format: 'asili-unified-v1',
+      individual: name,
+      source: 'AncestryDNA + TOPMed imputation',
+      totalVariants,
+      genotypedVariants: totalGenotyped,
+      imputedVariants: totalImputed,
+      chromosomes,
+      createdAt: new Date().toISOString(),
+    }, null, 2));
+
+    const files = ['manifest.json', ...Object.values(chromosomes).map(c => c.file)];
+    execSync(`tar cf "${outputFile}" ${files.join(' ')}`, { cwd: tmpDir });
+    rmSync(tmpDir, { recursive: true });
+
+    const sizeMB = (execSync(`stat -c%s "${outputFile}"`, { encoding: 'utf8' }).trim() / 1e6).toFixed(0);
+    console.log(`  ✅ ${name}_imputed.asili (${sizeMB} MB — ${totalVariants.toLocaleString()} variants)`);
+  }
+
+  console.log('\n✓ Export complete\n');
 }
 
 async function run(script, args = []) {
