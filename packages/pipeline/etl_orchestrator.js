@@ -7,6 +7,7 @@ import { getTraitConfigs } from './lib/catalog.js';
 import { generateTraitPack } from './lib/processor.js';
 import { closeManifestConnection } from './lib/trait-manifest.js';
 import { exportTraitManifestJSON } from './lib/export-manifest.js';
+import { exportTraitPacksAsili } from './lib/export-trait-packs.js';
 import scanParquetPGS from './scan-parquet-pgs.js';
 import { createLogger } from '../core/src/utils/logger.js';
 
@@ -130,6 +131,20 @@ async function main() {
     logger.log('');
     logger.log('📦 Exporting JSON manifest...');
     await exportTraitManifestJSON();
+
+    // Export trait packs as .asili archives
+    logger.log('');
+    logger.log('📦 Exporting trait packs as .asili archives...');
+    const singleTraitIds = process.env.SINGLE_TRAIT
+      ? process.env.SINGLE_TRAIT.split(',').map(s => s.trim())
+      : null;
+    if (singleTraitIds) {
+      for (const traitId of singleTraitIds) {
+        await exportTraitPacksAsili(traitId);
+      }
+    } else {
+      await exportTraitPacksAsili();
+    }
 
     // Scan parquet files and populate pgs_scores
     if (process.env.SINGLE_TRAIT) {

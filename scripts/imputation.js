@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
-import { spawn, execSync } from 'child_process';
+import { spawn } from 'child_process';
 import prompts from 'prompts';
 import fs from 'fs/promises';
-import { mkdirSync, rmSync, writeFileSync, readdirSync } from 'fs';
+import { mkdirSync, readdirSync } from 'fs';
 import path from 'path';
 import '../packages/pipeline/lib/env.js';
+import { buildAsiliArchive, fileSizeMB } from '../packages/core/src/utils/asili-archive.js';
+import { buildHg19Map } from './build-hg19map.js';
 
 const PIPELINE_DIR = './packages/pipeline';
 const DATA_DIR = './data_out/imputation';
@@ -26,6 +28,7 @@ const COMMANDS = {
     desc: 'Convert reference panel to BCF for faster imputation'
   },
   export: { fn: exportAsili, desc: 'Export unified parquet to .asili archive' },
+  hg19map: { fn: buildHg19Map, desc: 'Build hg19→hg38 liftover .asili archive' },
   status: { fn: showStatus, desc: 'Show system status' },
   clean: { fn: cleanData, desc: 'Clean imputation data' }
 };
@@ -190,56 +193,22 @@ async function exportAsili() {
   for (const parquetFile of toExport) {
     const name = path.basename(parquetFile, '.parquet').split('_').slice(1).join('_');
     const inputPath = path.join(UNIFIED_DIR, parquetFile);
-    const tmpDir = path.join(EXPORT_DIR, `_tmp_${name}`);
     const outputFile = path.join(EXPORT_DIR, `${name}_imputed.asili`);
 
     console.log(`\n🧬 Exporting ${name}...`);
 
-    rmSync(tmpDir, { recursive: true, force: true });
-    mkdirSync(tmpDir, { recursive: true });
-
-    const statsJson = execSync(
-      `duckdb -json -c "SELECT chr, COUNT(*) as variants, SUM(CASE WHEN imputed THEN 1 ELSE 0 END) as imputed_count, SUM(CASE WHEN NOT imputed THEN 1 ELSE 0 END) as genotyped_count FROM '${inputPath}' GROUP BY chr ORDER BY chr"`,
-      { encoding: 'utf8', maxBuffer: 100 * 1024 * 1024 }
-    );
-    const stats = JSON.parse(statsJson);
-
-    const chromosomes = {};
-    let totalVariants = 0, totalGenotyped = 0, totalImputed = 0;
-
-    for (const row of stats) {
-      const chr = String(row.chr);
-      const file = `chr${chr}.parquet`;
-      console.log(`  chr${chr}: ${row.variants.toLocaleString()} variants`);
-
-      execSync(
-        `duckdb -c "COPY (SELECT * FROM '${inputPath}' WHERE chr = ${row.chr}) TO '${path.join(tmpDir, file)}' (FORMAT PARQUET, COMPRESSION ZSTD)"`,
-        { maxBuffer: 100 * 1024 * 1024 }
-      );
-
-      chromosomes[chr] = { file, variants: row.variants };
-      totalVariants += row.variants;
-      totalGenotyped += row.genotyped_count;
-      totalImputed += row.imputed_count;
-    }
-
-    writeFileSync(path.join(tmpDir, 'manifest.json'), JSON.stringify({
+    const { totalVariants } = buildAsiliArchive({
+      inputPath,
+      outputPath: outputFile,
       format: 'asili-unified-v1',
-      individual: name,
-      source: 'AncestryDNA + TOPMed imputation',
-      totalVariants,
-      genotypedVariants: totalGenotyped,
-      imputedVariants: totalImputed,
-      chromosomes,
-      createdAt: new Date().toISOString(),
-    }, null, 2));
+      meta: {
+        individual: name,
+        source: 'AncestryDNA + TOPMed imputation'
+      },
+      statsQuery: `SELECT chr, COUNT(*) as variants, SUM(CASE WHEN imputed THEN 1 ELSE 0 END) as imputed_count, SUM(CASE WHEN NOT imputed THEN 1 ELSE 0 END) as genotyped_count FROM '${inputPath}' WHERE chr IS NOT NULL GROUP BY chr ORDER BY chr`
+    });
 
-    const files = ['manifest.json', ...Object.values(chromosomes).map(c => c.file)];
-    execSync(`tar cf "${outputFile}" ${files.join(' ')}`, { cwd: tmpDir });
-    rmSync(tmpDir, { recursive: true });
-
-    const sizeMB = (execSync(`stat -c%s "${outputFile}"`, { encoding: 'utf8' }).trim() / 1e6).toFixed(0);
-    console.log(`  ✅ ${name}_imputed.asili (${sizeMB} MB — ${totalVariants.toLocaleString()} variants)`);
+    console.log(`  ✅ ${name}_imputed.asili (${fileSizeMB(outputFile)} MB — ${totalVariants.toLocaleString()} variants)`);
   }
 
   console.log('\n✓ Export complete\n');

@@ -6,9 +6,41 @@ Definitive schemas for all data exchanged between the pipeline, storage, and app
 
 ## Parquet Schemas
 
-### Trait Pack (`data_out/packs/{trait_id}_hg38.parquet`)
+### Trait Pack (`data_out/packs/asili/{trait_id}_hg38.asili`)
 
-One file per trait. Contains all PGS variants for that trait, pre-joined and ready for scoring.
+One `.asili` tar archive per trait. Contains per-chromosome parquet files and a manifest, ready for scoring.
+
+**Archive contents:**
+```
+{trait_id}_hg38.asili (tar)
+├── manifest.json
+├── chr1.parquet
+├── chr2.parquet
+├── ...
+├── chr22.parquet
+├── chrX.parquet   (if present, chr=23)
+├── chrY.parquet   (if present, chr=24)
+└── chrMT.parquet  (if present, chr=25)
+```
+
+**manifest.json:**
+```json
+{
+  "format": "asili-trait-v1",
+  "traitId": "EFO:0004340",
+  "totalVariants": 1234567,
+  "chromosomes": {
+    "1":  { "file": "chr1.parquet",  "variants": 98000 },
+    "2":  { "file": "chr2.parquet",  "variants": 87000 },
+    "X":  { "file": "chrX.parquet",  "variants": 12000 },
+    "Y":  { "file": "chrY.parquet",  "variants": 200 },
+    "MT": { "file": "chrMT.parquet", "variants": 50 }
+  },
+  "createdAt": "2026-03-29T..."
+}
+```
+
+**Per-chromosome parquet schema:**
 
 | Column          | Type    | Description                                                         |
 | --------------- | ------- | ------------------------------------------------------------------- |
@@ -79,7 +111,7 @@ Filtered by tier at build time. The app loads this on startup to know what trait
       "categories": ["Body"],
       "expected_variants": 1234567,
       "pgs_count": 45,
-      "file_path": "packs/EFO_0004340_hg38.parquet"
+      "file_path": "packs/asili/EFO_0004340_hg38.asili"
     }
   }
 }

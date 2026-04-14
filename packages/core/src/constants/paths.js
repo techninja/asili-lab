@@ -34,7 +34,7 @@ export const PATHS = {
 
   // Trait file pattern
   getTraitFile: traitId =>
-    `${baseDir}/data_out/packs/${traitId.replace(/:/g, '_')}_hg38.parquet`,
+    `${baseDir}/data_out/packs/asili/${traitId.replace(/:/g, '_')}_hg38.asili`,
   getWebTraitFile: traitId =>
-    `/data/packs/${traitId.replace(/:/g, '_')}_hg38.parquet`
+    `/data/packs/asili/${traitId.replace(/:/g, '_')}_hg38.asili`
 };

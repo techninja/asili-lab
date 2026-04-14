@@ -97,7 +97,7 @@ export async function exportTraitManifestJSON() {
         ? Number(trait.estimated_unique_variants)
         : 0,
       pgs_count: pgsScores.length,
-      file_path: `packs/${trait.trait_id.replace(/:/g, '_')}_hg38.parquet`
+      file_path: `packs/asili/${trait.trait_id.replace(/:/g, '_')}_hg38.asili`
     };
   }
 
