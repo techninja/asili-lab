@@ -101,10 +101,60 @@ export async function exportTraitManifestJSON() {
     };
   }
 
+  // Collect all PGS IDs referenced by included traits
+  const allPgsIds = new Set();
+  for (const trait of Object.values(manifest.traits)) {
+    const rows = await new Promise((resolve, reject) => {
+      conn.all(
+        'SELECT pgs_id FROM trait_pgs WHERE trait_id = ?',
+        [trait.trait_id],
+        (err, rows) => (err ? reject(err) : resolve(rows))
+      );
+    });
+    for (const r of rows) allPgsIds.add(r.pgs_id);
+  }
+
+  // Bulk-fetch PGS metadata
+  if (allPgsIds.size > 0) {
+    const pgsRows = await new Promise((resolve, reject) => {
+      conn.all(
+        'SELECT pgs_id, method_name, weight_type, variants_number FROM pgs_scores',
+        (err, rows) => (err ? reject(err) : resolve(rows))
+      );
+    });
+    const pgsMap = new Map(pgsRows.map(r => [r.pgs_id, r]));
+
+    // Best R² per PGS
+    const perfRows = await new Promise((resolve, reject) => {
+      conn.all(
+        `SELECT pgs_id, MAX(CASE WHEN metric_value > 1 THEN metric_value / 100.0 ELSE metric_value END) as best_r2
+         FROM pgs_performance
+         WHERE metric_type IN ('R²', 'PGS R2 (no covariates)', 'PGS R2  (no covariates)')
+         GROUP BY pgs_id`,
+        (err, rows) => (err ? reject(err) : resolve(rows))
+      );
+    });
+    const r2Map = new Map(perfRows.map(r => [r.pgs_id, r.best_r2]));
+
+    manifest.pgs = {};
+    for (const pgsId of allPgsIds) {
+      const row = pgsMap.get(pgsId);
+      if (!row) continue;
+      const entry = {
+        method: row.method_name || null,
+        weightType: row.weight_type || null,
+        variantsNumber: row.variants_number ? Number(row.variants_number) : null
+      };
+      const r2 = r2Map.get(pgsId);
+      if (r2 != null) entry.r2 = Number(r2);
+      manifest.pgs[pgsId] = entry;
+    }
+  }
+
   const outputPath = path.join(OUTPUT_DIR, 'trait_manifest.json');
   await fs.writeFile(outputPath, JSON.stringify(manifest, null, 2));
   console.log(
-    `✓ Exported trait manifest: ${Object.keys(manifest.traits).length} traits`
+    `✓ Exported trait manifest: ${Object.keys(manifest.traits).length} traits, ${Object.keys(manifest.pgs || {}).length} PGS`
   );
 
   return manifest;
