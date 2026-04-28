@@ -26,10 +26,7 @@ function calculateMetadataHash(override) {
     emoji: override.emoji || null,
     trait_type: override.trait_type || null,
     editorial_name: override.editorial_name || null,
-    editorial_description: override.editorial_description || null,
-    phenotype_mean: override.phenotype_mean || null,
-    phenotype_sd: override.phenotype_sd || null,
-    reference_population: override.reference_population || null
+    editorial_description: override.editorial_description || null
   };
   const str = JSON.stringify(metadata, Object.keys(metadata).sort());
   return crypto.createHash('sha256').update(str).digest('hex');
@@ -66,9 +63,9 @@ class TraitMetadataDB {
       trait_type: override.trait_type || null,
       editorial_name: override.editorial_name || null,
       editorial_description: override.editorial_description || null,
-      phenotype_mean: override.phenotype_mean || null,
-      phenotype_sd: override.phenotype_sd || null,
-      reference_population: override.reference_population || null,
+      phenotype_mean: null,
+      phenotype_sd: null,
+      reference_population: null,
       metadata_hash: calculateMetadataHash(override)
     };
 

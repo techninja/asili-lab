@@ -106,14 +106,29 @@ def compute_normalization(packs_dir, af_tsv, output_json, pgs_list_file):
 
     for i, pf in enumerate(pack_files, 1):
         pf_start = time.monotonic()
+        # Orient expected dosage based on effect_allele:
+        # TOPMed AF = frequency of the TOPMed ALT allele (column 4 of the AF variant_id).
+        # The pack's variant_id col3:col4 may have DIFFERENT ordering than TOPMed REF:ALT
+        # (11% of variants are swapped). So we compare effect_allele against the
+        # TOPMed ALT allele (from a.variant_id), NOT the pack's col4.
+        #
+        #   effect_allele == TOPMed ALT: expected_dosage = 2 * AF
+        #   effect_allele == TOPMed REF: expected_dosage = 2 * (1 - AF)
+        #
+        # Variance is symmetric (doesn't depend on orientation).
         try:
             rows = con.execute(f"""
                 SELECT
                     p.pgs_id,
                     count(*) AS total_variants,
                     count(a.af) AS found,
-                    SUM(CASE WHEN a.af IS NOT NULL
-                        THEN p.effect_weight * 2 * a.af ELSE 0 END) AS mean_score,
+                    SUM(CASE WHEN a.af IS NOT NULL THEN
+                        p.effect_weight * CASE
+                            WHEN p.effect_allele = split_part(a.variant_id, ':', 4)
+                            THEN 2 * a.af
+                            ELSE 2 * (1 - a.af)
+                        END
+                    ELSE 0 END) AS mean_score,
                     SQRT(SUM(CASE WHEN a.af IS NOT NULL
                         THEN p.effect_weight * p.effect_weight * 2 * a.af * (1 - a.af) ELSE 0 END)) AS sd_score
                 FROM read_parquet('{pf}') p
@@ -121,15 +136,20 @@ def compute_normalization(packs_dir, af_tsv, output_json, pgs_list_file):
                 WHERE p.pgs_id IN (SELECT unnest(list_value({','.join(f"'{p}'" for p in pgs_to_process)})))
                 GROUP BY p.pgs_id
             """).fetchall()
-        except duckdb.BinderError:
+        except Exception:
             # Fallback for packs without allele_key column (pre-migration)
             rows = con.execute(f"""
                 SELECT
                     p.pgs_id,
                     count(*) AS total_variants,
                     count(a.af) AS found,
-                    SUM(CASE WHEN a.af IS NOT NULL
-                        THEN p.effect_weight * 2 * a.af ELSE 0 END) AS mean_score,
+                    SUM(CASE WHEN a.af IS NOT NULL THEN
+                        p.effect_weight * CASE
+                            WHEN p.effect_allele = split_part(a.variant_id, ':', 4)
+                            THEN 2 * a.af
+                            ELSE 2 * (1 - a.af)
+                        END
+                    ELSE 0 END) AS mean_score,
                     SQRT(SUM(CASE WHEN a.af IS NOT NULL
                         THEN p.effect_weight * p.effect_weight * 2 * a.af * (1 - a.af) ELSE 0 END)) AS sd_score
                 FROM read_parquet('{pf}') p

@@ -1,9 +1,12 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { getConnection } from './shared-db.js';
 import { loadAllowlist } from './catalog.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = process.env.OUTPUT_DIR || '/output';
+const OVERRIDES_PATH = path.join(__dirname, '..', 'trait_overrides.json');
 
 export async function exportTraitManifestJSON() {
   const tier = process.env.ASILI_TIER || 'tier1_public';
@@ -100,6 +103,17 @@ export async function exportTraitManifestJSON() {
       file_path: `packs/asili/${trait.trait_id.replace(/:/g, '_')}_hg38.asili`
     };
   }
+
+  // Merge display-only fields from trait_overrides.json
+  try {
+    const overrides = JSON.parse(await fs.readFile(OVERRIDES_PATH, 'utf8'));
+    for (const [traitId, entry] of Object.entries(manifest.traits)) {
+      const ov = overrides[traitId];
+      if (!ov) continue;
+      if (ov.cover_image) entry.cover_image = ov.cover_image;
+      if (ov.score_interpretation) entry.score_interpretation = ov.score_interpretation;
+    }
+  } catch { /* overrides file missing — skip */ }
 
   // Collect all PGS IDs referenced by included traits
   const allPgsIds = new Set();
