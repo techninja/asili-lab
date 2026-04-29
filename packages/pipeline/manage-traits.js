@@ -19,6 +19,7 @@ import { analyzeTraitPGSQuality } from './lib/pgs-enhanced-filter.js';
 import * as pgsDB from './lib/pgs-db.js';
 import * as traitDB from './lib/trait-db.js';
 import { closeConnection, getConnection } from './lib/shared-db.js';
+import { runMigrations } from './lib/migrate.js';
 import { loadAllowlist } from './lib/catalog.js';
 import { execSync } from 'child_process';
 import _crypto from 'crypto';
@@ -70,6 +71,7 @@ async function collectTraitDescription(traitId) {
 }
 
 async function getExistingTraitIds() {
+  await runMigrations();
   const conn = await getConnection();
   const rows = await new Promise((resolve, reject) => {
     conn.all('SELECT DISTINCT trait_id FROM trait_pgs', (err, rows) =>

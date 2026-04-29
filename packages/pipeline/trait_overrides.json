@@ -20,8 +20,8 @@
   "EFO_0004279": {
     "emoji": "☀️",
     "trait_type": "disease_risk",
-    "editorial_name": "suntan",
-    "editorial_description": "Darkening of the skin after sun exposure. Genetic factors influence how easily and deeply skin tans.",
+    "editorial_name": "Tanning Ability",
+    "editorial_description": "How easily your skin darkens after sun exposure, determined by melanin genetics.",
     "cover_image": {
       "unsplash_id": "jxVRe8b2IN0",
       "url": "https://images.unsplash.com/photo-1598277305415-1293ddb95e94?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxzdW50YW4lMjBiZWFjaCUyMHNraW4lMjBzdW58ZW58MHwwfHx8MTc3NzM0OTc0NHww&ixlib=rb-4.1.0&q=80&w=1080",
@@ -45,8 +45,8 @@
   "EFO_0004305": {
     "emoji": "🔴",
     "trait_type": "disease_risk",
-    "editorial_name": "erythrocyte count",
-    "editorial_description": "The number of red blood cells per unit volume in a sample of venous blood.",
+    "editorial_name": "Red Blood Cell Count",
+    "editorial_description": "The number of red blood cells carrying oxygen through your bloodstream.",
     "cover_image": {
       "unsplash_id": "0V__SgRpHc0",
       "url": "https://images.unsplash.com/photo-1709227371446-8e76f75260b8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxyZWQlMjBibG9vZCUyMGNlbGxzJTIwbWljcm9zY29wZXxlbnwwfDB8fHwxNzc3MzQ5NzU1fDA&ixlib=rb-4.1.0&q=80&w=1080",
@@ -64,8 +64,8 @@
   "EFO_0004309": {
     "emoji": "🩸",
     "trait_type": "disease_risk",
-    "editorial_name": "platelet count",
-    "editorial_description": "The number of PLATELETS per unit volume in a sample of venous BLOOD.",
+    "editorial_name": "Platelet Count",
+    "editorial_description": "The number of platelets in your blood — tiny cells that help stop bleeding by forming clots.",
     "cover_image": {
       "unsplash_id": "cChHDOV_yZ0",
       "url": "https://images.unsplash.com/photo-1585036929505-31afd53dad85?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHw2fHxibG9vZCUyMHBsYXRlbGV0cyUyMGNsb3R0aW5nJTIwYmFuZGFnZXxlbnwwfDB8fHwxNzc3MzQ5NzU0fDA&ixlib=rb-4.1.0&q=80&w=1080",
@@ -83,8 +83,8 @@
   "EFO_0004312": {
     "emoji": "🫁",
     "trait_type": "quantitative",
-    "editorial_name": "lung vital capacity",
-    "editorial_description": "The maximum amount of air you can exhale after taking the deepest breath possible.",
+    "editorial_name": "Lung Capacity",
+    "editorial_description": "The maximum amount of air your lungs can hold after a deep breath.",
     "unit": "liters",
     "cover_image": {
       "unsplash_id": "Sm8mcZA00Vo",
@@ -103,8 +103,8 @@
   "EFO_0004338": {
     "emoji": "⚖️",
     "trait_type": "quantitative",
-    "editorial_name": "body weight",
-    "editorial_description": "Your body weight, influenced by genetics, diet, and lifestyle.",
+    "editorial_name": "Body Weight",
+    "editorial_description": "Your overall weight, influenced by genetics, diet, activity, and environment.",
     "unit": "kg",
     "cover_image": {
       "unsplash_id": "t5BaT2xO7ZE",
@@ -123,8 +123,8 @@
   "EFO_0004340": {
     "emoji": "📊",
     "trait_type": "quantitative",
-    "editorial_name": "body mass index",
-    "editorial_description": "A measure of body fat based on height and weight. Normal range is 18.5-24.9.",
+    "editorial_name": "Body Mass Index",
+    "editorial_description": "A ratio of weight to height used to estimate body fat. The typical range is 18.5–24.9.",
     "unit": "BMI",
     "cover_image": {
       "unsplash_id": "kp0ygaEf5oU",
@@ -143,8 +143,8 @@
   "EFO_0004343": {
     "emoji": "📏",
     "trait_type": "quantitative",
-    "editorial_name": "waist-hip ratio",
-    "editorial_description": "The ratio of waist to hip measurements, used to assess body fat distribution and health risks.",
+    "editorial_name": "Waist-to-Hip Ratio",
+    "editorial_description": "How your body stores fat — a higher ratio means more fat around the waist relative to the hips.",
     "unit": "ratio",
     "cover_image": {
       "unsplash_id": "KLBmnBhPe04",
@@ -163,8 +163,8 @@
   "EFO_0004458": {
     "emoji": "🔥",
     "trait_type": "quantitative",
-    "editorial_name": "C-reactive protein level",
-    "editorial_description": "A marker of inflammation in the body, elevated in cardiovascular disease, diabetes, and other conditions.",
+    "editorial_name": "C-Reactive Protein",
+    "editorial_description": "A blood marker of inflammation. Higher levels can signal infection, stress, or chronic disease.",
     "unit": "mg/L",
     "cover_image": {
       "unsplash_id": "D37STEwmyqY",
@@ -190,20 +190,28 @@
   "EFO_0004527": {
     "emoji": "🔬",
     "trait_type": "quantitative",
-    "editorial_name": "mean corpuscular hemoglobin",
-    "editorial_description": "The average amount of hemoglobin in each red blood cell, used to diagnose types of anemia.",
+    "editorial_name": "Mean Corpuscular Hemoglobin",
+    "editorial_description": "The average amount of oxygen-carrying hemoglobin packed into each red blood cell.",
     "unit": "picograms",
     "score_interpretation": {
       "higher": "more hemoglobin per red blood cell",
       "lower": "less hemoglobin per red blood cell",
       "direction": "neutral"
+    },
+    "cover_image": {
+      "unsplash_id": "PrsRrUbKQT8",
+      "url": "https://images.unsplash.com/photo-1642697552227-ca21f326fe41?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxoZW1vZ2xvYmluJTIwcmVkJTIwYmxvb2QlMjBveHlnZW58ZW58MHwwfHx8MTc3NzQzNjU3N3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "thumb": "https://images.unsplash.com/photo-1642697552227-ca21f326fe41?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxoZW1vZ2xvYmluJTIwcmVkJTIwYmxvb2QlMjBveHlnZW58ZW58MHwwfHx8MTc3NzQzNjU3N3ww&ixlib=rb-4.1.0&q=80&w=400",
+      "photographer": "SHAMBHAVI SINGH",
+      "photographer_username": "samsonremix17",
+      "description": "Red Blood Cells Edited- I made this just for fun and now 42 thousand people have seen it. I make 3D Renders just as a hobby. I would have never imagined so many people would see it!"
     }
   },
   "EFO_0004530": {
     "emoji": "🧈",
     "trait_type": "quantitative",
-    "editorial_name": "triglyceride level",
-    "editorial_description": "A type of fat in the blood that can increase heart disease risk when levels are too high.",
+    "editorial_name": "Triglycerides",
+    "editorial_description": "A common type of fat in your blood. High levels can raise your risk of heart disease.",
     "unit": "mg/dL",
     "cover_image": {
       "unsplash_id": "KWb_41kG0GE",
@@ -222,8 +230,8 @@
   "EFO_0004531": {
     "emoji": "💎",
     "trait_type": "quantitative",
-    "editorial_name": "uric acid level",
-    "editorial_description": "The level of uric acid in blood, which can cause gout when elevated.",
+    "editorial_name": "Uric Acid",
+    "editorial_description": "A waste product in your blood. High levels can crystallize in joints and cause gout.",
     "unit": "mg/dL",
     "cover_image": {
       "unsplash_id": "UbBGeiv5sbc",
@@ -242,8 +250,8 @@
   "EFO_0004541": {
     "emoji": "🍬",
     "trait_type": "quantitative",
-    "editorial_name": "HbA1c measurement",
-    "editorial_description": "A measure of average blood sugar levels over the past 2-3 months, used to monitor diabetes.",
+    "editorial_name": "HbA1c",
+    "editorial_description": "A snapshot of your average blood sugar over the past 2–3 months.",
     "unit": "%",
     "cover_image": {
       "unsplash_id": "ViLMUXvGXVg",
@@ -262,8 +270,8 @@
   "EFO_0004574": {
     "emoji": "🧪",
     "trait_type": "quantitative",
-    "editorial_name": "total cholesterol measurement",
-    "editorial_description": "The total amount of cholesterol in your blood, including both good and bad types.",
+    "editorial_name": "Total Cholesterol",
+    "editorial_description": "The combined level of all cholesterol types in your blood, including HDL and LDL.",
     "unit": "mg/dL",
     "cover_image": {
       "unsplash_id": "xvrVDxfqyrw",
@@ -282,8 +290,8 @@
   "EFO_0004587": {
     "emoji": "🦠",
     "trait_type": "quantitative",
-    "editorial_name": "lymphocyte count",
-    "editorial_description": "The number of lymphocytes (a type of white blood cell) in your blood, important for immune function.",
+    "editorial_name": "Lymphocyte Count",
+    "editorial_description": "The number of lymphocytes in your blood — key immune cells that fight viruses and coordinate defenses.",
     "unit": "thousand/μL",
     "cover_image": {
       "unsplash_id": "5peJ_ul3B8g",
@@ -302,20 +310,28 @@
   "EFO_0004611": {
     "emoji": "⬇️",
     "trait_type": "quantitative",
-    "editorial_name": "LDL cholesterol level",
-    "editorial_description": "The level of 'bad' cholesterol in blood, which can build up in arteries and increase heart disease risk.",
+    "editorial_name": "LDL Cholesterol",
+    "editorial_description": "The 'bad' cholesterol that can build up in artery walls and increase heart disease risk.",
     "unit": "mg/dL",
     "score_interpretation": {
       "higher": "higher LDL ('bad') cholesterol",
       "lower": "lower LDL cholesterol",
       "direction": "lower_better"
+    },
+    "cover_image": {
+      "unsplash_id": "6hxhc5yDR8E",
+      "url": "https://images.unsplash.com/photo-1715111965541-7cdbd8d1aa5b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHw1fHxoZWFydCUyMGhlYWx0aCUyMGNob2xlc3Rlcm9sJTIwYXJ0ZXJ5fGVufDB8MHx8fDE3Nzc0MzY1ODF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "thumb": "https://images.unsplash.com/photo-1715111965541-7cdbd8d1aa5b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHw1fHxoZWFydCUyMGhlYWx0aCUyMGNob2xlc3Rlcm9sJTIwYXJ0ZXJ5fGVufDB8MHx8fDE3Nzc0MzY1ODF8MA&ixlib=rb-4.1.0&q=80&w=400",
+      "photographer": "Europeana",
+      "photographer_username": "europeana",
+      "description": "Title: Embryonic heart Creator: Tinkelenberg, J Date: 1963-04-18 Providing institution: Universitaire Bibliotheken Leiden Aggregator: Dutch Collections for Europe Providing Country: Netherlands Public Domain Embryonic heart by Tinkelenberg, J - Leiden University Libraries, Netherlands - Public Domain. https://www.europeana.eu/item/744/item_3463143"
     }
   },
   "EFO_0004612": {
     "emoji": "⬆️",
     "trait_type": "quantitative",
-    "editorial_name": "HDL cholesterol level",
-    "editorial_description": "The level of 'good' cholesterol in blood, which helps remove other forms of cholesterol and reduce heart disease risk.",
+    "editorial_name": "HDL Cholesterol",
+    "editorial_description": "The 'good' cholesterol that helps clear other fats from your bloodstream and protects your heart.",
     "unit": "mg/dL",
     "cover_image": {
       "unsplash_id": "W1OjZrc7XAo",
@@ -341,8 +357,8 @@
   "EFO_0004620": {
     "emoji": "💊",
     "trait_type": "quantitative",
-    "editorial_name": "vitamin B12 level",
-    "editorial_description": "The level of vitamin B12 in blood, essential for brain function, nerve health, and red blood cell formation.",
+    "editorial_name": "Vitamin B12",
+    "editorial_description": "A vitamin essential for nerve function, brain health, and making red blood cells.",
     "unit": "pg/mL",
     "cover_image": {
       "unsplash_id": "Y3u0x5GwtuY",
@@ -368,20 +384,28 @@
   "EFO_0004682": {
     "emoji": "⚡",
     "trait_type": "quantitative",
-    "editorial_name": "QT interval",
-    "editorial_description": "The time from the start of ventricular contraction to relaxation in the heart's electrical cycle.",
+    "editorial_name": "QT Interval",
+    "editorial_description": "A timing measurement of your heart's electrical cycle. Abnormal values can signal heart rhythm issues.",
     "unit": "milliseconds",
     "score_interpretation": {
       "higher": "longer QT interval",
       "lower": "shorter QT interval",
       "direction": "neutral"
+    },
+    "cover_image": {
+      "unsplash_id": "0lrJo37r6Nk",
+      "url": "https://images.unsplash.com/photo-1513224502586-d1e602410265?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHw5fHxFQ0clMjBlbGVjdHJvY2FyZGlvZ3JhbSUyMGhlYXJ0JTIwbW9uaXRvcnxlbnwwfDB8fHwxNzc3NDM2NTg0fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "thumb": "https://images.unsplash.com/photo-1513224502586-d1e602410265?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHw5fHxFQ0clMjBlbGVjdHJvY2FyZGlvZ3JhbSUyMGhlYXJ0JTIwbW9uaXRvcnxlbnwwfDB8fHwxNzc3NDM2NTg0fDA&ixlib=rb-4.1.0&q=80&w=400",
+      "photographer": "Jair Lázaro",
+      "photographer_username": "jairlazarofuentes",
+      "description": "Electrocardiogram"
     }
   },
   "EFO_0004695": {
     "emoji": "👁️",
     "trait_type": "quantitative",
-    "editorial_name": "intraocular pressure",
-    "editorial_description": "The fluid pressure inside the eye. Elevated pressure is a risk factor for glaucoma.",
+    "editorial_name": "Eye Pressure",
+    "editorial_description": "The fluid pressure inside your eye. Elevated pressure is a major risk factor for glaucoma.",
     "unit": "mmHg",
     "cover_image": {
       "unsplash_id": "5eplVrpG3qc",
@@ -400,8 +424,8 @@
   "EFO_0004697": {
     "emoji": "🌸",
     "trait_type": "quantitative",
-    "editorial_name": "estradiol level",
-    "editorial_description": "The level of estradiol, a female hormone important for reproductive health, bone strength, and cardiovascular health.",
+    "editorial_name": "Estradiol",
+    "editorial_description": "The primary form of estrogen, important for reproductive health, bones, and heart protection.",
     "unit": "pg/mL",
     "cover_image": {
       "unsplash_id": "iLHY3h8iCAo",
@@ -420,8 +444,8 @@
   "EFO_0004703": {
     "emoji": "🌺",
     "trait_type": "quantitative",
-    "editorial_name": "age at menarche",
-    "editorial_description": "The age when a person has their first menstrual period.",
+    "editorial_name": "Age at First Period",
+    "editorial_description": "When puberty-related menstruation begins, influenced by genetics and environment.",
     "unit": "years",
     "cover_image": {
       "unsplash_id": "wMdPcswkFws",
@@ -440,8 +464,8 @@
   "EFO_0004704": {
     "emoji": "🍂",
     "trait_type": "quantitative",
-    "editorial_name": "age at menopause",
-    "editorial_description": "The age when menstrual periods permanently stop.",
+    "editorial_name": "Age at Menopause",
+    "editorial_description": "When menstrual cycles permanently end, typically around age 50.",
     "unit": "years",
     "cover_image": {
       "unsplash_id": "IihDS3WZGlY",
@@ -460,8 +484,8 @@
   "EFO_0004713": {
     "emoji": "🫁",
     "trait_type": "quantitative",
-    "editorial_name": "FEV/FVC ratio",
-    "editorial_description": "The ratio of forced expiratory volume to forced vital capacity, used to diagnose lung diseases like asthma and COPD.",
+    "editorial_name": "Lung Airflow Ratio",
+    "editorial_description": "How freely air moves through your lungs. A lower ratio can indicate asthma or COPD.",
     "unit": "ratio",
     "cover_image": {
       "unsplash_id": "mac1kGvYoO4",
@@ -500,8 +524,8 @@
   "EFO_0004842": {
     "emoji": "🦠",
     "trait_type": "quantitative",
-    "editorial_name": "eosinophil count",
-    "editorial_description": "The number of eosinophils (a type of white blood cell) in blood, elevated in allergies and parasitic infections.",
+    "editorial_name": "Eosinophil Count",
+    "editorial_description": "A type of white blood cell involved in allergic reactions and fighting parasites.",
     "unit": "cells/μL",
     "cover_image": {
       "unsplash_id": "AHwSXlwhxvQ",
@@ -520,20 +544,28 @@
   "EFO_0005035": {
     "emoji": "🧠",
     "trait_type": "quantitative",
-    "editorial_name": "hippocampal volume",
-    "editorial_description": "The size of the hippocampus, a brain region critical for memory and learning.",
+    "editorial_name": "Hippocampal Volume",
+    "editorial_description": "The size of the hippocampus, a brain region essential for forming new memories.",
     "unit": "mm³",
     "score_interpretation": {
       "higher": "larger hippocampal volume",
       "lower": "smaller hippocampal volume",
       "direction": "higher_better"
+    },
+    "cover_image": {
+      "unsplash_id": "BDKid0yJcAk",
+      "url": "https://images.unsplash.com/photo-1631563019676-dade0dbdb8fc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxicmFpbiUyMG5ldXJvc2NpZW5jZSUyME1SSSUyMHNjYW58ZW58MHwwfHx8MTc3NzQzNjU1N3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "thumb": "https://images.unsplash.com/photo-1631563019676-dade0dbdb8fc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxicmFpbiUyMG5ldXJvc2NpZW5jZSUyME1SSSUyMHNjYW58ZW58MHwwfHx8MTc3NzQzNjU1N3ww&ixlib=rb-4.1.0&q=80&w=400",
+      "photographer": "National Cancer Institute",
+      "photographer_username": "nci",
+      "description": "A head x-ray taken by a computer-assisted tomographic (CAT) scanner. This diagnostic technique uses computers to organize thousands of x-rays, taken by a rotating machine around the patient. When first applied in the 1970's it revolutionized detection of brain tumors."
     }
   },
   "EFO_0005091": {
     "emoji": "🦠",
     "trait_type": "quantitative",
-    "editorial_name": "monocyte count",
-    "editorial_description": "The number of monocytes (a type of white blood cell) in blood, important for fighting infections.",
+    "editorial_name": "Monocyte Count",
+    "editorial_description": "A type of white blood cell that engulfs pathogens and helps coordinate your immune response.",
     "unit": "cells/μL",
     "cover_image": {
       "unsplash_id": "y-BfSMLL5iM",
@@ -559,8 +591,8 @@
   "EFO_0005106": {
     "emoji": "🏋️",
     "trait_type": "quantitative",
-    "editorial_name": "body composition measurement",
-    "editorial_description": "Measurements of body fat, muscle, and bone percentages.",
+    "editorial_name": "Body Composition",
+    "editorial_description": "The balance of fat, muscle, and bone in your body.",
     "unit": "%",
     "cover_image": {
       "unsplash_id": "0DyZE6aLD-8",
@@ -592,8 +624,8 @@
   "EFO_0006335": {
     "emoji": "📈",
     "trait_type": "quantitative",
-    "editorial_name": "systolic blood pressure",
-    "editorial_description": "The blood pressure when the heart contracts, the top number in a blood pressure reading.",
+    "editorial_name": "Systolic Blood Pressure",
+    "editorial_description": "The top number in a blood pressure reading — the pressure when your heart beats.",
     "unit": "mmHg",
     "cover_image": {
       "unsplash_id": "i1iqQRLULlg",
@@ -612,8 +644,8 @@
   "EFO_0006336": {
     "emoji": "📉",
     "trait_type": "quantitative",
-    "editorial_name": "diastolic blood pressure",
-    "editorial_description": "The blood pressure when the heart relaxes between beats, the bottom number in a blood pressure reading.",
+    "editorial_name": "Diastolic Blood Pressure",
+    "editorial_description": "The bottom number in a blood pressure reading — the pressure when your heart rests between beats.",
     "unit": "mmHg",
     "cover_image": {
       "unsplash_id": "3CGygsItNdE",
@@ -632,8 +664,8 @@
   "EFO_0006527": {
     "emoji": "🚬",
     "trait_type": "quantitative",
-    "editorial_name": "smoking status",
-    "editorial_description": "Whether a person currently smokes or has ever smoked tobacco.",
+    "editorial_name": "Smoking Status",
+    "editorial_description": "Genetic factors that influence whether someone is likely to smoke tobacco.",
     "unit": "binary",
     "cover_image": {
       "unsplash_id": "e3bcIHTwmT0",
@@ -652,8 +684,8 @@
   "EFO_0006925": {
     "emoji": "🧬",
     "trait_type": "quantitative",
-    "editorial_name": "lipoprotein(a) level",
-    "editorial_description": "The level of a specific cholesterol particle that increases heart disease risk when elevated.",
+    "editorial_name": "Lipoprotein(a)",
+    "editorial_description": "A sticky cholesterol particle you inherit. High levels raise heart disease risk regardless of lifestyle.",
     "unit": "mg/dL",
     "cover_image": {
       "unsplash_id": "Us3AQvyOP-o",
@@ -679,8 +711,8 @@
   "EFO_0007660": {
     "emoji": "😰",
     "trait_type": "quantitative",
-    "editorial_name": "neuroticism score",
-    "editorial_description": "A personality trait measuring emotional instability and tendency toward negative emotions.",
+    "editorial_name": "Neuroticism",
+    "editorial_description": "A personality trait reflecting how strongly you tend to experience stress, worry, and negative emotions.",
     "unit": "score",
     "cover_image": {
       "unsplash_id": "O3UdUmQklEg",
@@ -706,8 +738,8 @@
   "EFO_0007777": {
     "emoji": "🔥",
     "trait_type": "quantitative",
-    "editorial_name": "basal metabolic rate",
-    "editorial_description": "The minimum energy your body needs at complete rest to maintain basic functions like breathing and circulation.",
+    "editorial_name": "Basal Metabolic Rate",
+    "editorial_description": "How many calories your body burns at complete rest just to keep you alive.",
     "unit": "kcal/day",
     "cover_image": {
       "unsplash_id": "nd66JZLFJBY",
@@ -733,8 +765,8 @@
   "EFO_0007788": {
     "emoji": "📏",
     "trait_type": "quantitative",
-    "editorial_name": "BMI-adjusted waist-hip ratio",
-    "editorial_description": "Waist-to-hip ratio adjusted for body mass index, providing a more accurate measure of body fat distribution.",
+    "editorial_name": "Waist-to-Hip Ratio (BMI-Adjusted)",
+    "editorial_description": "Where your body stores fat after accounting for overall body size.",
     "unit": "ratio",
     "cover_image": {
       "unsplash_id": "HealJrBpaUo",
@@ -753,8 +785,8 @@
   "EFO_0007794": {
     "emoji": "🚬",
     "trait_type": "quantitative",
-    "editorial_name": "nicotine metabolite ratio",
-    "editorial_description": "The ratio of nicotine breakdown products, indicating how quickly your body metabolizes nicotine.",
+    "editorial_name": "Nicotine Metabolism",
+    "editorial_description": "How quickly your body breaks down nicotine, which affects smoking habits and quit difficulty.",
     "unit": "ratio",
     "cover_image": {
       "unsplash_id": "929y21ixEoY",
@@ -773,8 +805,8 @@
   "EFO_0007825": {
     "emoji": "👨‍🦲",
     "trait_type": "quantitative",
-    "editorial_name": "male pattern baldness",
-    "editorial_description": "Hair loss pattern, typically on the crown and temples, strongly influenced by genetics and hormones.",
+    "editorial_name": "Male Pattern Baldness",
+    "editorial_description": "Hair thinning on the crown and temples, strongly driven by genetics and hormones.",
     "unit": "pattern scale",
     "cover_image": {
       "unsplash_id": "tuVk2fEU-LQ",
@@ -814,8 +846,8 @@
   "EFO_0008328": {
     "emoji": "🌅",
     "trait_type": "quantitative",
-    "editorial_name": "chronotype (morning/evening preference)",
-    "editorial_description": "Your natural preference for being active in the morning or evening, influenced by genetics.",
+    "editorial_name": "Chronotype",
+    "editorial_description": "Whether you're naturally a morning person or a night owl — your built-in body clock preference.",
     "unit": "score",
     "cover_image": {
       "unsplash_id": "VhhHrgadfy0",
@@ -848,8 +880,8 @@
   "EFO_0009102": {
     "emoji": "👶",
     "trait_type": "quantitative",
-    "editorial_name": "number of children",
-    "editorial_description": "The total number of children a person has had.",
+    "editorial_name": "Number of Children",
+    "editorial_description": "Genetic factors associated with how many children a person tends to have.",
     "unit": "count",
     "cover_image": {
       "unsplash_id": "tdkQ_CLYtCc",
@@ -868,13 +900,21 @@
   "EFO_0009188": {
     "emoji": "📊",
     "trait_type": "quantitative",
-    "editorial_name": "red cell distribution width",
-    "editorial_description": "A measure of variation in red blood cell size, used to help diagnose different types of anemia.",
+    "editorial_name": "Red Cell Distribution Width",
+    "editorial_description": "How much your red blood cells vary in size. Unusual variation can signal certain types of anemia.",
     "unit": "%",
     "score_interpretation": {
       "higher": "more variation in red blood cell size",
       "lower": "less variation in red blood cell size",
       "direction": "lower_better"
+    },
+    "cover_image": {
+      "unsplash_id": "egT3xtDu9DQ",
+      "url": "https://images.unsplash.com/photo-1579154341184-22069e4614d2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxsYWJvcmF0b3J5JTIwYmxvb2QlMjBhbmFseXNpcyUyMHNjaWVuY2V8ZW58MHwwfHx8MTc3NzQ2NzE3NHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "thumb": "https://images.unsplash.com/photo-1579154341184-22069e4614d2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxsYWJvcmF0b3J5JTIwYmxvb2QlMjBhbmFseXNpcyUyMHNjaWVuY2V8ZW58MHwwfHx8MTc3NzQ2NzE3NHww&ixlib=rb-4.1.0&q=80&w=400",
+      "photographer": "National Cancer Institute",
+      "photographer_username": "nci",
+      "description": "Vials of Blood.\r\nVials of blood taken in the course of patient care at the National Institutes of Health Clinical Center in Bethesda, Maryland. Test tubes. Blood test.\r\nCreator:\tDaniel Sone"
     }
   },
   "EFO_0009282": {
@@ -1259,20 +1299,28 @@
   "OBA_0003747": {
     "emoji": "🫘",
     "trait_type": "quantitative",
-    "editorial_name": "glomerular filtration rate",
-    "editorial_description": "A measure of how well your kidneys filter waste from blood.",
+    "editorial_name": "Kidney Filtration Rate",
+    "editorial_description": "How efficiently your kidneys clean waste from your blood. Higher is better.",
     "unit": "mL/min/1.73m²",
     "score_interpretation": {
       "higher": "higher filtration rate (better kidney function)",
       "lower": "lower filtration rate",
       "direction": "higher_better"
+    },
+    "cover_image": {
+      "unsplash_id": "DgI7xOfXwAM",
+      "url": "https://images.unsplash.com/photo-1715527498487-85f97b828616?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxraWRuZXklMjBhbmF0b215JTIwb3JnYW4lMjBpbGx1c3RyYXRpb258ZW58MHwwfHx8MTc3NzQ2NzE3OHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "thumb": "https://images.unsplash.com/photo-1715527498487-85f97b828616?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxraWRuZXklMjBhbmF0b215JTIwb3JnYW4lMjBpbGx1c3RyYXRpb258ZW58MHwwfHx8MTc3NzQ2NzE3OHww&ixlib=rb-4.1.0&q=80&w=400",
+      "photographer": "Europeana",
+      "photographer_username": "europeana",
+      "description": "Title: Kidneys Creator: Tinkelenberg, J Date: 1958-06-28 Providing institution: Universitaire Bibliotheken Leiden Aggregator: Dutch Collections for Europe Providing Country: Netherlands Public Domain Kidneys by Tinkelenberg, J - Leiden University Libraries, Netherlands - Public Domain. https://www.europeana.eu/item/744/item_3463115"
     }
   },
   "OBA_1000110": {
     "emoji": "🦴",
     "trait_type": "quantitative",
-    "editorial_name": "bone mineral density",
-    "editorial_description": "A measure of bone strength and density, used to diagnose osteoporosis.",
+    "editorial_name": "Bone Density",
+    "editorial_description": "How strong and dense your bones are. Lower density increases fracture risk.",
     "unit": "g/cm²",
     "cover_image": {
       "unsplash_id": "nLXh0_W7YRs",
@@ -1291,8 +1339,8 @@
   "OBA_1000840": {
     "emoji": "🍺",
     "trait_type": "quantitative",
-    "editorial_name": "alcohol consumption",
-    "editorial_description": "The amount and frequency of alcohol consumption.",
+    "editorial_name": "Alcohol Consumption",
+    "editorial_description": "How much and how often you tend to drink alcohol, partly shaped by your genes.",
     "unit": "drinks/week",
     "cover_image": {
       "unsplash_id": "pk7HHUppPx4",
@@ -1311,8 +1359,8 @@
   "OBA_1000968": {
     "emoji": "☀️",
     "trait_type": "quantitative",
-    "editorial_name": "vitamin D level",
-    "editorial_description": "The amount of vitamin D in the body, important for bone health and immune function.",
+    "editorial_name": "Vitamin D",
+    "editorial_description": "A vitamin your body makes from sunlight, important for bones, immunity, and mood.",
     "unit": "ng/mL",
     "cover_image": {
       "unsplash_id": "OEfm0hrY_rw",
@@ -1338,13 +1386,21 @@
   "OBA_1001005": {
     "emoji": "🫘",
     "trait_type": "quantitative",
-    "editorial_name": "creatinine level",
-    "editorial_description": "A waste product measured in blood to assess kidney function.",
+    "editorial_name": "Creatinine",
+    "editorial_description": "A waste product filtered by your kidneys. Rising levels can be an early sign of kidney trouble.",
     "unit": "mg/dL",
     "score_interpretation": {
       "higher": "higher creatinine (may indicate reduced kidney function)",
       "lower": "lower creatinine",
       "direction": "lower_better"
+    },
+    "cover_image": {
+      "unsplash_id": "ZggLwp5-Ajg",
+      "url": "https://images.unsplash.com/photo-1715527498501-4eb81f7ce451?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwzfHxraWRuZXklMjBvcmdhbiUyMGhlYWx0aCUyMG1lZGljYWx8ZW58MHwwfHx8MTc3NzQzNjU5Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "thumb": "https://images.unsplash.com/photo-1715527498501-4eb81f7ce451?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwzfHxraWRuZXklMjBvcmdhbiUyMGhlYWx0aCUyMG1lZGljYWx8ZW58MHwwfHx8MTc3NzQzNjU5Mnww&ixlib=rb-4.1.0&q=80&w=400",
+      "photographer": "Europeana",
+      "photographer_username": "europeana",
+      "description": "Title: Kidneys and the adrenal glands Creator: Wetselaar-Whittaker, J Date: 1988-08-31 Providing institution: Universitaire Bibliotheken Leiden Aggregator: Dutch Collections for Europe Providing Country: Netherlands Public Domain Kidneys and the adrenal glands by Wetselaar-Whittaker, J - Leiden University Libraries, Netherlands - Public Domain. https://www.europeana.eu/item/744/item_3462131"
     }
   },
   "OBA_1001010": {
@@ -1357,8 +1413,8 @@
   "OBA_1001085": {
     "emoji": "📏",
     "trait_type": "quantitative",
-    "editorial_name": "waist circumference",
-    "editorial_description": "The measurement around your waist, used to assess abdominal fat and health risks.",
+    "editorial_name": "Waist Circumference",
+    "editorial_description": "The measurement around your midsection, an indicator of abdominal fat.",
     "unit": "cm or inches",
     "cover_image": {
       "unsplash_id": "Zdhnw_LknlA",
@@ -1384,8 +1440,8 @@
   "OBA_1001087": {
     "emoji": "💓",
     "trait_type": "quantitative",
-    "editorial_name": "heart rate",
-    "editorial_description": "The number of heartbeats per minute.",
+    "editorial_name": "Resting Heart Rate",
+    "editorial_description": "How many times your heart beats per minute at rest. Lower is generally healthier.",
     "unit": "beats/min",
     "cover_image": {
       "unsplash_id": "1yG-SH-mgYI",
@@ -1488,8 +1544,8 @@
   "OBA_VT0000188": {
     "emoji": "🍬",
     "trait_type": "quantitative",
-    "editorial_name": "blood glucose level",
-    "editorial_description": "The amount of sugar (glucose) in your blood.",
+    "editorial_name": "Blood Glucose",
+    "editorial_description": "The amount of sugar circulating in your blood, your body's primary energy source.",
     "unit": "mg/dL",
     "cover_image": {
       "unsplash_id": "BlgBBf_b_94",
@@ -1508,8 +1564,8 @@
   "OBA_VT0000217": {
     "emoji": "🦠",
     "trait_type": "quantitative",
-    "editorial_name": "white blood cell count",
-    "editorial_description": "The number of white blood cells in your blood, important for fighting infections.",
+    "editorial_name": "White Blood Cell Count",
+    "editorial_description": "The number of infection-fighting white blood cells circulating in your blood.",
     "unit": "thousand/μL",
     "cover_image": {
       "unsplash_id": "hT57ehNeWk4",
@@ -1528,8 +1584,8 @@
   "OBA_VT0001253": {
     "emoji": "📏",
     "trait_type": "quantitative",
-    "editorial_name": "body height",
-    "editorial_description": "Your height, influenced by genetics and nutrition during growth.",
+    "editorial_name": "Height",
+    "editorial_description": "How tall you are, shaped by hundreds of genetic variants plus nutrition during growth.",
     "unit": "cm",
     "cover_image": {
       "unsplash_id": "Gxe57TTAhn4",
@@ -1574,26 +1630,34 @@
   "EFO_0007800": {
     "emoji": "🏋️",
     "trait_type": "quantitative",
-    "editorial_name": "body fat percentage",
-    "editorial_description": "Percentage of body mass composed of fat tissue",
+    "editorial_name": "Body Fat Percentage",
+    "editorial_description": "The proportion of your body weight that comes from fat tissue.",
     "score_interpretation": {
       "higher": "higher body fat percentage",
       "lower": "lower body fat percentage",
       "direction": "neutral"
+    },
+    "cover_image": {
+      "unsplash_id": "OfVESgqrbJc",
+      "url": "https://images.unsplash.com/photo-1591384640699-9a85bd036da2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxib2R5JTIwZmF0JTIwZml0bmVzcyUyMG1lYXN1cmVtZW50fGVufDB8MHx8fDE3Nzc0MzY1NjF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "thumb": "https://images.unsplash.com/photo-1591384640699-9a85bd036da2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxib2R5JTIwZmF0JTIwZml0bmVzcyUyMG1lYXN1cmVtZW50fGVufDB8MHx8fDE3Nzc0MzY1NjF8MA&ixlib=rb-4.1.0&q=80&w=400",
+      "photographer": "Huha Inc.",
+      "photographer_username": "wearhuha",
+      "description": "Measuring Tape - How to Measure Your Hips - Huha: Healthy Undies"
     }
   },
   "OBA_1000032": {
     "emoji": "📏",
     "trait_type": "quantitative",
-    "editorial_name": "hip circumference",
-    "editorial_description": "Measurement around the widest part of the hips",
+    "editorial_name": "Hip Circumference",
+    "editorial_description": "The measurement around the widest part of your hips.",
     "cover_image": {
-      "unsplash_id": "Zdhnw_LknlA",
-      "url": "https://images.unsplash.com/photo-1591384658362-1105c821611c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxoaXAlMjBtZWFzdXJlbWVudCUyMGJvZHklMjBzaGFwZXxlbnwwfDB8fHwxNzc3MzQ5NzYwfDA&ixlib=rb-4.1.0&q=80&w=1080",
-      "thumb": "https://images.unsplash.com/photo-1591384658362-1105c821611c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxoaXAlMjBtZWFzdXJlbWVudCUyMGJvZHklMjBzaGFwZXxlbnwwfDB8fHwxNzc3MzQ5NzYwfDA&ixlib=rb-4.1.0&q=80&w=400",
-      "photographer": "Huha Inc.",
-      "photographer_username": "wearhuha",
-      "description": "Measuring Tape - How to Measure Your Hips - Huha: Healthy Undies"
+      "unsplash_id": "AdbFlm18has",
+      "url": "https://images.unsplash.com/photo-1541614354572-3d88c912851a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHx3b21hbiUyMGJvZHklMjBzaGFwZSUyMHNpbGhvdWV0dGV8ZW58MHwwfHx8MTc3NzQ2NzE3MHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "thumb": "https://images.unsplash.com/photo-1541614354572-3d88c912851a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHx3b21hbiUyMGJvZHklMjBzaGFwZSUyMHNpbGhvdWV0dGV8ZW58MHwwfHx8MTc3NzQ2NzE3MHww&ixlib=rb-4.1.0&q=80&w=400",
+      "photographer": "jabez Samuel",
+      "photographer_username": "jabezsam",
+      "description": "watching it all go down"
     },
     "score_interpretation": {
       "higher": "larger hip circumference",
@@ -1604,8 +1668,8 @@
   "EFO_0004344": {
     "emoji": "👶",
     "trait_type": "quantitative",
-    "editorial_name": "birth weight",
-    "editorial_description": "Weight at birth, influenced by genetics and environment",
+    "editorial_name": "Birth Weight",
+    "editorial_description": "How much you weighed at birth, shaped by both genetics and the prenatal environment.",
     "cover_image": {
       "unsplash_id": "CIVnz6T2WXo",
       "url": "https://images.unsplash.com/photo-1677389465765-60a431d2e6ca?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHw0fHxuZXdib3JuJTIwYmFieSUyMGJpcnRoJTIwd2VpZ2h0fGVufDB8MHx8fDE3NzczNDk3NjJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
@@ -1623,8 +1687,8 @@
   "HP_0001000": {
     "emoji": "🎨",
     "trait_type": "quantitative",
-    "editorial_name": "skin pigmentation",
-    "editorial_description": "Variation in skin color determined by melanin production",
+    "editorial_name": "Skin Pigmentation",
+    "editorial_description": "Your natural skin color, determined by the type and amount of melanin your body produces.",
     "cover_image": {
       "unsplash_id": "44S9cT9T5dk",
       "url": "https://images.unsplash.com/photo-1664117977916-521534a6aa7d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwyfHxza2luJTIwdG9uZSUyMGRpdmVyc2l0eSUyMG1lbGFuaW58ZW58MHwwfHx8MTc3NzM0OTc2M3ww&ixlib=rb-4.1.0&q=80&w=1080",
@@ -1642,8 +1706,8 @@
   "HP_0000545": {
     "emoji": "👓",
     "trait_type": "quantitative",
-    "editorial_name": "myopia",
-    "editorial_description": "Nearsightedness — difficulty seeing distant objects clearly",
+    "editorial_name": "Nearsightedness",
+    "editorial_description": "Difficulty seeing distant objects clearly, caused by the eye focusing light in front of the retina.",
     "cover_image": {
       "unsplash_id": "BQdJJSya3l4",
       "url": "https://images.unsplash.com/photo-1519549098160-ed0a89679c57?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwyfHxleWVnbGFzc2VzJTIwbXlvcGlhJTIwbmVhcnNpZ2h0ZWQlMjByZWFkaW5nfGVufDB8MHx8fDE3NzczNDk3NjV8MA&ixlib=rb-4.1.0&q=80&w=1080",
@@ -1661,107 +1725,179 @@
   "EFO_0004833": {
     "emoji": "🔬",
     "trait_type": "quantitative",
-    "editorial_name": "neutrophil count",
-    "editorial_description": "White blood cells that fight bacterial infections",
+    "editorial_name": "Neutrophil Count",
+    "editorial_description": "The most common white blood cell — your first line of defense against bacterial infections.",
     "score_interpretation": {
       "higher": "higher neutrophil count",
       "lower": "lower neutrophil count",
       "direction": "neutral"
+    },
+    "cover_image": {
+      "unsplash_id": "SyUrj2dO_H0",
+      "url": "https://images.unsplash.com/photo-1707944746033-0232ca340fc6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHw4fHxtaWNyb3Njb3BlJTIwYmxvb2QlMjBjZWxscyUyMGxhYm9yYXRvcnl8ZW58MHwwfHx8MTc3NzQzNjU2NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "thumb": "https://images.unsplash.com/photo-1707944746033-0232ca340fc6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHw4fHxtaWNyb3Njb3BlJTIwYmxvb2QlMjBjZWxscyUyMGxhYm9yYXRvcnl8ZW58MHwwfHx8MTc3NzQzNjU2NXww&ixlib=rb-4.1.0&q=80&w=400",
+      "photographer": "National Institute of Allergy and Infectious Diseases",
+      "photographer_username": "niaid",
+      "description": "Post-baccalaureate Fellow, NIAID Lab of Malaria and Vector Research Post-baccalaureate fellow in the NIAID Laboratory of Malaria and Vector Research uses a dissecting microscope to perform morphological identification of preserved mosquito specimens. Credit: NIAID https://www.flickr.com/photos/niaid/46519168092/"
     }
   },
   "EFO_0004348": {
     "emoji": "🩸",
     "trait_type": "quantitative",
-    "editorial_name": "hematocrit",
-    "editorial_description": "Percentage of blood volume occupied by red blood cells",
+    "editorial_name": "Hematocrit",
+    "editorial_description": "The percentage of your blood that is made up of red blood cells.",
     "score_interpretation": {
       "higher": "higher hematocrit (more red blood cells by volume)",
       "lower": "lower hematocrit",
       "direction": "neutral"
+    },
+    "cover_image": {
+      "unsplash_id": "9k4Fglw6eFQ",
+      "url": "https://images.unsplash.com/photo-1581594693702-fbdc51b2763b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxibG9vZCUyMHRlc3QlMjB0dWJlJTIwc2FtcGxlJTIwcmVkfGVufDB8MHx8fDE3Nzc0MzY1Njl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "thumb": "https://images.unsplash.com/photo-1581594693702-fbdc51b2763b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxibG9vZCUyMHRlc3QlMjB0dWJlJTIwc2FtcGxlJTIwcmVkfGVufDB8MHx8fDE3Nzc0MzY1Njl8MA&ixlib=rb-4.1.0&q=80&w=400",
+      "photographer": "National Cancer Institute",
+      "photographer_username": "nci",
+      "description": "\tSix blood samples in test tubes. Blood test."
     }
   },
   "EFO_0005763": {
     "emoji": "💓",
     "trait_type": "quantitative",
-    "editorial_name": "pulse pressure",
-    "editorial_description": "Difference between systolic and diastolic blood pressure",
+    "editorial_name": "Pulse Pressure",
+    "editorial_description": "The gap between your systolic and diastolic blood pressure — reflects artery stiffness.",
     "score_interpretation": {
       "higher": "wider pulse pressure",
       "lower": "narrower pulse pressure",
       "direction": "lower_better"
+    },
+    "cover_image": {
+      "unsplash_id": "PzSgaHsQmgY",
+      "url": "https://images.unsplash.com/photo-1621525466547-4ac135e85f59?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxibG9vZCUyMHByZXNzdXJlJTIwY3VmZiUyMG1lYXN1cmVtZW50fGVufDB8MHx8fDE3Nzc0MzY1ODh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "thumb": "https://images.unsplash.com/photo-1621525466547-4ac135e85f59?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxibG9vZCUyMHByZXNzdXJlJTIwY3VmZiUyMG1lYXN1cmVtZW50fGVufDB8MHx8fDE3Nzc0MzY1ODh8MA&ixlib=rb-4.1.0&q=80&w=400",
+      "photographer": "Mufid Majnun",
+      "photographer_username": "mufidpwt",
+      "description": "Pelayanan Posbindu di desa Wlahar Kecamatan Wangon dengan pemeriksaan Tensi (20/5-2021)"
     }
   },
   "EFO_0004908": {
     "emoji": "⚡",
     "trait_type": "quantitative",
-    "editorial_name": "testosterone",
-    "editorial_description": "Primary male sex hormone, present in all sexes",
+    "editorial_name": "Testosterone",
+    "editorial_description": "A hormone that drives muscle growth, bone density, and energy — present in all sexes at different levels.",
     "score_interpretation": {
       "higher": "higher testosterone levels",
       "lower": "lower testosterone levels",
       "direction": "neutral"
+    },
+    "cover_image": {
+      "unsplash_id": "o2iuspGFumI",
+      "url": "https://images.unsplash.com/photo-1538134764063-789a8eaf6e74?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxzdHJlbmd0aCUyMG11c2NsZSUyMGZpdG5lc3MlMjBwb3dlcnxlbnwwfDB8fHwxNzc3NDM2NjAxfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "thumb": "https://images.unsplash.com/photo-1538134764063-789a8eaf6e74?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxzdHJlbmd0aCUyMG11c2NsZSUyMGZpdG5lc3MlMjBwb3dlcnxlbnwwfDB8fHwxNzc3NDM2NjAxfDA&ixlib=rb-4.1.0&q=80&w=400",
+      "photographer": "Taco Fleur",
+      "photographer_username": "cavemantraining",
+      "description": "Taco Fleur from Cavemantraining wearing a kettlebell t-shirt on top of El Torcal, a mountain range in Antequera Spain."
     }
   },
   "EFO_0004337": {
     "emoji": "🧠",
     "trait_type": "quantitative",
-    "editorial_name": "intelligence",
-    "editorial_description": "General cognitive ability as measured by standardized tests",
+    "editorial_name": "Cognitive Ability",
+    "editorial_description": "General thinking and reasoning ability as captured by standardized tests.",
     "score_interpretation": {
       "higher": "higher predicted cognitive ability",
       "lower": "lower predicted cognitive ability",
       "direction": "neutral"
+    },
+    "cover_image": {
+      "unsplash_id": "51603303NTc",
+      "url": "https://images.unsplash.com/photo-1754294437684-7898b3701ac7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwyfHxicmFpbiUyMHRoaW5raW5nJTIwcHV6emxlJTIwaW50ZWxsaWdlbmNlfGVufDB8MHx8fDE3Nzc0MzY2MDV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "thumb": "https://images.unsplash.com/photo-1754294437684-7898b3701ac7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwyfHxicmFpbiUyMHRoaW5raW5nJTIwcHV6emxlJTIwaW50ZWxsaWdlbmNlfGVufDB8MHx8fDE3Nzc0MzY2MDV8MA&ixlib=rb-4.1.0&q=80&w=400",
+      "photographer": "Babak Eshaghian",
+      "photographer_username": "babak22ir",
+      "description": "A small decorative golden photo frame placed as part of the decoration in a psychiatric and psychology clinic in Tehran."
     }
   },
   "EFO_0008579": {
     "emoji": "🎲",
     "trait_type": "quantitative",
-    "editorial_name": "risk-taking behaviour",
-    "editorial_description": "Tendency to engage in risky activities",
+    "editorial_name": "Risk-Taking Tendency",
+    "editorial_description": "How inclined you are to seek out novel or risky experiences.",
     "score_interpretation": {
       "higher": "greater tendency toward risk-taking",
       "lower": "more risk-averse tendency",
       "direction": "neutral"
+    },
+    "cover_image": {
+      "unsplash_id": "oQZ4CMKOUMU",
+      "url": "https://images.unsplash.com/photo-1761761718425-d4db08895b46?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwyfHxhZHZlbnR1cmUlMjByaXNrJTIwc2t5ZGl2aW5nJTIwZXh0cmVtZXxlbnwwfDB8fHwxNzc3NDM2NjA5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "thumb": "https://images.unsplash.com/photo-1761761718425-d4db08895b46?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwyfHxhZHZlbnR1cmUlMjByaXNrJTIwc2t5ZGl2aW5nJTIwZXh0cmVtZXxlbnwwfDB8fHwxNzc3NDM2NjA5fDA&ixlib=rb-4.1.0&q=80&w=400",
+      "photographer": "Gabriel Vasiliu",
+      "photographer_username": "gabimedia",
+      "description": "Bias 2025 Bucharest, Romania, impressive aerial demonstrations"
     }
   },
   "EFO_0004315": {
     "emoji": "🍷",
     "trait_type": "quantitative",
-    "editorial_name": "drinking behavior",
-    "editorial_description": "Patterns and quantity of alcohol consumption",
+    "editorial_name": "Drinking Behavior",
+    "editorial_description": "Patterns of alcohol intake — how much and how often — partly shaped by genetics.",
     "score_interpretation": {
       "higher": "tendency toward more drinking",
       "lower": "tendency toward less drinking",
       "direction": "neutral"
+    },
+    "cover_image": {
+      "unsplash_id": "tPY3if0s9w8",
+      "url": "https://images.unsplash.com/photo-1761038611985-3cec1b1c086a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHw0fHxjb2NrdGFpbCUyMGJhciUyMG5pZ2h0bGlmZSUyMGRyaW5rc3xlbnwwfDB8fHwxNzc3NDY3MTY2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "thumb": "https://images.unsplash.com/photo-1761038611985-3cec1b1c086a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHw0fHxjb2NrdGFpbCUyMGJhciUyMG5pZ2h0bGlmZSUyMGRyaW5rc3xlbnwwfDB8fHwxNzc3NDY3MTY2fDA&ixlib=rb-4.1.0&q=80&w=400",
+      "photographer": "Ola Zarko",
+      "photographer_username": "olazarko",
+      "description": "bar cocktail glasses party clean blik bokeh light nightlife karaoke gatsby theme modern celebration occasion"
     }
   },
   "EFO_0005670": {
     "emoji": "🚬",
     "trait_type": "disease_risk",
-    "editorial_name": "smoking initiation",
-    "editorial_description": "Genetic predisposition to start smoking",
+    "editorial_name": "Smoking Initiation",
+    "editorial_description": "Genetic predisposition toward trying or starting to smoke tobacco.",
     "score_interpretation": {
       "higher": "greater genetic predisposition to start smoking",
       "lower": "lower predisposition to start smoking",
       "direction": "lower_better"
+    },
+    "cover_image": {
+      "unsplash_id": "BOSgsJxu9to",
+      "url": "https://images.unsplash.com/photo-1710301573845-500fa301a0ce?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwzfHxjaWdhcmV0dGUlMjBzbW9rZSUyMGxpZ2h0ZXJ8ZW58MHwwfHx8MTc3NzQzNjYxN3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "thumb": "https://images.unsplash.com/photo-1710301573845-500fa301a0ce?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwzfHxjaWdhcmV0dGUlMjBzbW9rZSUyMGxpZ2h0ZXJ8ZW58MHwwfHx8MTc3NzQzNjYxN3ww&ixlib=rb-4.1.0&q=80&w=400",
+      "photographer": "Samantha Peralta",
+      "photographer_username": "speralta98",
+      "description": "Young blonde woman lighting a cigarette"
     }
   },
   "EFO_0004698": {
     "emoji": "😴",
     "trait_type": "quantitative",
-    "editorial_name": "insomnia",
-    "editorial_description": "Difficulty falling or staying asleep",
+    "editorial_name": "Insomnia",
+    "editorial_description": "Difficulty falling asleep or staying asleep through the night.",
     "score_interpretation": {
       "higher": "greater tendency toward insomnia",
       "lower": "lower tendency toward insomnia",
       "direction": "lower_better"
+    },
+    "cover_image": {
+      "unsplash_id": "3oyeaivM_fE",
+      "url": "https://images.unsplash.com/photo-1429117237875-aa29229d99f0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwyfHxpbnNvbW5pYSUyMHNsZWVwbGVzcyUyMG5pZ2h0JTIwZGFyayUyMGJlZHxlbnwwfDB8fHwxNzc3NDM2NjIwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "thumb": "https://images.unsplash.com/photo-1429117237875-aa29229d99f0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwyfHxpbnNvbW5pYSUyMHNsZWVwbGVzcyUyMG5pZ2h0JTIwZGFyayUyMGJlZHxlbnwwfDB8fHwxNzc3NDM2NjIwfDA&ixlib=rb-4.1.0&q=80&w=400",
+      "photographer": "Quin Stevenson",
+      "photographer_username": "qstevenson",
+      "description": "Messy bed and closed blinds"
     }
   },
   "EFO_0006781": {
     "emoji": "☕",
     "trait_type": "quantitative",
-    "editorial_name": "coffee consumption",
-    "editorial_description": "Amount of coffee consumed, influenced by caffeine metabolism",
+    "editorial_name": "Coffee Consumption",
+    "editorial_description": "How much coffee you tend to drink, partly driven by how fast your body breaks down caffeine.",
     "cover_image": {
       "unsplash_id": "w-VEMWG8rmk",
       "url": "https://images.unsplash.com/photo-1614530315991-de7abbf38567?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxjb2ZmZWUlMjBjdXAlMjBtb3JuaW5nJTIwYmVhbnN8ZW58MHwwfHx8MTc3NzM0OTc0Mnww&ixlib=rb-4.1.0&q=80&w=1080",

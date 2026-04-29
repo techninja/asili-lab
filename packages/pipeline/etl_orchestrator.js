@@ -8,6 +8,7 @@ import { generateTraitPack } from './lib/processor.js';
 import { closeManifestConnection } from './lib/trait-manifest.js';
 import { exportTraitManifestJSON } from './lib/export-manifest.js';
 import { exportTraitPacksAsili } from './lib/export-trait-packs.js';
+import { exportPgsDetail } from './export-pgs-detail.js';
 import scanParquetPGS from './scan-parquet-pgs.js';
 import { createLogger } from '../core/src/utils/logger.js';
 
@@ -168,6 +169,11 @@ async function main() {
         );
       }
     }
+
+    // Export PGS detail metadata for frontend
+    logger.log('');
+    logger.log('📦 Exporting PGS detail metadata...');
+    await exportPgsDetail();
 
     logger.log('🚀 Trait packs ready for serving');
     logger.close();
