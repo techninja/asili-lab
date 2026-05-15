@@ -66,15 +66,54 @@ This generates:
 
 ### 5. Calculate reference statistics
 
-Computes population normalization parameters (mean/SD) for each PGS score using TOPMed allele frequencies. First run extracts AF from the TOPMed panel (~7 min), then joins against all pack variants.
+Computes empirical normalization parameters (mean/SD) for each PGS score by scoring
+3,202 NYGC 30x 1000 Genomes individuals against all trait packs. First run downloads
+the NYGC 30x phased VCFs (~26GB to `$NYGC_1KG_DIR`), extracts genotypes at pack
+positions, then scores all individuals. All intermediate files are cached — safe to
+interrupt and resume.
 
-Requires the TOPMed reference panel (`pnpm imputation setup`).
+Automatically regenerates histogram density arrays after scoring.
 
 ```bash
-pnpm pgs refstats batch
+# Full run (~6 hours first time, cached thereafter)
+pnpm pgs refstats
+
+# Test with one chromosome first (~5 min)
+pnpm pgs refstats --chr 22
+
+# Reset all norms + extracted genotypes
+pnpm pgs refstats reset
 ```
 
-This writes `norm_mean` and `norm_sd` to the `pgs_scores` table. PGS with <5% TOPMed AF coverage are left NULL — the scoring engine uses a theoretical fallback for those.
+This writes `norm_mean` and `norm_sd` to `trait_manifest.db` and updates
+`data_out/pgs_norm_params.json` with empirical `m`, `s`, and `d` (density) arrays.
+
+The export and distribution steps can also be run independently:
+
+```bash
+pnpm pgs export-norms          # manifest DB → JSON
+pnpm pgs score-distribution     # regenerate density arrays
+```
+
+### 5b. Generate ancestry-specific norms (optional)
+
+Computes per-population mean/SD using gnomAD v4.1 ancestry-stratified allele frequencies across 8 genetic ancestry groups (AFR, AMR, ASJ, EAS, FIN, MID, NFE, SAS). This enables ancestry-contextualized percentiles in the browser.
+
+**One-time setup** — download gnomAD v4.1 per-chromosome sites VCFs (~300GB, cached on `$LARGE_TMP`):
+
+```bash
+bash scripts/extract-gnomad-ancestry-af.sh
+```
+
+This downloads VCFs to `$LARGE_TMP/gnomad_v4_sites/` and extracts ancestry AFs to `data_out/ancestry_af.tsv`. You can process one chromosome at a time: `bash scripts/extract-gnomad-ancestry-af.sh 22`
+
+**Compute norms** (run in a separate terminal — takes ~10-30 min):
+
+```bash
+pnpm pgs ancestry-norms
+```
+
+Adds `ancestry: { AFR: {m, s}, NFE: {m, s}, ... }` to each PGS in `pgs_norm_params.json`.
 
 ### 6. Calculate scores
 
@@ -144,6 +183,8 @@ pnpm traits seed
 pnpm traits sync
 pnpm traits refresh
 pnpm etl local
-pnpm pgs refstats batch
+pnpm pgs refstats
+bash scripts/extract-gnomad-ancestry-af.sh  # one-time gnomAD v4 download
+pnpm pgs ancestry-norms
 pnpm scores calc all
 ```

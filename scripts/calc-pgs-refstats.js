@@ -2,19 +2,25 @@
 /**
  * Calculate PGS normalization statistics (mean/SD) for z-score normalization.
  *
- * Uses TOPMed reference panel allele frequencies for the theoretical distribution:
- *   E[PGS] = Σ(w_i × 2 × af_i)
- *   SD[PGS] = √Σ(w_i² × 2 × af_i × (1 - af_i))
+ * Scores 3,202 NYGC 30x 1000 Genomes individuals against all trait packs
+ * and computes empirical mean/SD from the actual score distribution.
  *
- * Requires: TOPMed panel (pnpm imputation setup) + built packs (pnpm etl local)
+ * Downloads NYGC 30x VCFs automatically if not present (~26GB).
+ * All intermediate files are cached — safe to interrupt and resume.
  *
- * For PGS with <50% AF coverage, falls back to af=0.5 assumption (less accurate
- * but better than using partial-coverage empirical stats).
+ * After scoring, automatically:
+ *   - Exports norm params to pgs_norm_params.json
+ *   - Regenerates histogram density arrays
+ *
+ * Usage:
+ *   pnpm pgs refstats          — run all chromosomes (~6h first run)
+ *   pnpm pgs refstats batch    — same
+ *   pnpm pgs refstats --chr 22 — single chromosome (for testing, ~5min)
+ *   pnpm pgs refstats reset    — clear extracted genotypes + manifest norms
  */
 import '../packages/pipeline/lib/env.js';
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import { existsSync } from 'fs';
-import { readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -26,17 +32,9 @@ const VENV_PATH = path.join(ROOT, '.venv');
 const PYTHON_BIN = path.join(VENV_PATH, 'bin', 'python3');
 const PIP_BIN = path.join(VENV_PATH, 'bin', 'pip');
 const REQUIREMENTS = path.join(ROOT, 'requirements.txt');
-const SCRIPT_PATH = path.join(__dirname, 'calc-pgs-refstats-topmed.py');
-const OUTPUT_JSON = path.join(ROOT, 'data_out', 'pgs_topmed_stats.json');
+const SCRIPT_PATH = path.join(__dirname, 'calc-pgs-refstats-empirical.py');
 const MANIFEST_DB = path.join(ROOT, 'data_out', 'trait_manifest.db');
 const PACKS_DIR = path.join(ROOT, 'data_out', 'packs');
-
-const PANEL_DIR =
-  process.env.REF_PANEL_DIR || path.join(ROOT, 'cache', 'topmed_reference');
-
-// Minimum AF coverage to trust empirical normalization.
-// Below this, the mean/SD describe a different distribution than what gets scored.
-const MIN_COVERAGE_PCT = 80;
 
 function runCommand(cmd, args, cwd = ROOT) {
   return new Promise((resolve, reject) => {
@@ -72,174 +70,57 @@ function dbQuery(conn, sql) {
   });
 }
 
-function openManifest() {
-  const db = new duckdb.Database(MANIFEST_DB);
-  const conn = db.connect();
-  return {
-    db,
-    conn,
-    close() {
-      conn.close();
-      db.close();
-    }
-  };
-}
-
-async function importToManifest() {
-  console.log('\n📥 Importing results to manifest...\n');
-
-  if (!existsSync(OUTPUT_JSON)) {
-    console.log('❌ No results file found. Run batch mode first.');
-    process.exit(1);
-  }
-
-  const stats = JSON.parse(await readFile(OUTPUT_JSON, 'utf8'));
-  const manifest = openManifest();
-  const conn = manifest.conn;
-
-  const allPgs = await dbQuery(
-    conn,
-    'SELECT pgs_id, norm_mean, norm_sd FROM pgs_scores'
-  );
-  console.log(`Total PGS in manifest: ${allPgs.length}`);
-  console.log(`TOPMed stats available: ${Object.keys(stats).length}\n`);
-
-  let empirical = 0;
-  let theoretical = 0;
-  let skipped = 0;
-
-  // Minimum coverage to use empirical stats at all.
-  // Below this, the mean/SD are computed from so few variants they're meaningless.
-  const MIN_USABLE_PCT = 5;
-
-  for (const row of allPgs) {
-    const data = stats[row.pgs_id];
-
-    if (
-      data &&
-      data.coverage_pct >= MIN_COVERAGE_PCT &&
-      data.stddev_score > 0
-    ) {
-      // Good TOPMed coverage — use empirical stats
-      await dbQuery(
-        conn,
-        `UPDATE pgs_scores SET norm_mean = ${data.mean_score}, norm_sd = ${data.stddev_score}, last_updated = CURRENT_TIMESTAMP WHERE pgs_id = '${row.pgs_id}'`
-      );
-      empirical++;
-    } else if (
-      data &&
-      data.coverage_pct >= MIN_USABLE_PCT &&
-      data.stddev_score > 0
-    ) {
-      // Partial but usable coverage
-      await dbQuery(
-        conn,
-        `UPDATE pgs_scores SET norm_mean = ${data.mean_score}, norm_sd = ${data.stddev_score}, last_updated = CURRENT_TIMESTAMP WHERE pgs_id = '${row.pgs_id}'`
-      );
-      theoretical++;
-    } else {
-      // Coverage too low or no data — leave NULL so the calculator uses
-      // theoretical fallback from sum of squared weights at scoring time
-      skipped++;
-    }
-
-    const total = empirical + theoretical + skipped;
-    if (total % 100 === 0) process.stdout.write(`\r✓ ${total} processed`);
-  }
-
-  console.log(`\n\n✅ Updated ${allPgs.length} PGS scores in manifest`);
-  console.log(
-    `   ${empirical} with TOPMed AF (≥${MIN_COVERAGE_PCT}% coverage)`
-  );
-  console.log(
-    `   ${theoretical} with partial TOPMed AF (${MIN_USABLE_PCT}-${MIN_COVERAGE_PCT}% coverage)`
-  );
-  console.log(
-    `   ${skipped} with defaults (<${MIN_USABLE_PCT}% coverage or no data)`
-  );
-
-  manifest.close();
-}
-
 async function resetStats() {
-  console.log('🔄 Resetting all PGS normalization statistics...');
-  const manifest = openManifest();
-  await dbQuery(
-    manifest.conn,
-    'UPDATE pgs_scores SET norm_mean = NULL, norm_sd = NULL'
-  );
-  console.log('✅ Reset complete\n');
-  manifest.close();
-}
+  console.log('🔄 Resetting PGS normalization statistics...');
 
-async function runBatch() {
-  if (!existsSync(path.join(PANEL_DIR, 'chr1.topmed.vcf.gz'))) {
-    console.log(`❌ TOPMed reference panel not found: ${PANEL_DIR}`);
-    console.log('   Run: pnpm imputation setup');
-    process.exit(1);
+  if (existsSync(MANIFEST_DB)) {
+    const db = new duckdb.Database(MANIFEST_DB);
+    const conn = db.connect();
+    await dbQuery(conn, 'UPDATE pgs_scores SET norm_mean = NULL, norm_sd = NULL');
+    conn.close();
+    db.close();
+    console.log('  ✓ Cleared norm_mean/norm_sd in manifest');
   }
 
+  await setupPython();
+  await runCommand(PYTHON_BIN, [SCRIPT_PATH, '--reset']);
+  console.log('✅ Reset complete\n');
+}
+
+async function postProcess() {
+  console.log('\n📊 Post-processing: regenerating distributions...\n');
+  execSync('node scripts/generate-score-distributions.js', {
+    cwd: ROOT,
+    stdio: 'inherit'
+  });
+}
+
+async function runBatch(extraArgs = []) {
   if (!existsSync(PACKS_DIR)) {
     console.log(`❌ Packs directory not found: ${PACKS_DIR}`);
     console.log('   Run: pnpm etl local');
     process.exit(1);
   }
 
-  // Get list of all PGS that need processing
-  const manifest = openManifest();
-
-  const allPgs = await dbQuery(
-    manifest.conn,
-    'SELECT DISTINCT pgs_id FROM pgs_scores'
-  );
-  const pgsToProcess = allPgs.map(r => r.pgs_id);
-
-  manifest.close();
-
-  if (pgsToProcess.length === 0) {
-    console.log('✅ No PGS scores in manifest.');
-    return;
-  }
-
-  console.log(`Found ${pgsToProcess.length} PGS scores to normalize`);
-
-  // Use cached results if available
-  if (existsSync(OUTPUT_JSON)) {
-    console.log('\n📄 Using existing TOPMed results file');
-    console.log('   (Delete data_out/pgs_topmed_stats.json to regenerate)\n');
-    await importToManifest();
-    console.log('\n✅ Complete!');
-    return;
-  }
-
-  const pgsListFile = path.join(ROOT, 'data_out', 'pgs_to_process.json');
-  await writeFile(pgsListFile, JSON.stringify(pgsToProcess));
-
   await setupPython();
 
-  console.log(
-    `\n🧬 Computing normalization from TOPMed AF for ${pgsToProcess.length} PGS...`
-  );
-  console.log('   Press Ctrl+C to cancel\n');
-  await runCommand(PYTHON_BIN, [
-    SCRIPT_PATH,
-    PANEL_DIR,
-    PACKS_DIR,
-    OUTPUT_JSON,
-    pgsListFile
-  ]);
+  console.log('\n🧬 Empirical PGS normalization (NYGC 30x × 1000 Genomes)');
+  console.log('   Press Ctrl+C to cancel (will resume on next run)\n');
+  await runCommand(PYTHON_BIN, [SCRIPT_PATH, ...extraArgs]);
 
-  await importToManifest();
-  console.log('\n✅ Complete!');
+  await postProcess();
 }
 
 async function main() {
-  const command = process.argv[2];
+  const args = process.argv.slice(2);
+  const command = args[0];
+
   try {
     if (command === 'reset') {
       await resetStats();
     } else {
-      await runBatch();
+      const passthrough = args.filter(a => a !== 'batch');
+      await runBatch(passthrough);
     }
   } catch (err) {
     if (err.message.includes('Exit 130')) {

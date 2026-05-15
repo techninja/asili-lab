@@ -132,11 +132,42 @@ def build_ref_allele_lookup(panel_dir, chromosomes=None):
     return lookup
 
 def detect_build(user_file):
-    """Detect genome build from user DNA JSON or original file header.
+    """Detect genome build from user DNA file.
     
     AncestryDNA headers contain 'build 37.1', 23andMe uses 'build 37'.
-    Falls back to probing known SNP positions against TOPMed (hg38).
+    Falls back to probing known SNP positions.
     """
+    # For raw txt files, check the header
+    if not user_file.endswith('.json'):
+        with open(user_file) as f:
+            for line in f:
+                if not line.startswith('#'):
+                    break
+                if 'build 37' in line or 'build37' in line.lower():
+                    print(f"  Build detected: hg19 (from header)")
+                    return 'hg19'
+                if 'build 38' in line or 'build38' in line.lower() or 'GRCh38' in line:
+                    print(f"  Build detected: hg38 (from header)")
+                    return 'hg38'
+        # Probe rs3131972 position
+        with open(user_file) as f:
+            for line in f:
+                if line.startswith('#') or line.startswith('rsid'):
+                    continue
+                parts = line.strip().split('\t')
+                if len(parts) >= 3 and parts[0] == 'rs3131972':
+                    pos = int(parts[2])
+                    if 752000 <= pos <= 753000:
+                        print(f"  Build detected: hg19 (rs3131972 at {pos})")
+                        return 'hg19'
+                    elif 817000 <= pos <= 818000:
+                        print(f"  Build detected: hg38 (rs3131972 at {pos})")
+                        return 'hg38'
+                    break
+        print(f"  Build detection inconclusive, assuming hg19")
+        return 'hg19'
+
+    # JSON path
     with open(user_file) as f:
         data = json.load(f)
 
@@ -163,15 +194,37 @@ def detect_build(user_file):
     return 'hg19'
 
 def convert_to_vcf(user_file, user_id, ref_allele_lookup=None, build='hg38'):
-    """Convert user DNA JSON file to VCF.gz with proper REF/ALT assignment."""
+    """Convert user DNA file to VCF.gz with proper REF/ALT assignment.
+    
+    Accepts either:
+    - AncestryDNA raw .txt file (tab-separated: rsid, chr, pos, allele1, allele2)
+    - Parsed JSON file (legacy format from browser app)
+    """
     print(f"Converting {user_file} to VCF...")
     
     Path(TEMP_DIR).mkdir(parents=True, exist_ok=True)
     
-    with open(user_file) as f:
-        data = json.load(f)
-    
-    variants = data['variants']
+    # Detect file format and load variants
+    if user_file.endswith('.json'):
+        with open(user_file) as f:
+            data = json.load(f)
+        variants = data['variants']
+    else:
+        # Raw AncestryDNA/23andMe txt format
+        variants = []
+        with open(user_file) as f:
+            for line in f:
+                if line.startswith('#') or line.startswith('rsid'):
+                    continue
+                parts = line.strip().split('\t')
+                if len(parts) >= 5:
+                    variants.append({
+                        'rsid': parts[0],
+                        'chromosome': parts[1],
+                        'position': int(parts[2]),
+                        'allele1': parts[3],
+                        'allele2': parts[4],
+                    })
     
     output_vcf = f"{TEMP_DIR}/{user_id}_raw.vcf"
     output_vcf_gz = f"{TEMP_DIR}/{user_id}_raw.vcf.gz"
@@ -466,11 +519,11 @@ def bcf_to_chr_parquet(bcf_file, user_id, chromosome):
                 SELECT
                     regexp_replace(vid, '^chr', '') AS variant_id,
                     CAST(ds AS FLOAT) AS genotype_dosage,
-                    CAST(greatest(gp1, gp2, gp3) AS FLOAT) AS imputation_quality
+                    CAST(greatest(0, 1.0 - (gp1*ds*ds + gp2*(1-ds)*(1-ds) + gp3*(2-ds)*(2-ds))) AS FLOAT) AS imputation_quality
                 FROM (
                     SELECT
                         column0 AS vid,
-                        column1 AS ds,
+                        CAST(column1 AS DOUBLE) AS ds,
                         CAST(split_part(column2, ',', 1) AS DOUBLE) AS gp1,
                         CAST(split_part(column2, ',', 2) AS DOUBLE) AS gp2,
                         CAST(split_part(column2, ',', 3) AS DOUBLE) AS gp3
@@ -512,11 +565,11 @@ def merge_chr_parquets(chr_parquets, user_id):
     print(f"\u2713 {total:,} imputed variants saved")
     return output_parquet
 
-def merge_with_genotyped(user_file, imputed_parquet, user_id):
+def merge_with_genotyped(user_file, imputed_parquet, user_id, ref_allele_lookup=None, genotyped_vcf=None):
     """Merge genotyped variants with imputed variants into unified file.
     
-    Uses DuckDB to avoid materializing 70M rows as Python objects.
-    The old approach (.to_pylist() on 70M rows) used 30GB+ RAM.
+    Uses the lifted genotyped VCF (hg38, proper REF/ALT) when available.
+    Falls back to JSON parsing with ref_allele_lookup if no VCF provided.
     """
     print(f"\nMerging with genotyped variants...")
     
@@ -524,31 +577,84 @@ def merge_with_genotyped(user_file, imputed_parquet, user_id):
     import pyarrow as pa
     import pyarrow.parquet as pq
     
-    # Build genotyped table from user JSON
-    with open(user_file) as f:
-        data = json.load(f)
-    
-    valid_chroms = set(str(i) for i in range(1, 23)) | {'X', 'Y', 'MT'}
-    valid_alleles = {'A', 'C', 'G', 'T'}
-    g_vids, g_dosages = [], []
-    
-    for v in data['variants']:
-        c, p = v.get('chromosome', ''), v.get('position', 0)
-        a1, a2 = v.get('allele1', ''), v.get('allele2', '')
-        if c not in valid_chroms or a1 not in valid_alleles or a2 not in valid_alleles:
-            continue
-        ref, alt = sorted([a1, a2])
-        g_vids.append(f"{c}:{p}:{ref}:{alt}")
-        g_dosages.append(0.0 if a1 == a2 and a1 == ref else 2.0 if a1 == a2 else 1.0)
-    
-    genotyped = pa.table({
-        'variant_id': pa.array(g_vids),
-        'genotype_dosage': pa.array(g_dosages, type=pa.float32()),
-        'imputed': pa.array([False] * len(g_vids), type=pa.bool_()),
-        'imputation_quality': pa.array([1.0] * len(g_vids), type=pa.float32()),
-    })
-    print(f"  ✓ {len(g_vids):,} genotyped variants")
-    del g_vids, g_dosages, data
+    # Preferred path: use the lifted genotyped VCF (has correct positions + REF/ALT)
+    if genotyped_vcf and Path(genotyped_vcf).exists():
+        print(f"  Using lifted VCF: {genotyped_vcf}")
+        # Extract variants from VCF via bcftools → DuckDB
+        tsv_file = f"{TEMP_DIR}/genotyped_extract.tsv"
+        with open(tsv_file, 'w') as fout:
+            _run(
+                ['bcftools', 'query', '-f', '%CHROM:%POS:%REF:%ALT\t[%GT]\n', genotyped_vcf],
+                stdout=fout, check=True
+            )
+        
+        con = duckdb.connect()
+        genotyped = con.execute(f"""
+            SELECT
+                column0 AS variant_id,
+                CASE
+                    WHEN column1 = '1/1' OR column1 = '1|1' THEN 2.0
+                    WHEN column1 = '0/1' OR column1 = '1/0' OR column1 = '0|1' OR column1 = '1|0' THEN 1.0
+                    ELSE 0.0
+                END AS genotype_dosage,
+                false AS imputed,
+                1.0 AS imputation_quality
+            FROM read_csv('{tsv_file}', sep='\t', header=false, all_varchar=true)
+            WHERE column1 != '0/0' AND column1 != '0|0'
+        """).arrow()
+        con.close()
+        os.remove(tsv_file)
+        print(f"  ✓ {len(genotyped):,} genotyped variants (het + hom-alt)")
+    else:
+        # Fallback: parse JSON with ref_allele_lookup (may have position issues)
+        if ref_allele_lookup is None:
+            ref_allele_lookup = build_ref_allele_lookup(REF_PANEL_DIR)
+        
+        with open(user_file) as f:
+            data = json.load(f)
+        
+        valid_chroms = set(str(i) for i in range(1, 23)) | {'X', 'Y', 'MT'}
+        valid_alleles = {'A', 'C', 'G', 'T'}
+        g_vids, g_dosages = [], []
+        
+        for v in data['variants']:
+            c, p = v.get('chromosome', ''), v.get('position', 0)
+            a1, a2 = v.get('allele1', ''), v.get('allele2', '')
+            if c not in valid_chroms or a1 not in valid_alleles or a2 not in valid_alleles:
+                continue
+            
+            panel_ref = ref_allele_lookup.get(f"{c}:{p}")
+            if not panel_ref:
+                continue
+            if panel_ref not in (a1, a2):
+                comp1 = COMPLEMENT.get(a1, '')
+                comp2 = COMPLEMENT.get(a2, '')
+                if panel_ref in (comp1, comp2):
+                    a1, a2 = comp1, comp2
+                else:
+                    continue
+            
+            ref = panel_ref
+            if a1 == ref and a2 == ref:
+                continue  # hom-ref, skip
+            elif a1 == ref:
+                alt, dosage = a2, 1.0
+            elif a2 == ref:
+                alt, dosage = a1, 1.0
+            else:
+                alt, dosage = a1, 2.0
+            
+            g_vids.append(f"{c}:{p}:{ref}:{alt}")
+            g_dosages.append(dosage)
+        
+        genotyped = pa.table({
+            'variant_id': pa.array(g_vids),
+            'genotype_dosage': pa.array(g_dosages, type=pa.float32()),
+            'imputed': pa.array([False] * len(g_vids), type=pa.bool_()),
+            'imputation_quality': pa.array([1.0] * len(g_vids), type=pa.float32()),
+        })
+        print(f"  ✓ {len(g_vids):,} genotyped variants (het + hom-alt, JSON fallback)")
+        del g_vids, g_dosages, data
     
     # Use DuckDB to filter imputed (exclude genotyped positions) and union
     con = duckdb.connect()
@@ -648,6 +754,13 @@ def main(user_file, user_id_with_name):
     user_vcf = liftover_vcf(user_vcf, user_id_numeric, build=build)
     timings['Liftover'] = time.monotonic() - t0
     
+    # Save lifted genotyped VCF for merge step (before imputation modifies it)
+    genotyped_vcf = f"{OUTPUT_DIR}/{user_id_with_name}_genotyped.vcf.gz"
+    import shutil
+    shutil.copy2(user_vcf, genotyped_vcf)
+    if Path(user_vcf + '.tbi').exists():
+        shutil.copy2(user_vcf + '.tbi', genotyped_vcf + '.tbi')
+    
     # Step 2: Eagle2 phasing → Beagle imputation per chromosome
     eagle_available = Path(EAGLE_BIN).exists() and Path(GENETIC_MAP).exists()
     if eagle_available:
@@ -661,6 +774,14 @@ def main(user_file, user_id_with_name):
     t0 = time.monotonic()
     def _process_chromosome(chrom):
         """Run full Eagle2→Beagle→BCF→Parquet pipeline for one chromosome."""
+        # Resume: skip if per-chr parquet already exists
+        existing = f"{TEMP_DIR}/{user_id_with_name}_chr{chrom}_imputed.parquet"
+        if Path(existing).exists():
+            import duckdb
+            count = duckdb.connect().execute(f"SELECT count(*) FROM read_parquet('{existing}')").fetchone()[0]
+            print(f"  ↻ chr{chrom} resumed ({count:,} variants)")
+            return chrom, existing
+
         if eagle_available:
             phased_vcf = run_eagle_phasing(user_vcf, user_id_numeric, chrom)
             imputed_vcf = run_beagle_imputation(phased_vcf, user_id_numeric, chrom)
@@ -689,7 +810,9 @@ def main(user_file, user_id_with_name):
     
     # Step 5: Merge with genotyped to create unified file
     t0 = time.monotonic()
-    unified_file = merge_with_genotyped(user_file, parquet_file, user_id_with_name)
+    unified_file = merge_with_genotyped(user_file, parquet_file, user_id_with_name,
+                                        ref_allele_lookup=ref_lookup,
+                                        genotyped_vcf=genotyped_vcf)
     timings['Merge with genotyped'] = time.monotonic() - t0
     
     # Cleanup

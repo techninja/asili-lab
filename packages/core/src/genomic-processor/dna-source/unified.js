@@ -36,7 +36,7 @@ export class UnifiedDNASource extends DNASource {
   async loadDNA() {
     if (this._dnaLoaded) return;
     await this.db.query(
-      `CREATE OR REPLACE TABLE _dna AS SELECT chr, pos, allele_key, variant_id AS user_variant_id, genotype_dosage, imputed, imputation_quality FROM '${this.path}'`
+      `CREATE OR REPLACE TABLE _dna AS SELECT chr, pos, allele_key, variant_id AS user_variant_id, genotype_dosage, imputed, imputation_quality, COALESCE(expected_dosage, 0.0) AS expected_dosage FROM '${this.path}'`
     );
     this._dnaLoaded = true;
   }
@@ -77,11 +77,16 @@ export class UnifiedDNASource extends DNASource {
 
     // allele_key JOIN ensures only the correct allele at multiallelic sites matches.
     log.debug('Materializing matched variants...');
+    // Dosage centering: subtract expected_dosage (2*AF) for imputed variants.
+    // expected_dosage stores 2*AF for ALT allele. If effect_allele != ALT (4th field),
+    // we flip both dosage and expected. This eliminates population-frequency bias.
     await this.db.query(`
       CREATE OR REPLACE TEMP TABLE _matched AS
       SELECT t.pgs_id, t.chr, t.effect_weight,
              d.genotype_dosage AS dosage, d.imputed,
-             t.effect_weight * d.genotype_dosage
+             t.effect_weight
+               * (d.genotype_dosage
+                  - CASE WHEN d.imputed THEN d.expected_dosage ELSE 0.0 END)
                * CASE WHEN d.imputed AND d.imputation_quality IS NOT NULL
                       THEN SQRT(d.imputation_quality) ELSE 1.0 END
                AS contribution
