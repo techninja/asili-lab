@@ -3,7 +3,7 @@
 import { spawn } from 'child_process';
 import prompts from 'prompts';
 import fs from 'fs/promises';
-import { mkdirSync, readdirSync } from 'fs';
+import { mkdirSync, readdirSync, existsSync } from 'fs';
 import path from 'path';
 import '../packages/pipeline/lib/env.js';
 import { buildAsiliArchive, fileSizeMB } from '../packages/core/src/utils/asili-archive.js';
@@ -19,6 +19,7 @@ const COMMANDS = {
   },
 
   impute: { fn: imputeUser, desc: 'Run full imputation pipeline for user' },
+  batch: { fn: batchImpute, desc: 'Impute all raw .txt files from a directory' },
   'verify-panel': {
     fn: verifyPanel,
     desc: 'Check reference panel and estimate coverage'
@@ -74,6 +75,61 @@ async function verifyPanel() {
       code === 0 ? resolve() : reject(new Error(`Exit code ${code}`))
     );
   });
+}
+
+async function batchImpute() {
+  // Accept dir as arg, default to parent directory for raw txt files
+  const searchDir = process.argv[3] || path.resolve('..');
+  const panelDir = process.env.REF_PANEL_DIR || './cache/topmed_reference';
+
+  try {
+    await fs.access(`${panelDir}/chr1.topmed.vcf.gz`);
+  } catch {
+    console.log('\n❌ TOPMed reference panel not found. Run "pnpm imputation setup" first.\n');
+    return;
+  }
+
+  const allFiles = await fs.readdir(searchDir);
+  const txtFiles = allFiles.filter(f => f.endsWith('AncestryDNA.txt') || f.endsWith('23andMe.txt'));
+
+  if (txtFiles.length === 0) {
+    console.log(`\n❌ No raw DNA .txt files found in ${searchDir}\n`);
+    return;
+  }
+
+  console.log(`\n🧬 Batch imputation: ${txtFiles.length} files in ${searchDir}\n`);
+  for (const f of txtFiles) console.log(`  • ${f}`);
+  console.log();
+
+  for (const txtFile of txtFiles) {
+    const name = txtFile.replace(/AncestryDNA\.txt$|23andMe\.txt$/, '').replace(/[^a-zA-Z]/g, '');
+    const fullId = `${Date.now()}_${name}`;
+    const filePath = path.join(searchDir, txtFile);
+
+    console.log(`\n${'═'.repeat(60)}`);
+    console.log(`🧬 Imputing: ${name} (${txtFile})`);
+    console.log(`${'═'.repeat(60)}\n`);
+
+    await new Promise((resolve, reject) => {
+      const proc = spawn(
+        '.venv/bin/python3',
+        ['scripts/impute_user.py', filePath, fullId],
+        {
+          stdio: 'inherit',
+          env: { ...process.env, REF_PANEL_DIR: panelDir }
+        }
+      );
+      proc.on('close', code => {
+        if (code === 0) resolve();
+        else {
+          console.error(`\n⚠️  ${name} failed (exit ${code}), continuing...\n`);
+          resolve(); // Don't reject — continue batch
+        }
+      });
+    });
+  }
+
+  console.log('\n✅ Batch imputation complete\n');
 }
 
 async function imputeUser() {
@@ -197,6 +253,10 @@ async function exportAsili() {
 
     console.log(`\n🧬 Exporting ${name}...`);
 
+    const dr2Path = path.join(__dir, '../data_out/dr2_lookup/dr2_lookup.parquet');
+    const hasDR2 = existsSync(dr2Path);
+    if (hasDR2) console.log(`  📊 DR2 lookup found — baking imputation quality into export`);
+
     const { totalVariants } = buildAsiliArchive({
       inputPath,
       outputPath: outputFile,
@@ -205,7 +265,8 @@ async function exportAsili() {
         individual: name,
         source: 'AncestryDNA + TOPMed imputation'
       },
-      statsQuery: `SELECT chr, COUNT(*) as variants, SUM(CASE WHEN imputed THEN 1 ELSE 0 END) as imputed_count, SUM(CASE WHEN NOT imputed THEN 1 ELSE 0 END) as genotyped_count FROM '${inputPath}' WHERE chr IS NOT NULL GROUP BY chr ORDER BY chr`
+      statsQuery: `SELECT chr, COUNT(*) as variants, SUM(CASE WHEN imputed THEN 1 ELSE 0 END) as imputed_count, SUM(CASE WHEN NOT imputed THEN 1 ELSE 0 END) as genotyped_count FROM '${inputPath}' WHERE chr IS NOT NULL GROUP BY chr ORDER BY chr`,
+      dr2Path: hasDR2 ? dr2Path : undefined
     });
 
     console.log(`  ✅ ${name}_imputed.asili (${fileSizeMB(outputFile)} MB — ${totalVariants.toLocaleString()} variants)`);

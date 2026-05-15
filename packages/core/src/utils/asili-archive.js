@@ -8,7 +8,7 @@
  */
 
 import { execSync } from 'child_process';
-import { mkdirSync, rmSync, writeFileSync, statSync } from 'fs';
+import { mkdirSync, rmSync, writeFileSync, statSync, existsSync } from 'fs';
 import path from 'path';
 
 const CHR_NAMES = { 23: 'X', 24: 'Y', 25: 'MT' };
@@ -23,9 +23,10 @@ const chrLabel = n => CHR_NAMES[n] || String(n);
  * @param {string} opts.format      — archive format identifier (e.g. 'asili-trait-v1', 'asili-unified-v1')
  * @param {object} [opts.meta]      — extra fields merged into manifest.json
  * @param {string} [opts.statsQuery] — optional DuckDB SQL returning per-chr stats columns beyond `chr` and `variants`
+ * @param {string} [opts.dr2Path]   — path to DR2 lookup parquet (joined during export for imputation quality)
  * @returns {{ totalVariants: number, chromosomes: object }}
  */
-export function buildAsiliArchive({ inputPath, outputPath, format, meta = {}, statsQuery }) {
+export function buildAsiliArchive({ inputPath, outputPath, format, meta = {}, statsQuery, dr2Path }) {
   const tmpDir = outputPath + '_tmp';
   rmSync(tmpDir, { recursive: true, force: true });
   mkdirSync(tmpDir, { recursive: true });
@@ -48,9 +49,20 @@ export function buildAsiliArchive({ inputPath, outputPath, format, meta = {}, st
       const label = chrLabel(chr);
       const file = `chr${label}.parquet`;
 
+      let selectExpr;
+      if (dr2Path) {
+        // Use per-chromosome DR2 file if available (much faster than joining full lookup)
+        const chrDr2 = dr2Path.replace('.parquet', `_chr${chr}.parquet`);
+        const useChrDr2 = existsSync(chrDr2);
+        const dr2Ref = useChrDr2 ? chrDr2 : dr2Path;
+        selectExpr = `SELECT d.*, COALESCE(r.dr2, CASE WHEN d.imputed THEN 0.5 ELSE 1.0 END) AS dr2 FROM '${inputPath}' d LEFT JOIN '${dr2Ref}' r USING (allele_key) WHERE d.chr = ${chr} ORDER BY d.pos, d.allele_key`;
+      } else {
+        selectExpr = `SELECT * FROM '${inputPath}' WHERE chr = ${chr} ORDER BY pos, allele_key`;
+      }
+
       execSync(
-        `duckdb -c "COPY (SELECT * FROM '${inputPath}' WHERE chr = ${chr} ORDER BY pos, allele_key) TO '${path.join(tmpDir, file)}' (FORMAT PARQUET, COMPRESSION ZSTD)"`,
-        { maxBuffer: 100 * 1024 * 1024 }
+        `duckdb -c "SET memory_limit='16GB'; COPY (${selectExpr}) TO '${path.join(tmpDir, file)}' (FORMAT PARQUET, COMPRESSION ZSTD)"`,
+        { maxBuffer: 100 * 1024 * 1024, timeout: 600000 }
       );
 
       const chrMeta = { file, variants: Number(row.variants) };

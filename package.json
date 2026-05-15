@@ -19,6 +19,8 @@
     "start": "node scripts/server.js",
     "calc-server": "node scripts/server.js calc dev",
     "scores": "node scripts/scores.js",
+    "dr2": ".venv/bin/python3 scripts/dr2_calibration/compute_dr2.py",
+    "dr2:bake": ".venv/bin/python3 scripts/dr2_calibration/bake_dr2.py",
     "test": "node scripts/test.js",
     "test:ci": "npx vitest run",
     "test:core": "npx vitest run --project core",
