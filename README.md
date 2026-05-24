@@ -9,7 +9,8 @@
 
 <p align="center">
   <a href="https://asili.dev">Website</a> ·
-  <a href="https://app.asili.dev">Launch App (coming soon)</a> ·
+  <a href="https://app.asili.dev/beta">App (beta)</a> ·
+  <a href="https://github.com/techninja/asili">Frontend Repo</a> ·
   <a href="https://github.com/techninja/asili-lab/tree/main/docs">Documentation</a>
 </p>
 
@@ -19,7 +20,7 @@
 
 This repository is the **experimental research workspace** where Asili's genomic scoring pipeline was developed and validated. It contains the ETL pipeline, imputation scripts, CLI scoring tools, and the data processing infrastructure that powers Asili.
 
-**Looking for the app?** The production application is being rebuilt from spec in a separate repository and will be live at [app.asili.dev](https://app.asili.dev) soon. Until then, this repo serves as the reference implementation.
+**Looking for the app?** The browser scoring app is live at [app.asili.dev/beta](https://app.asili.dev/beta) and its source is at [github.com/techninja/asili](https://github.com/techninja/asili). This repo (asili-lab) owns the data pipeline that generates the trait packs the app scores against.
 
 ## What Was Proven Here
 
