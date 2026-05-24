@@ -1,24 +1,24 @@
 {
   "EFO_0000768": {
-    "emoji": "🫁",
+    "emoji": "\ud83e\udec1",
     "trait_type": "disease_risk",
     "editorial_name": "idiopathic pulmonary fibrosis",
     "editorial_description": "A lung disease where scar tissue builds up, making it hard to breathe."
   },
   "EFO_0003959": {
-    "emoji": "👄",
+    "emoji": "\ud83d\udc44",
     "trait_type": "disease_risk",
     "editorial_name": "cleft lip",
     "editorial_description": "A birth defect where the upper lip doesn't form completely, leaving a gap or split."
   },
   "EFO_0004194": {
-    "emoji": "🫘",
+    "emoji": "\ud83e\uded8",
     "trait_type": "disease_risk",
     "editorial_name": "IgA glomerulonephritis",
     "editorial_description": "A kidney disease where the immune system attacks the kidney's filtering units, potentially leading to kidney damage."
   },
   "EFO_0004279": {
-    "emoji": "☀️",
+    "emoji": "\u2600\ufe0f",
     "trait_type": "disease_risk",
     "editorial_name": "Tanning Ability",
     "editorial_description": "How easily your skin darkens after sun exposure, determined by melanin genetics.",
@@ -37,13 +37,13 @@
     }
   },
   "EFO_0004281": {
-    "emoji": "🎗️",
+    "emoji": "\ud83c\udf97\ufe0f",
     "trait_type": "disease_risk",
     "editorial_name": "testicular cancer",
     "editorial_description": "Cancer that develops in the testicles, most commonly affecting younger men."
   },
   "EFO_0004305": {
-    "emoji": "🔴",
+    "emoji": "\ud83d\udd34",
     "trait_type": "disease_risk",
     "editorial_name": "Red Blood Cell Count",
     "editorial_description": "The number of red blood cells carrying oxygen through your bloodstream.",
@@ -62,10 +62,10 @@
     }
   },
   "EFO_0004309": {
-    "emoji": "🩸",
+    "emoji": "\ud83e\ude78",
     "trait_type": "disease_risk",
     "editorial_name": "Platelet Count",
-    "editorial_description": "The number of platelets in your blood — tiny cells that help stop bleeding by forming clots.",
+    "editorial_description": "The number of platelets in your blood \u2014 tiny cells that help stop bleeding by forming clots.",
     "cover_image": {
       "unsplash_id": "cChHDOV_yZ0",
       "url": "https://images.unsplash.com/photo-1585036929505-31afd53dad85?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHw2fHxibG9vZCUyMHBsYXRlbGV0cyUyMGNsb3R0aW5nJTIwYmFuZGFnZXxlbnwwfDB8fHwxNzc3MzQ5NzU0fDA&ixlib=rb-4.1.0&q=80&w=1080",
@@ -81,7 +81,7 @@
     }
   },
   "EFO_0004312": {
-    "emoji": "🫁",
+    "emoji": "\ud83e\udec1",
     "trait_type": "quantitative",
     "editorial_name": "Lung Capacity",
     "editorial_description": "The maximum amount of air your lungs can hold after a deep breath.",
@@ -98,10 +98,13 @@
       "higher": "larger lung capacity",
       "lower": "smaller lung capacity",
       "direction": "higher_better"
-    }
+    },
+    "phenotype_mean": 3.8,
+    "phenotype_sd": 1,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004338": {
-    "emoji": "⚖️",
+    "emoji": "\u2696\ufe0f",
     "trait_type": "quantitative",
     "editorial_name": "Body Weight",
     "editorial_description": "Your overall weight, influenced by genetics, diet, activity, and environment.",
@@ -118,13 +121,16 @@
       "higher": "heavier predicted body weight",
       "lower": "lighter predicted body weight",
       "direction": "neutral"
-    }
+    },
+    "phenotype_mean": 78,
+    "phenotype_sd": 15.5,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004340": {
-    "emoji": "📊",
+    "emoji": "\ud83d\udcca",
     "trait_type": "quantitative",
     "editorial_name": "Body Mass Index",
-    "editorial_description": "A ratio of weight to height used to estimate body fat. The typical range is 18.5–24.9.",
+    "editorial_description": "A ratio of weight to height used to estimate body fat. The typical range is 18.5\u201324.9.",
     "unit": "BMI",
     "cover_image": {
       "unsplash_id": "kp0ygaEf5oU",
@@ -138,13 +144,16 @@
       "higher": "higher body mass index",
       "lower": "lower body mass index",
       "direction": "neutral"
-    }
+    },
+    "phenotype_mean": 27.4,
+    "phenotype_sd": 4.8,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004343": {
-    "emoji": "📏",
+    "emoji": "\ud83d\udccf",
     "trait_type": "quantitative",
     "editorial_name": "Waist-to-Hip Ratio",
-    "editorial_description": "How your body stores fat — a higher ratio means more fat around the waist relative to the hips.",
+    "editorial_description": "How your body stores fat \u2014 a higher ratio means more fat around the waist relative to the hips.",
     "unit": "ratio",
     "cover_image": {
       "unsplash_id": "KLBmnBhPe04",
@@ -158,10 +167,13 @@
       "higher": "higher waist-to-hip ratio (more central fat)",
       "lower": "lower waist-to-hip ratio",
       "direction": "lower_better"
-    }
+    },
+    "phenotype_mean": 0.87,
+    "phenotype_sd": 0.07,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004458": {
-    "emoji": "🔥",
+    "emoji": "\ud83d\udd25",
     "trait_type": "quantitative",
     "editorial_name": "C-Reactive Protein",
     "editorial_description": "A blood marker of inflammation. Higher levels can signal infection, stress, or chronic disease.",
@@ -178,17 +190,23 @@
       "higher": "higher C-reactive protein (more inflammation)",
       "lower": "lower C-reactive protein (less inflammation)",
       "direction": "lower_better"
-    }
+    },
+    "phenotype_mean": 2.5,
+    "phenotype_sd": 4,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004462": {
-    "emoji": "💓",
+    "emoji": "\ud83d\udc93",
     "trait_type": "quantitative",
     "editorial_name": "PR interval",
     "editorial_description": "The time between the start of atrial contraction and ventricular contraction in the heart's electrical cycle.",
-    "unit": "milliseconds"
+    "unit": "milliseconds",
+    "phenotype_mean": 160,
+    "phenotype_sd": 25,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004527": {
-    "emoji": "🔬",
+    "emoji": "\ud83d\udd2c",
     "trait_type": "quantitative",
     "editorial_name": "Mean Corpuscular Hemoglobin",
     "editorial_description": "The average amount of oxygen-carrying hemoglobin packed into each red blood cell.",
@@ -205,10 +223,13 @@
       "photographer": "SHAMBHAVI SINGH",
       "photographer_username": "samsonremix17",
       "description": "Red Blood Cells Edited- I made this just for fun and now 42 thousand people have seen it. I make 3D Renders just as a hobby. I would have never imagined so many people would see it!"
-    }
+    },
+    "phenotype_mean": 14,
+    "phenotype_sd": 1.5,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004530": {
-    "emoji": "🧈",
+    "emoji": "\ud83e\uddc8",
     "trait_type": "quantitative",
     "editorial_name": "Triglycerides",
     "editorial_description": "A common type of fat in your blood. High levels can raise your risk of heart disease.",
@@ -225,10 +246,13 @@
       "higher": "higher triglyceride levels",
       "lower": "lower triglyceride levels",
       "direction": "lower_better"
-    }
+    },
+    "phenotype_mean": 150,
+    "phenotype_sd": 90,
+    "reference_population": "NHANES US adults, fasting"
   },
   "EFO_0004531": {
-    "emoji": "💎",
+    "emoji": "\ud83d\udc8e",
     "trait_type": "quantitative",
     "editorial_name": "Uric Acid",
     "editorial_description": "A waste product in your blood. High levels can crystallize in joints and cause gout.",
@@ -245,13 +269,16 @@
       "higher": "higher uric acid levels",
       "lower": "lower uric acid levels",
       "direction": "lower_better"
-    }
+    },
+    "phenotype_mean": 5.5,
+    "phenotype_sd": 1.4,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004541": {
-    "emoji": "🍬",
+    "emoji": "\ud83c\udf6c",
     "trait_type": "quantitative",
     "editorial_name": "HbA1c",
-    "editorial_description": "A snapshot of your average blood sugar over the past 2–3 months.",
+    "editorial_description": "A snapshot of your average blood sugar over the past 2\u20133 months.",
     "unit": "%",
     "cover_image": {
       "unsplash_id": "ViLMUXvGXVg",
@@ -265,10 +292,13 @@
       "higher": "higher average blood sugar (HbA1c)",
       "lower": "lower average blood sugar",
       "direction": "lower_better"
-    }
+    },
+    "phenotype_mean": 5.4,
+    "phenotype_sd": 0.5,
+    "reference_population": "Non-diabetic adults"
   },
   "EFO_0004574": {
-    "emoji": "🧪",
+    "emoji": "\ud83e\uddea",
     "trait_type": "quantitative",
     "editorial_name": "Total Cholesterol",
     "editorial_description": "The combined level of all cholesterol types in your blood, including HDL and LDL.",
@@ -285,14 +315,17 @@
       "higher": "higher total cholesterol",
       "lower": "lower total cholesterol",
       "direction": "lower_better"
-    }
+    },
+    "phenotype_mean": 200,
+    "phenotype_sd": 40,
+    "reference_population": "NHANES US adults"
   },
   "EFO_0004587": {
-    "emoji": "🦠",
+    "emoji": "\ud83e\udda0",
     "trait_type": "quantitative",
     "editorial_name": "Lymphocyte Count",
-    "editorial_description": "The number of lymphocytes in your blood — key immune cells that fight viruses and coordinate defenses.",
-    "unit": "thousand/μL",
+    "editorial_description": "The number of lymphocytes in your blood \u2014 key immune cells that fight viruses and coordinate defenses.",
+    "unit": "thousand/\u03bcL",
     "cover_image": {
       "unsplash_id": "5peJ_ul3B8g",
       "url": "https://images.unsplash.com/photo-1734607404574-df50e1839d6d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxpbW11bmUlMjBzeXN0ZW0lMjBkZWZlbnNlJTIwc2hpZWxkfGVufDB8MHx8fDE3NzczNDk3MzZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
@@ -305,10 +338,13 @@
       "higher": "higher lymphocyte count",
       "lower": "lower lymphocyte count",
       "direction": "neutral"
-    }
+    },
+    "phenotype_mean": 2,
+    "phenotype_sd": 0.7,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004611": {
-    "emoji": "⬇️",
+    "emoji": "\u2b07\ufe0f",
     "trait_type": "quantitative",
     "editorial_name": "LDL Cholesterol",
     "editorial_description": "The 'bad' cholesterol that can build up in artery walls and increase heart disease risk.",
@@ -325,10 +361,13 @@
       "photographer": "Europeana",
       "photographer_username": "europeana",
       "description": "Title: Embryonic heart Creator: Tinkelenberg, J Date: 1963-04-18 Providing institution: Universitaire Bibliotheken Leiden Aggregator: Dutch Collections for Europe Providing Country: Netherlands Public Domain Embryonic heart by Tinkelenberg, J - Leiden University Libraries, Netherlands - Public Domain. https://www.europeana.eu/item/744/item_3463143"
-    }
+    },
+    "phenotype_mean": 200,
+    "phenotype_sd": 40,
+    "reference_population": "NHANES US adults"
   },
   "EFO_0004612": {
-    "emoji": "⬆️",
+    "emoji": "\u2b06\ufe0f",
     "trait_type": "quantitative",
     "editorial_name": "HDL Cholesterol",
     "editorial_description": "The 'good' cholesterol that helps clear other fats from your bloodstream and protects your heart.",
@@ -345,17 +384,23 @@
       "higher": "higher HDL ('good') cholesterol",
       "lower": "lower HDL cholesterol",
       "direction": "higher_better"
-    }
+    },
+    "phenotype_mean": 200,
+    "phenotype_sd": 40,
+    "reference_population": "NHANES US adults"
   },
   "EFO_0004617": {
-    "emoji": "🫘",
+    "emoji": "\ud83e\uded8",
     "trait_type": "quantitative",
     "editorial_name": "cystatin C level",
     "editorial_description": "A protein marker used to assess kidney function, more accurate than creatinine in some cases.",
-    "unit": "mg/L"
+    "unit": "mg/L",
+    "phenotype_mean": 0.9,
+    "phenotype_sd": 0.15,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004620": {
-    "emoji": "💊",
+    "emoji": "\ud83d\udc8a",
     "trait_type": "quantitative",
     "editorial_name": "Vitamin B12",
     "editorial_description": "A vitamin essential for nerve function, brain health, and making red blood cells.",
@@ -364,7 +409,7 @@
       "unsplash_id": "Y3u0x5GwtuY",
       "url": "https://images.unsplash.com/photo-1768403305881-a7a82fd63512?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHx2aXRhbWluJTIwc3VwcGxlbWVudCUyMHBpbGxzJTIwaGVhbHRofGVufDB8MHx8fDE3NzczNDk3MTd8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "thumb": "https://images.unsplash.com/photo-1768403305881-a7a82fd63512?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHx2aXRhbWluJTIwc3VwcGxlbWVudCUyMHBpbGxzJTIwaGVhbHRofGVufDB8MHx8fDE3NzczNDk3MTd8MA&ixlib=rb-4.1.0&q=80&w=400",
-      "photographer": "Vojtěch Čermák",
+      "photographer": "Vojt\u011bch \u010cerm\u00e1k",
       "photographer_username": "maximalfreak",
       "description": "Pills close up"
     },
@@ -372,17 +417,23 @@
       "higher": "higher vitamin B12 levels",
       "lower": "lower vitamin B12 levels",
       "direction": "higher_better"
-    }
+    },
+    "phenotype_mean": 400,
+    "phenotype_sd": 150,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004630": {
-    "emoji": "🩸",
+    "emoji": "\ud83e\ude78",
     "trait_type": "quantitative",
     "editorial_name": "factor VIII level",
     "editorial_description": "The level of a blood clotting protein in blood. Low levels cause hemophilia A.",
-    "unit": "IU/dL"
+    "unit": "IU/dL",
+    "phenotype_mean": 100,
+    "phenotype_sd": 40,
+    "reference_population": "Reference range"
   },
   "EFO_0004682": {
-    "emoji": "⚡",
+    "emoji": "\u26a1",
     "trait_type": "quantitative",
     "editorial_name": "QT Interval",
     "editorial_description": "A timing measurement of your heart's electrical cycle. Abnormal values can signal heart rhythm issues.",
@@ -396,13 +447,16 @@
       "unsplash_id": "0lrJo37r6Nk",
       "url": "https://images.unsplash.com/photo-1513224502586-d1e602410265?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHw5fHxFQ0clMjBlbGVjdHJvY2FyZGlvZ3JhbSUyMGhlYXJ0JTIwbW9uaXRvcnxlbnwwfDB8fHwxNzc3NDM2NTg0fDA&ixlib=rb-4.1.0&q=80&w=1080",
       "thumb": "https://images.unsplash.com/photo-1513224502586-d1e602410265?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHw5fHxFQ0clMjBlbGVjdHJvY2FyZGlvZ3JhbSUyMGhlYXJ0JTIwbW9uaXRvcnxlbnwwfDB8fHwxNzc3NDM2NTg0fDA&ixlib=rb-4.1.0&q=80&w=400",
-      "photographer": "Jair Lázaro",
+      "photographer": "Jair L\u00e1zaro",
       "photographer_username": "jairlazarofuentes",
       "description": "Electrocardiogram"
-    }
+    },
+    "phenotype_mean": 410,
+    "phenotype_sd": 30,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004695": {
-    "emoji": "👁️",
+    "emoji": "\ud83d\udc41\ufe0f",
     "trait_type": "quantitative",
     "editorial_name": "Eye Pressure",
     "editorial_description": "The fluid pressure inside your eye. Elevated pressure is a major risk factor for glaucoma.",
@@ -419,10 +473,13 @@
       "higher": "higher intraocular pressure",
       "lower": "lower intraocular pressure",
       "direction": "lower_better"
-    }
+    },
+    "phenotype_mean": 15,
+    "phenotype_sd": 3,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004697": {
-    "emoji": "🌸",
+    "emoji": "\ud83c\udf38",
     "trait_type": "quantitative",
     "editorial_name": "Estradiol",
     "editorial_description": "The primary form of estrogen, important for reproductive health, bones, and heart protection.",
@@ -439,10 +496,13 @@
       "higher": "higher estradiol levels",
       "lower": "lower estradiol levels",
       "direction": "neutral"
-    }
+    },
+    "phenotype_mean": 50,
+    "phenotype_sd": 30,
+    "reference_population": "UK Biobank (postmenopausal)"
   },
   "EFO_0004703": {
-    "emoji": "🌺",
+    "emoji": "\ud83c\udf3a",
     "trait_type": "quantitative",
     "editorial_name": "Age at First Period",
     "editorial_description": "When puberty-related menstruation begins, influenced by genetics and environment.",
@@ -459,10 +519,13 @@
       "higher": "later age at first period",
       "lower": "earlier age at first period",
       "direction": "neutral"
-    }
+    },
+    "phenotype_mean": 12.5,
+    "phenotype_sd": 1.3,
+    "reference_population": "European ancestry"
   },
   "EFO_0004704": {
-    "emoji": "🍂",
+    "emoji": "\ud83c\udf42",
     "trait_type": "quantitative",
     "editorial_name": "Age at Menopause",
     "editorial_description": "When menstrual cycles permanently end, typically around age 50.",
@@ -479,10 +542,13 @@
       "higher": "later age at menopause",
       "lower": "earlier age at menopause",
       "direction": "neutral"
-    }
+    },
+    "phenotype_mean": 50.5,
+    "phenotype_sd": 3.8,
+    "reference_population": "European ancestry"
   },
   "EFO_0004713": {
-    "emoji": "🫁",
+    "emoji": "\ud83e\udec1",
     "trait_type": "quantitative",
     "editorial_name": "Lung Airflow Ratio",
     "editorial_description": "How freely air moves through your lungs. A lower ratio can indicate asthma or COPD.",
@@ -499,54 +565,66 @@
       "higher": "higher FEV1/FVC ratio (better airflow)",
       "lower": "lower FEV1/FVC ratio (more airway obstruction)",
       "direction": "higher_better"
-    }
+    },
+    "phenotype_mean": 0.76,
+    "phenotype_sd": 0.07,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004723": {
-    "emoji": "🫀",
+    "emoji": "\ud83e\udec0",
     "trait_type": "disease_risk",
     "editorial_name": "coronary artery calcification",
     "editorial_description": "Calcium deposits in the coronary arteries, a sign of atherosclerosis."
   },
   "EFO_0004761": {
-    "emoji": "💎",
+    "emoji": "\ud83d\udc8e",
     "trait_type": "quantitative",
     "editorial_name": "uric acid measurement",
     "editorial_description": "The level of uric acid in blood, which can cause gout and is associated with kidney disease and cardiovascular risk.",
-    "unit": "mg/dL"
+    "unit": "mg/dL",
+    "phenotype_mean": 5.5,
+    "phenotype_sd": 1.4,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004831": {
-    "emoji": "💓",
+    "emoji": "\ud83d\udc93",
     "trait_type": "quantitative",
     "editorial_name": "RR interval",
     "editorial_description": "The time between consecutive heartbeats, used to calculate heart rate.",
-    "unit": "milliseconds"
+    "unit": "milliseconds",
+    "phenotype_mean": 860,
+    "phenotype_sd": 140,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004842": {
-    "emoji": "🦠",
+    "emoji": "\ud83e\udda0",
     "trait_type": "quantitative",
     "editorial_name": "Eosinophil Count",
     "editorial_description": "A type of white blood cell involved in allergic reactions and fighting parasites.",
-    "unit": "cells/μL",
+    "unit": "cells/\u03bcL",
     "cover_image": {
       "unsplash_id": "AHwSXlwhxvQ",
       "url": "https://images.unsplash.com/photo-1706647154154-4863d3bf5308?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwyfHxhbGxlcmd5JTIwaW1tdW5lJTIwcmVzcG9uc2UlMjBwb2xsZW58ZW58MHwwfHx8MTc3NzM0OTczOHww&ixlib=rb-4.1.0&q=80&w=1080",
       "thumb": "https://images.unsplash.com/photo-1706647154154-4863d3bf5308?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwyfHxhbGxlcmd5JTIwaW1tdW5lJTIwcmVzcG9uc2UlMjBwb2xsZW58ZW58MHwwfHx8MTc3NzM0OTczOHww&ixlib=rb-4.1.0&q=80&w=400",
       "photographer": "National Institute of Allergy and Infectious Diseases",
       "photographer_username": "niaid",
-      "description": "Human Respiratory Syncytial Virus (RSV) 3D rendering of respiratory syncytial virus (RSV)—a common contagious virus that infects the human respiratory tract—colorized in Halloween-appropriate colors (the viral envelope is purple, G- glycoproteins are light blue, and F-glycoproteins are orange). F-glycoproteins allow the virus to fuse with and infect human cells. Stay safe this Halloween! Credit: NIAID https://www.flickr.com/photos/niaid/52456179236/"
+      "description": "Human Respiratory Syncytial Virus (RSV) 3D rendering of respiratory syncytial virus (RSV)\u2014a common contagious virus that infects the human respiratory tract\u2014colorized in Halloween-appropriate colors (the viral envelope is purple, G- glycoproteins are light blue, and F-glycoproteins are orange). F-glycoproteins allow the virus to fuse with and infect human cells. Stay safe this Halloween! Credit: NIAID https://www.flickr.com/photos/niaid/52456179236/"
     },
     "score_interpretation": {
       "higher": "higher eosinophil count",
       "lower": "lower eosinophil count",
       "direction": "neutral"
-    }
+    },
+    "phenotype_mean": 0.2,
+    "phenotype_sd": 0.15,
+    "reference_population": "UK Biobank"
   },
   "EFO_0005035": {
-    "emoji": "🧠",
+    "emoji": "\ud83e\udde0",
     "trait_type": "quantitative",
     "editorial_name": "Hippocampal Volume",
     "editorial_description": "The size of the hippocampus, a brain region essential for forming new memories.",
-    "unit": "mm³",
+    "unit": "mm\u00b3",
     "score_interpretation": {
       "higher": "larger hippocampal volume",
       "lower": "smaller hippocampal volume",
@@ -559,14 +637,17 @@
       "photographer": "National Cancer Institute",
       "photographer_username": "nci",
       "description": "A head x-ray taken by a computer-assisted tomographic (CAT) scanner. This diagnostic technique uses computers to organize thousands of x-rays, taken by a rotating machine around the patient. When first applied in the 1970's it revolutionized detection of brain tumors."
-    }
+    },
+    "phenotype_mean": 3900,
+    "phenotype_sd": 400,
+    "reference_population": "UK Biobank imaging"
   },
   "EFO_0005091": {
-    "emoji": "🦠",
+    "emoji": "\ud83e\udda0",
     "trait_type": "quantitative",
     "editorial_name": "Monocyte Count",
     "editorial_description": "A type of white blood cell that engulfs pathogens and helps coordinate your immune response.",
-    "unit": "cells/μL",
+    "unit": "cells/\u03bcL",
     "cover_image": {
       "unsplash_id": "y-BfSMLL5iM",
       "url": "https://images.unsplash.com/photo-1706643568612-9b13870c8d21?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxpbW11bmUlMjBjZWxscyUyMGRlZmVuc2UlMjBiaW9sb2d5fGVufDB8MHx8fDE3NzczNDk3NDB8MA&ixlib=rb-4.1.0&q=80&w=1080",
@@ -579,17 +660,23 @@
       "higher": "higher monocyte count",
       "lower": "lower monocyte count",
       "direction": "neutral"
-    }
+    },
+    "phenotype_mean": 0.5,
+    "phenotype_sd": 0.2,
+    "reference_population": "UK Biobank"
   },
   "EFO_0005094": {
-    "emoji": "⚡",
+    "emoji": "\u26a1",
     "trait_type": "quantitative",
     "editorial_name": "P wave duration",
     "editorial_description": "The duration of the P wave in an electrocardiogram, representing atrial electrical activity.",
-    "unit": "milliseconds"
+    "unit": "milliseconds",
+    "phenotype_mean": 110,
+    "phenotype_sd": 15,
+    "reference_population": "UK Biobank"
   },
   "EFO_0005106": {
-    "emoji": "🏋️",
+    "emoji": "\ud83c\udfcb\ufe0f",
     "trait_type": "quantitative",
     "editorial_name": "Body Composition",
     "editorial_description": "The balance of fat, muscle, and bone in your body.",
@@ -606,26 +693,29 @@
       "higher": "higher body fat percentage",
       "lower": "leaner body composition",
       "direction": "neutral"
-    }
+    },
+    "phenotype_mean": 25,
+    "phenotype_sd": 8.5,
+    "reference_population": "UK Biobank"
   },
   "EFO_0005140": {
-    "emoji": "🛡️",
+    "emoji": "\ud83d\udee1\ufe0f",
     "trait_type": "disease_risk",
     "editorial_name": "autoimmune disease",
     "editorial_description": "Conditions where the immune system mistakenly attacks the body's own healthy tissues and organs."
   },
   "EFO_0005278": {
-    "emoji": "❤️",
+    "emoji": "\u2764\ufe0f",
     "trait_type": "quantitative",
     "editorial_name": "cardiovascular biomarker level",
     "editorial_description": "Levels of proteins and molecules that indicate cardiovascular disease risk or heart damage.",
     "unit": "varies"
   },
   "EFO_0006335": {
-    "emoji": "📈",
+    "emoji": "\ud83d\udcc8",
     "trait_type": "quantitative",
     "editorial_name": "Systolic Blood Pressure",
-    "editorial_description": "The top number in a blood pressure reading — the pressure when your heart beats.",
+    "editorial_description": "The top number in a blood pressure reading \u2014 the pressure when your heart beats.",
     "unit": "mmHg",
     "cover_image": {
       "unsplash_id": "i1iqQRLULlg",
@@ -639,13 +729,16 @@
       "higher": "higher systolic blood pressure",
       "lower": "lower systolic blood pressure",
       "direction": "lower_better"
-    }
+    },
+    "phenotype_mean": 138,
+    "phenotype_sd": 19,
+    "reference_population": "UK Biobank"
   },
   "EFO_0006336": {
-    "emoji": "📉",
+    "emoji": "\ud83d\udcc9",
     "trait_type": "quantitative",
     "editorial_name": "Diastolic Blood Pressure",
-    "editorial_description": "The bottom number in a blood pressure reading — the pressure when your heart rests between beats.",
+    "editorial_description": "The bottom number in a blood pressure reading \u2014 the pressure when your heart rests between beats.",
     "unit": "mmHg",
     "cover_image": {
       "unsplash_id": "3CGygsItNdE",
@@ -659,10 +752,13 @@
       "higher": "higher diastolic blood pressure",
       "lower": "lower diastolic blood pressure",
       "direction": "lower_better"
-    }
+    },
+    "phenotype_mean": 82,
+    "phenotype_sd": 10,
+    "reference_population": "UK Biobank"
   },
   "EFO_0006527": {
-    "emoji": "🚬",
+    "emoji": "\ud83d\udeac",
     "trait_type": "quantitative",
     "editorial_name": "Smoking Status",
     "editorial_description": "Genetic factors that influence whether someone is likely to smoke tobacco.",
@@ -679,10 +775,14 @@
       "higher": "greater genetic predisposition to smoking",
       "lower": "lower genetic predisposition to smoking",
       "direction": "lower_better"
-    }
+    },
+    "value_display": "percentile_only",
+    "phenotype_mean": 0,
+    "phenotype_sd": 1,
+    "reference_population": "UK Biobank (z-score)"
   },
   "EFO_0006925": {
-    "emoji": "🧬",
+    "emoji": "\ud83e\uddec",
     "trait_type": "quantitative",
     "editorial_name": "Lipoprotein(a)",
     "editorial_description": "A sticky cholesterol particle you inherit. High levels raise heart disease risk regardless of lifestyle.",
@@ -699,17 +799,21 @@
       "higher": "higher lipoprotein(a) levels",
       "lower": "lower lipoprotein(a) levels",
       "direction": "lower_better"
-    }
+    },
+    "phenotype_mean": 30,
+    "phenotype_sd": 30,
+    "reference_population": "UK Biobank"
   },
   "EFO_0007659": {
-    "emoji": "🧬",
+    "emoji": "\ud83e\uddec",
     "trait_type": "quantitative",
     "editorial_name": "APOE genotype",
     "editorial_description": "Genetic variants of the APOE gene that influence Alzheimer's disease risk and cholesterol metabolism.",
-    "unit": "genotype"
+    "unit": "genotype",
+    "value_display": "percentile_only"
   },
   "EFO_0007660": {
-    "emoji": "😰",
+    "emoji": "\ud83d\ude30",
     "trait_type": "quantitative",
     "editorial_name": "Neuroticism",
     "editorial_description": "A personality trait reflecting how strongly you tend to experience stress, worry, and negative emotions.",
@@ -726,17 +830,25 @@
       "higher": "higher neuroticism tendency",
       "lower": "lower neuroticism tendency",
       "direction": "neutral"
-    }
+    },
+    "value_display": "percentile_only",
+    "phenotype_mean": 4,
+    "phenotype_sd": 3.2,
+    "reference_population": "UK Biobank"
   },
   "EFO_0007710": {
-    "emoji": "🧠",
+    "emoji": "\ud83e\udde0",
     "trait_type": "quantitative",
     "editorial_name": "cognitive decline rate",
     "editorial_description": "The rate at which memory and thinking abilities decline, often measured in dementia or Alzheimer's disease.",
-    "unit": "score/year"
+    "unit": "score/year",
+    "value_display": "percentile_only",
+    "phenotype_mean": 0,
+    "phenotype_sd": 1,
+    "reference_population": "UK Biobank (z-score)"
   },
   "EFO_0007777": {
-    "emoji": "🔥",
+    "emoji": "\ud83d\udd25",
     "trait_type": "quantitative",
     "editorial_name": "Basal Metabolic Rate",
     "editorial_description": "How many calories your body burns at complete rest just to keep you alive.",
@@ -753,17 +865,23 @@
       "higher": "higher basal metabolic rate (burns more at rest)",
       "lower": "lower basal metabolic rate",
       "direction": "neutral"
-    }
+    },
+    "phenotype_mean": 1600,
+    "phenotype_sd": 250,
+    "reference_population": "UK Biobank"
   },
   "EFO_0007778": {
-    "emoji": "🫘",
+    "emoji": "\ud83e\uded8",
     "trait_type": "quantitative",
     "editorial_name": "urine albumin-to-creatinine ratio",
     "editorial_description": "A measure of protein in urine, used to detect kidney damage.",
-    "unit": "mg/g"
+    "unit": "mg/g",
+    "phenotype_mean": 0.9,
+    "phenotype_sd": 0.2,
+    "reference_population": "UK Biobank"
   },
   "EFO_0007788": {
-    "emoji": "📏",
+    "emoji": "\ud83d\udccf",
     "trait_type": "quantitative",
     "editorial_name": "Waist-to-Hip Ratio (BMI-Adjusted)",
     "editorial_description": "Where your body stores fat after accounting for overall body size.",
@@ -780,10 +898,13 @@
       "higher": "higher BMI-adjusted waist-hip ratio",
       "lower": "lower BMI-adjusted waist-hip ratio",
       "direction": "lower_better"
-    }
+    },
+    "phenotype_mean": 27.4,
+    "phenotype_sd": 4.8,
+    "reference_population": "UK Biobank"
   },
   "EFO_0007794": {
-    "emoji": "🚬",
+    "emoji": "\ud83d\udeac",
     "trait_type": "quantitative",
     "editorial_name": "Nicotine Metabolism",
     "editorial_description": "How quickly your body breaks down nicotine, which affects smoking habits and quit difficulty.",
@@ -794,16 +915,19 @@
       "thumb": "https://images.unsplash.com/photo-1517474850909-980acfb981da?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwyfHxuaWNvdGluZSUyMGNpZ2FyZXR0ZSUyMG1ldGFib2xpc218ZW58MHwwfHx8MTc3NzM0OTc0OHww&ixlib=rb-4.1.0&q=80&w=400",
       "photographer": "Souris",
       "photographer_username": "madsouris",
-      "description": "Why we burn ourself down…"
+      "description": "Why we burn ourself down\u2026"
     },
     "score_interpretation": {
       "higher": "faster nicotine metabolism",
       "lower": "slower nicotine metabolism",
       "direction": "neutral"
-    }
+    },
+    "phenotype_mean": 0,
+    "phenotype_sd": 1,
+    "reference_population": "UK Biobank (ratio z-score)"
   },
   "EFO_0007825": {
-    "emoji": "👨‍🦲",
+    "emoji": "\ud83d\udc68\u200d\ud83e\uddb2",
     "trait_type": "quantitative",
     "editorial_name": "Male Pattern Baldness",
     "editorial_description": "Hair thinning on the crown and temples, strongly driven by genetics and hormones.",
@@ -820,40 +944,50 @@
       "higher": "greater tendency toward hair loss",
       "lower": "lower tendency toward hair loss",
       "direction": "neutral"
-    }
+    },
+    "value_display": "percentile_only"
   },
   "EFO_0007986": {
-    "emoji": "🔴",
+    "emoji": "\ud83d\udd34",
     "trait_type": "quantitative",
     "editorial_name": "reticulocyte count",
     "editorial_description": "The number of immature red blood cells in blood, typically about 1% of total red blood cells.",
-    "unit": "thousand/μL"
+    "unit": "thousand/\u03bcL",
+    "phenotype_mean": 60,
+    "phenotype_sd": 20,
+    "reference_population": "UK Biobank"
   },
   "EFO_0007990": {
-    "emoji": "🦠",
+    "emoji": "\ud83e\udda0",
     "trait_type": "quantitative",
     "editorial_name": "neutrophil percentage of leukocytes",
     "editorial_description": "The percentage of neutrophils (a type of white blood cell) among all white blood cells.",
-    "unit": "%"
+    "unit": "%",
+    "phenotype_mean": 4.5,
+    "phenotype_sd": 1.5,
+    "reference_population": "UK Biobank"
   },
   "EFO_0007993": {
-    "emoji": "🦠",
+    "emoji": "\ud83e\udda0",
     "trait_type": "quantitative",
     "editorial_name": "lymphocyte percentage of leukocytes",
     "editorial_description": "The percentage of lymphocytes among all white blood cells.",
-    "unit": "%"
+    "unit": "%",
+    "phenotype_mean": 2,
+    "phenotype_sd": 0.7,
+    "reference_population": "UK Biobank"
   },
   "EFO_0008328": {
-    "emoji": "🌅",
+    "emoji": "\ud83c\udf05",
     "trait_type": "quantitative",
     "editorial_name": "Chronotype",
-    "editorial_description": "Whether you're naturally a morning person or a night owl — your built-in body clock preference.",
+    "editorial_description": "Whether you're naturally a morning person or a night owl \u2014 your built-in body clock preference.",
     "unit": "score",
     "cover_image": {
       "unsplash_id": "VhhHrgadfy0",
       "url": "https://images.unsplash.com/photo-1588930874653-e833732364d7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwzfHxzdW5yaXNlJTIwbW9ybmluZyUyMHBlcnNvbiUyMGFsYXJtJTIwY2xvY2t8ZW58MHwwfHx8MTc3NzM0OTcxMXww&ixlib=rb-4.1.0&q=80&w=1080",
       "thumb": "https://images.unsplash.com/photo-1588930874653-e833732364d7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwzfHxzdW5yaXNlJTIwbW9ybmluZyUyMHBlcnNvbiUyMGFsYXJtJTIwY2xvY2t8ZW58MHwwfHx8MTc3NzM0OTcxMXww&ixlib=rb-4.1.0&q=80&w=400",
-      "photographer": "Abdülkadir Vardi",
+      "photographer": "Abd\u00fclkadir Vardi",
       "photographer_username": "kadirvardi",
       "description": "Clock on aquarium"
     },
@@ -861,24 +995,32 @@
       "higher": "stronger morning preference (early bird)",
       "lower": "stronger evening preference (night owl)",
       "direction": "neutral"
-    }
+    },
+    "value_display": "percentile_only",
+    "phenotype_mean": 3,
+    "phenotype_sd": 1,
+    "reference_population": "UK Biobank (morningness score)"
   },
   "EFO_0008373": {
-    "emoji": "❤️",
+    "emoji": "\u2764\ufe0f",
     "trait_type": "quantitative",
     "editorial_name": "left ventricular ejection fraction",
     "editorial_description": "The percentage of blood pumped out of the heart's left ventricle with each beat, a key measure of heart function.",
-    "unit": "%"
+    "unit": "%",
+    "phenotype_mean": 60,
+    "phenotype_sd": 6,
+    "reference_population": "UK Biobank"
   },
   "EFO_0008421": {
-    "emoji": "🫀",
+    "emoji": "\ud83e\udec0",
     "trait_type": "quantitative",
     "editorial_name": "fatty liver disease severity",
     "editorial_description": "The severity of fat buildup in the liver not caused by alcohol, graded by tissue examination.",
-    "unit": "grade"
+    "unit": "grade",
+    "value_display": "percentile_only"
   },
   "EFO_0009102": {
-    "emoji": "👶",
+    "emoji": "\ud83d\udc76",
     "trait_type": "quantitative",
     "editorial_name": "Number of Children",
     "editorial_description": "Genetic factors associated with how many children a person tends to have.",
@@ -895,10 +1037,13 @@
       "higher": "genetic tendency toward more children",
       "lower": "genetic tendency toward fewer children",
       "direction": "neutral"
-    }
+    },
+    "phenotype_mean": 2,
+    "phenotype_sd": 1.2,
+    "reference_population": "UK Biobank"
   },
   "EFO_0009188": {
-    "emoji": "📊",
+    "emoji": "\ud83d\udcca",
     "trait_type": "quantitative",
     "editorial_name": "Red Cell Distribution Width",
     "editorial_description": "How much your red blood cells vary in size. Unusual variation can signal certain types of anemia.",
@@ -915,393 +1060,435 @@
       "photographer": "National Cancer Institute",
       "photographer_username": "nci",
       "description": "Vials of Blood.\r\nVials of blood taken in the course of patient care at the National Institutes of Health Clinical Center in Bethesda, Maryland. Test tubes. Blood test.\r\nCreator:\tDaniel Sone"
-    }
+    },
+    "phenotype_mean": 13.5,
+    "phenotype_sd": 1,
+    "reference_population": "UK Biobank"
   },
   "EFO_0009282": {
-    "emoji": "🧂",
+    "emoji": "\ud83e\uddc2",
     "trait_type": "quantitative",
     "editorial_name": "sodium level",
     "editorial_description": "The level of sodium in blood, important for fluid balance and nerve function.",
-    "unit": "mEq/L"
+    "unit": "mEq/L",
+    "phenotype_mean": 140,
+    "phenotype_sd": 2.5,
+    "reference_population": "UK Biobank"
   },
   "EFO_0009394": {
-    "emoji": "🧠",
+    "emoji": "\ud83e\udde0",
     "trait_type": "quantitative",
     "editorial_name": "hippocampal CA1 volume",
     "editorial_description": "The volume of the CA1 region of the hippocampus, important for memory formation.",
-    "unit": "mm³"
+    "unit": "mm\u00b3",
+    "phenotype_mean": 3900,
+    "phenotype_sd": 400,
+    "reference_population": "UK Biobank imaging"
   },
   "EFO_0009395": {
-    "emoji": "🧠",
+    "emoji": "\ud83e\udde0",
     "trait_type": "quantitative",
     "editorial_name": "hippocampal CA3 volume",
     "editorial_description": "The volume of the CA3 region of the hippocampus, important for memory encoding.",
-    "unit": "mm³"
+    "unit": "mm\u00b3",
+    "phenotype_mean": 3900,
+    "phenotype_sd": 400,
+    "reference_population": "UK Biobank imaging"
   },
   "EFO_0009396": {
-    "emoji": "🧠",
+    "emoji": "\ud83e\udde0",
     "trait_type": "quantitative",
     "editorial_name": "hippocampal CA4 volume",
     "editorial_description": "The volume of the CA4 region of the hippocampus, part of the memory system.",
-    "unit": "mm³"
+    "unit": "mm\u00b3",
+    "phenotype_mean": 3900,
+    "phenotype_sd": 400,
+    "reference_population": "UK Biobank imaging"
   },
   "EFO_0009401": {
-    "emoji": "🧠",
+    "emoji": "\ud83e\udde0",
     "trait_type": "quantitative",
     "editorial_name": "hippocampal-amygdala transition area volume",
     "editorial_description": "The volume of the brain region connecting the hippocampus and amygdala, involved in memory and emotion.",
-    "unit": "mm³"
+    "unit": "mm\u00b3",
+    "phenotype_mean": 3900,
+    "phenotype_sd": 400,
+    "reference_population": "UK Biobank imaging"
   },
   "EFO_0009459": {
-    "emoji": "🦴",
+    "emoji": "\ud83e\uddb4",
     "trait_type": "disease_risk",
     "editorial_name": "ACPA-positive rheumatoid arthritis",
     "editorial_description": "A type of rheumatoid arthritis that tests positive for certain antibodies."
   },
   "EFO_0009460": {
-    "emoji": "🦴",
+    "emoji": "\ud83e\uddb4",
     "trait_type": "disease_risk",
     "editorial_name": "ACPA-negative rheumatoid arthritis",
     "editorial_description": "A type of rheumatoid arthritis that tests negative for certain antibodies."
   },
   "EFO_0009518": {
-    "emoji": "⚠️",
+    "emoji": "\u26a0\ufe0f",
     "trait_type": "disease_risk",
     "editorial_name": "disease complication",
     "editorial_description": "A secondary disease or condition that occurs during or because of another disease or treatment."
   },
   "EFO_0009806": {
-    "emoji": "🦴",
+    "emoji": "\ud83e\uddb4",
     "trait_type": "disease_risk",
     "editorial_name": "hip replacement surgery",
     "editorial_description": "A surgical procedure where the hip joint is replaced with an artificial implant."
   },
   "EFO_0010176": {
-    "emoji": "🎗️",
+    "emoji": "\ud83c\udf97\ufe0f",
     "trait_type": "disease_risk",
     "editorial_name": "keratinocyte carcinoma",
     "editorial_description": "A skin cancer arising from the keratin-producing cells of the epidermis. The term encompasses both basal cell cancer and squamous cell cancer."
   },
   "EFO_0010701": {
-    "emoji": "🔴",
+    "emoji": "\ud83d\udd34",
     "trait_type": "quantitative",
     "editorial_name": "mean reticulocyte volume",
     "editorial_description": "The average volume of immature red blood cells.",
-    "unit": "fL"
+    "unit": "fL",
+    "phenotype_mean": 100,
+    "phenotype_sd": 6,
+    "reference_population": "UK Biobank"
   },
   "EFO_0010733": {
-    "emoji": "🐟",
+    "emoji": "\ud83d\udc1f",
     "trait_type": "quantitative",
     "editorial_name": "polyunsaturated fatty acid level",
     "editorial_description": "The level of healthy fats (like omega-3 and omega-6) in blood, important for heart and brain health.",
-    "unit": "μmol/L"
+    "unit": "\u03bcmol/L",
+    "phenotype_mean": 5.5,
+    "phenotype_sd": 1.4,
+    "reference_population": "UK Biobank"
   },
   "EFO_0010811": {
-    "emoji": "🍞",
+    "emoji": "\ud83c\udf5e",
     "trait_type": "quantitative",
     "editorial_name": "carbohydrate intake",
     "editorial_description": "The amount of carbohydrates consumed in the diet.",
-    "unit": "g/day"
+    "unit": "g/day",
+    "phenotype_mean": 250,
+    "phenotype_sd": 80,
+    "reference_population": "UK Biobank"
   },
   "EFO_0010820": {
-    "emoji": "💔",
+    "emoji": "\ud83d\udc94",
     "trait_type": "disease_risk",
     "editorial_name": "spontaneous coronary artery dissection",
     "editorial_description": "A rare condition where the wall of a coronary artery tears spontaneously."
   },
   "EFO_0010821": {
-    "emoji": "🫀",
+    "emoji": "\ud83e\udec0",
     "trait_type": "quantitative",
     "editorial_name": "liver fat content",
     "editorial_description": "The percentage of fat in the liver, typically measured by MRI.",
-    "unit": "%"
+    "unit": "%",
+    "phenotype_mean": 3,
+    "phenotype_sd": 4,
+    "reference_population": "UK Biobank"
   },
   "EFO_0020865": {
-    "emoji": "🫀",
+    "emoji": "\ud83e\udec0",
     "trait_type": "quantitative",
     "editorial_name": "aortic dimensions",
     "editorial_description": "Measurements of the aorta (main artery), including size and flexibility.",
-    "unit": "mm or %"
+    "unit": "mm or %",
+    "phenotype_mean": 33,
+    "phenotype_sd": 4,
+    "reference_population": "UK Biobank"
   },
   "EFO_0020975": {
-    "emoji": "🦴",
+    "emoji": "\ud83e\uddb4",
     "trait_type": "disease_risk",
     "editorial_name": "knee replacement surgery",
     "editorial_description": "A surgical procedure where the knee joint is replaced with an artificial implant."
   },
   "EFO_0600085": {
-    "emoji": "⚡",
+    "emoji": "\u26a1",
     "trait_type": "quantitative",
     "editorial_name": "PP interval",
     "editorial_description": "The time between consecutive P waves in an electrocardiogram, representing the interval between atrial contractions.",
-    "unit": "milliseconds"
+    "unit": "milliseconds",
+    "phenotype_mean": 860,
+    "phenotype_sd": 140,
+    "reference_population": "UK Biobank"
   },
   "EFO_1001516": {
-    "emoji": "🎗️",
+    "emoji": "\ud83c\udf97\ufe0f",
     "trait_type": "disease_risk",
     "editorial_name": "ovarian serous carcinoma",
     "editorial_description": "A common and aggressive type of ovarian cancer that develops from the cells lining the ovary."
   },
   "EFO_1001870": {
-    "emoji": "🧠",
+    "emoji": "\ud83e\udde0",
     "trait_type": "disease_risk",
     "editorial_name": "late-onset Alzheimer's disease",
     "editorial_description": "The most common form of Alzheimer's disease, occurring in people 65 and older."
   },
   "EFO_1001958": {
-    "emoji": "🎗️",
+    "emoji": "\ud83c\udf97\ufe0f",
     "trait_type": "disease_risk",
     "editorial_name": "high grade ovarian serous adenocarcinoma",
     "editorial_description": "An aggressive and fast-growing type of ovarian cancer."
   },
   "HP_0000175": {
-    "emoji": "👄",
+    "emoji": "\ud83d\udc44",
     "trait_type": "disease_risk",
     "editorial_name": "cleft palate",
     "editorial_description": "A birth defect where the roof of the mouth doesn't close completely, leaving an opening."
   },
   "HP_0000964": {
-    "emoji": "🩹",
+    "emoji": "\ud83e\ude79",
     "trait_type": "disease_risk",
     "editorial_name": "eczema",
     "editorial_description": "A skin condition causing itchy, red, scaly patches, often on the inner elbows and behind knees."
   },
   "HP_0001873": {
-    "emoji": "🩸",
+    "emoji": "\ud83e\ude78",
     "trait_type": "disease_risk",
     "editorial_name": "low platelet count",
     "editorial_description": "A condition where there are too few platelets in the blood, increasing bleeding risk."
   },
   "HP_0002140": {
-    "emoji": "🧠",
+    "emoji": "\ud83e\udde0",
     "trait_type": "disease_risk",
     "editorial_name": "Ischemic stroke",
     "editorial_description": "A stroke caused by blocked blood flow to the brain, often due to a blood clot."
   },
   "HP_0003115": {
-    "emoji": "💓",
+    "emoji": "\ud83d\udc93",
     "trait_type": "disease_risk",
     "editorial_name": "abnormal electrocardiogram",
     "editorial_description": "Abnormal patterns in the heart's electrical activity."
   },
   "HP_0003124": {
-    "emoji": "🧪",
+    "emoji": "\ud83e\uddea",
     "trait_type": "disease_risk",
     "editorial_name": "high cholesterol",
     "editorial_description": "Elevated cholesterol levels in the blood, increasing cardiovascular disease risk."
   },
   "HP_0004418": {
-    "emoji": "🩸",
+    "emoji": "\ud83e\ude78",
     "trait_type": "disease_risk",
     "editorial_name": "vein inflammation with blood clot",
     "editorial_description": "Inflammation of a vein with blood clot formation, causing pain and swelling."
   },
   "HP_0012594": {
-    "emoji": "🫘",
+    "emoji": "\ud83e\uded8",
     "trait_type": "disease_risk",
     "editorial_name": "moderate protein in urine",
     "editorial_description": "Moderately elevated protein levels in urine, indicating possible kidney damage."
   },
   "MONDO:0000334": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "multinodular goiter",
     "editorial_description": "Nodular goiter characterized by more than one discrete tissue mass. [NCIT: C131438]"
   },
   "MONDO:0001056": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "gastric cancer",
     "editorial_description": "Cancer that develops in the stomach."
   },
   "MONDO:0001187": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "urinary bladder cancer",
     "editorial_description": "Cancer that develops in the bladder, the organ that stores urine."
   },
   "MONDO:0001627": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "dementia",
     "editorial_description": "A decline in memory, thinking, and reasoning skills that interferes with daily activities. Can be caused by various brain conditions."
   },
   "MONDO:0001658": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "nontoxic goiter",
     "editorial_description": "Sporadic enlargement of the thyroid gland that is not associated with changes in thyroid function or malignancy. [NCIT: P378]"
   },
   "MONDO:0002009": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "major depressive disorder",
     "editorial_description": "An episode of depression lasting two or more weeks without an intervening episode of mania. [NCIT: P378]"
   },
   "MONDO:0002279": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "iron metabolism disease",
     "editorial_description": "Conditions affecting how the body processes and uses iron."
   },
   "MONDO:0004975": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "Alzheimer disease",
     "editorial_description": "A progressive brain disease that causes memory loss, confusion, and changes in thinking and behavior. The most common cause of dementia."
   },
   "MONDO:0004979": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "asthma",
     "editorial_description": "A chronic condition where airways become inflamed and narrow, causing wheezing, coughing, chest tightness, and difficulty breathing."
   },
   "MONDO:0004986": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "urinary bladder carcinoma",
     "editorial_description": "Cancer that develops in the bladder, the organ that stores urine."
   },
   "MONDO:0005147": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "type 1 diabetes mellitus",
     "editorial_description": "A lifelong condition where the pancreas produces little or no insulin, requiring daily insulin injections."
   },
   "MONDO:0005148": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "type 2 diabetes mellitus",
     "editorial_description": "The most common form of diabetes where the body doesn't use insulin properly, leading to high blood sugar. Often develops gradually and is linked to lifestyle and genetics."
   },
   "MONDO:0005180": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "Parkinson disease",
     "editorial_description": "A brain disorder that causes tremors, stiffness, and difficulty with movement and balance. Symptoms worsen over time."
   },
   "MONDO:0005184": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "pancreatic ductal adenocarcinoma",
     "editorial_description": "An infiltrating glandular cancer that arises from the epithelial cells of the pancreas. It affects males more often than females and the patients are usually over 50 years of age. Microscopically it is characterized by the presence of glandular (ductal) differentiation and desmoplastic stroma formation. Signs and symptoms include pain, loss of weight, and jaundice. It grows rapidly and is usually detected after it has metastasized to other anatomic sites. The prognosis is usually poor."
   },
   "MONDO:0005271": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "allergic disease",
     "editorial_description": "Conditions where the immune system overreacts to normally harmless substances, causing symptoms like sneezing, rashes, or breathing problems."
   },
   "MONDO:0005301": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "multiple sclerosis",
     "editorial_description": "An autoimmune disease that damages the protective covering of nerve fibers, causing communication problems between the brain and body."
   },
   "MONDO:0005575": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "colorectal cancer",
     "editorial_description": "Cancer that develops in the colon (large intestine) or rectum, often starting as small growths called polyps."
   },
   "MONDO:0007915": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "systemic lupus erythematosus",
     "editorial_description": "An autoimmune disease that can affect multiple organs, causing joint pain, skin rashes, and organ damage."
   },
   "MONDO:0008315": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "prostate cancer",
     "editorial_description": "Cancer that develops in the prostate gland in men."
   },
   "MONDO:0015129": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "chronic primary adrenal insufficiency",
     "editorial_description": "A chronic disorder of the adrenal cortex resulting in the inadequate production of glucocorticoid and mineralocorticoid hormones. [Orphanet: 101959]"
   },
   "MONDO:0015263": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "Brugada syndrome",
     "editorial_description": "A genetic heart condition that can cause dangerous irregular heartbeats."
   },
   "MONDO:0015486": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "keratoconus",
     "editorial_description": "A degenerative, structural disorder of the eye, characterized by a cone-shaped protrusion of the cornea. It may lead to visual disturbances. [NCIT: P378]"
   },
   "MONDO:0015722": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "congenital vitamin K-dependent coagulation factors deficiency",
     "editorial_description": "Congenital vitamin K-dependent coagulation factors deficiency involving multiple coagulation factors."
   },
   "MONDO:0018102": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "corneal dystrophy",
     "editorial_description": "The term corneal dystrophy embraces a heterogeneous group of bilateral genetically determined non-inflammatory corneal diseases that are usually restricted to the cornea. The designation is imprecise but remains in vogue because of its clinical value. [Orphanet: 34533]"
   },
   "MONDO:0018177": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "glioblastoma",
     "editorial_description": "A malignant astrocytoma characterized by the presence of small areas of necrotizing tissue that is surrounded by anaplastic cells as well as the presence of hyperplastic blood vessels, and that has a poor prognosis."
   },
   "MONDO:0018906": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "follicular lymphoma",
     "editorial_description": "A slow-growing type of blood cancer that affects B-cells, a type of white blood cell."
   },
   "MONDO:0021115": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "luminal B breast carcinoma",
     "editorial_description": "A biologic subset of breast cancer defined by low to moderate expression of genes characteristic of luminal epithelial cells including estrogen receptor (ER), and high expression of GGH, LAPTM4B, and CCNE1. This subtype of breast cancer is associated with a good prognosis, although not as favorable as the luminal A subtype."
   },
   "MONDO:0021116": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "luminal A breast carcinoma",
     "editorial_description": "A biologic subset of breast cancer defined by high expression of genes characteristic of luminal epithelial cells, including estrogen receptor (ER), estrogen regulated protein LIV-1, and the transcription factors hepatocyte nuclear factor 3, HNF3A, XBP1, and GATA 3. This subtype of breast cancer is associated with a good prognosis."
   },
   "MONDO:0024431": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "bilirubin metabolism disease",
     "editorial_description": "A condition where the body has trouble processing bilirubin, leading to yellowing of the skin and eyes."
   },
   "MONDO:0100096": {
-    "emoji": "🏥",
+    "emoji": "\ud83c\udfe5",
     "trait_type": "disease_risk",
     "editorial_name": "COVID-19",
     "editorial_description": "A disease caused by infection with severe acute respiratory syndrome coronavirus 2. [MONDO: patterns/infectious_disease_by_agent]"
   },
   "OBA_0003277": {
-    "emoji": "🩸",
+    "emoji": "\ud83e\ude78",
     "trait_type": "quantitative",
     "editorial_name": "mean platelet volume",
     "editorial_description": "The average size of platelets in your blood.",
-    "unit": "fL"
+    "unit": "fL",
+    "phenotype_mean": 9,
+    "phenotype_sd": 1,
+    "reference_population": "UK Biobank"
   },
   "OBA_0003460": {
-    "emoji": "🔴",
+    "emoji": "\ud83d\udd34",
     "trait_type": "quantitative",
     "editorial_name": "mean red blood cell volume",
     "editorial_description": "The average size of red blood cells in your blood.",
-    "unit": "fL"
+    "unit": "fL",
+    "phenotype_mean": 90,
+    "phenotype_sd": 5,
+    "reference_population": "UK Biobank"
   },
   "OBA_0003747": {
-    "emoji": "🫘",
+    "emoji": "\ud83e\uded8",
     "trait_type": "quantitative",
     "editorial_name": "Kidney Filtration Rate",
     "editorial_description": "How efficiently your kidneys clean waste from your blood. Higher is better.",
-    "unit": "mL/min/1.73m²",
+    "unit": "mL/min/1.73m\u00b2",
     "score_interpretation": {
       "higher": "higher filtration rate (better kidney function)",
       "lower": "lower filtration rate",
@@ -1314,30 +1501,36 @@
       "photographer": "Europeana",
       "photographer_username": "europeana",
       "description": "Title: Kidneys Creator: Tinkelenberg, J Date: 1958-06-28 Providing institution: Universitaire Bibliotheken Leiden Aggregator: Dutch Collections for Europe Providing Country: Netherlands Public Domain Kidneys by Tinkelenberg, J - Leiden University Libraries, Netherlands - Public Domain. https://www.europeana.eu/item/744/item_3463115"
-    }
+    },
+    "phenotype_mean": 90,
+    "phenotype_sd": 15,
+    "reference_population": "UK Biobank"
   },
   "OBA_1000110": {
-    "emoji": "🦴",
+    "emoji": "\ud83e\uddb4",
     "trait_type": "quantitative",
     "editorial_name": "Bone Density",
     "editorial_description": "How strong and dense your bones are. Lower density increases fracture risk.",
-    "unit": "g/cm²",
+    "unit": "g/cm\u00b2",
     "cover_image": {
       "unsplash_id": "nLXh0_W7YRs",
       "url": "https://images.unsplash.com/photo-1539814706939-073a2aa5c190?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHw5fHxza2VsZXRvbiUyMGJvbmVzJTIweHJheSUyMHN0cmVuZ3RofGVufDB8MHx8fDE3NzczNDk3MTV8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "thumb": "https://images.unsplash.com/photo-1539814706939-073a2aa5c190?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHw5fHxza2VsZXRvbiUyMGJvbmVzJTIweHJheSUyMHN0cmVuZ3RofGVufDB8MHx8fDE3NzczNDk3MTV8MA&ixlib=rb-4.1.0&q=80&w=400",
       "photographer": "Joyce Hankins",
       "photographer_username": "moonshadowpress",
-      "description": "I was feeling some Halloween spirit in studio today after I found some of my old wax transfers of medical drawings! The diagrams are from the Grey’s Anatomy medical book. Happy Halloween!"
+      "description": "I was feeling some Halloween spirit in studio today after I found some of my old wax transfers of medical drawings! The diagrams are from the Grey\u2019s Anatomy medical book. Happy Halloween!"
     },
     "score_interpretation": {
       "higher": "higher bone mineral density (stronger bones)",
       "lower": "lower bone mineral density",
       "direction": "higher_better"
-    }
+    },
+    "phenotype_mean": 0,
+    "phenotype_sd": 1,
+    "reference_population": "T-score reference"
   },
   "OBA_1000840": {
-    "emoji": "🍺",
+    "emoji": "\ud83c\udf7a",
     "trait_type": "quantitative",
     "editorial_name": "Alcohol Consumption",
     "editorial_description": "How much and how often you tend to drink alcohol, partly shaped by your genes.",
@@ -1354,10 +1547,13 @@
       "higher": "tendency toward higher alcohol consumption",
       "lower": "tendency toward lower alcohol consumption",
       "direction": "lower_better"
-    }
+    },
+    "phenotype_mean": 10,
+    "phenotype_sd": 12,
+    "reference_population": "UK Biobank"
   },
   "OBA_1000968": {
-    "emoji": "☀️",
+    "emoji": "\u2600\ufe0f",
     "trait_type": "quantitative",
     "editorial_name": "Vitamin D",
     "editorial_description": "A vitamin your body makes from sunlight, important for bones, immunity, and mood.",
@@ -1374,17 +1570,23 @@
       "higher": "higher vitamin D levels",
       "lower": "lower vitamin D levels",
       "direction": "higher_better"
-    }
+    },
+    "phenotype_mean": 25,
+    "phenotype_sd": 12,
+    "reference_population": "UK Biobank"
   },
   "OBA_1000983": {
-    "emoji": "🦋",
+    "emoji": "\ud83e\udd8b",
     "trait_type": "quantitative",
     "editorial_name": "thyroid stimulating hormone level",
     "editorial_description": "The level of TSH hormone that regulates thyroid function.",
-    "unit": "mIU/L"
+    "unit": "mIU/L",
+    "phenotype_mean": 2,
+    "phenotype_sd": 1.2,
+    "reference_population": "UK Biobank"
   },
   "OBA_1001005": {
-    "emoji": "🫘",
+    "emoji": "\ud83e\uded8",
     "trait_type": "quantitative",
     "editorial_name": "Creatinine",
     "editorial_description": "A waste product filtered by your kidneys. Rising levels can be an early sign of kidney trouble.",
@@ -1401,17 +1603,23 @@
       "photographer": "Europeana",
       "photographer_username": "europeana",
       "description": "Title: Kidneys and the adrenal glands Creator: Wetselaar-Whittaker, J Date: 1988-08-31 Providing institution: Universitaire Bibliotheken Leiden Aggregator: Dutch Collections for Europe Providing Country: Netherlands Public Domain Kidneys and the adrenal glands by Wetselaar-Whittaker, J - Leiden University Libraries, Netherlands - Public Domain. https://www.europeana.eu/item/744/item_3462131"
-    }
+    },
+    "phenotype_mean": 0.9,
+    "phenotype_sd": 0.2,
+    "reference_population": "UK Biobank"
   },
   "OBA_1001010": {
-    "emoji": "🦋",
+    "emoji": "\ud83e\udd8b",
     "trait_type": "quantitative",
     "editorial_name": "thyroxine level",
     "editorial_description": "The level of T4 thyroid hormone in blood, important for metabolism.",
-    "unit": "μg/dL"
+    "unit": "\u03bcg/dL",
+    "phenotype_mean": 8,
+    "phenotype_sd": 1.5,
+    "reference_population": "UK Biobank"
   },
   "OBA_1001085": {
-    "emoji": "📏",
+    "emoji": "\ud83d\udccf",
     "trait_type": "quantitative",
     "editorial_name": "Waist Circumference",
     "editorial_description": "The measurement around your midsection, an indicator of abdominal fat.",
@@ -1428,17 +1636,23 @@
       "higher": "larger waist circumference",
       "lower": "smaller waist circumference",
       "direction": "lower_better"
-    }
+    },
+    "phenotype_mean": 0.87,
+    "phenotype_sd": 0.07,
+    "reference_population": "UK Biobank"
   },
   "OBA_1001086": {
-    "emoji": "⚡",
+    "emoji": "\u26a1",
     "trait_type": "quantitative",
     "editorial_name": "QRS duration",
     "editorial_description": "The duration of the QRS complex in an electrocardiogram, representing ventricular electrical activity.",
-    "unit": "milliseconds"
+    "unit": "milliseconds",
+    "phenotype_mean": 95,
+    "phenotype_sd": 15,
+    "reference_population": "UK Biobank"
   },
   "OBA_1001087": {
-    "emoji": "💓",
+    "emoji": "\ud83d\udc93",
     "trait_type": "quantitative",
     "editorial_name": "Resting Heart Rate",
     "editorial_description": "How many times your heart beats per minute at rest. Lower is generally healthier.",
@@ -1455,94 +1669,131 @@
       "higher": "faster resting heart rate",
       "lower": "slower resting heart rate",
       "direction": "lower_better"
-    }
+    },
+    "phenotype_mean": 70,
+    "phenotype_sd": 12,
+    "reference_population": "UK Biobank"
   },
   "OBA_2045237": {
-    "emoji": "🧠",
+    "emoji": "\ud83e\udde0",
     "trait_type": "quantitative",
     "editorial_name": "dentate gyrus volume",
     "editorial_description": "The volume of the dentate gyrus, a part of the hippocampus involved in memory formation.",
-    "unit": "mm³"
+    "unit": "mm\u00b3",
+    "phenotype_mean": 300,
+    "phenotype_sd": 40,
+    "reference_population": "UK Biobank imaging"
   },
   "OBA_2045244": {
-    "emoji": "🧠",
+    "emoji": "\ud83e\udde0",
     "trait_type": "quantitative",
     "editorial_name": "hippocampal formation volume",
     "editorial_description": "The volume of the hippocampal formation, a brain region critical for memory.",
-    "unit": "mm³"
+    "unit": "mm\u00b3",
+    "phenotype_mean": 3900,
+    "phenotype_sd": 400,
+    "reference_population": "UK Biobank imaging"
   },
   "OBA_2045245": {
-    "emoji": "🧠",
+    "emoji": "\ud83e\udde0",
     "trait_type": "quantitative",
     "editorial_name": "hippocampus fimbria volume",
     "editorial_description": "The volume of the fimbria, a fiber bundle in the hippocampus.",
-    "unit": "mm³"
+    "unit": "mm\u00b3",
+    "phenotype_mean": 90,
+    "phenotype_sd": 20,
+    "reference_population": "UK Biobank imaging"
   },
   "OBA_2050005": {
-    "emoji": "🧠",
+    "emoji": "\ud83e\udde0",
     "trait_type": "quantitative",
     "editorial_name": "parasubiculum volume",
     "editorial_description": "The volume of the parasubiculum, a part of the hippocampal region involved in spatial memory.",
-    "unit": "mm³"
+    "unit": "mm\u00b3",
+    "phenotype_mean": 450,
+    "phenotype_sd": 55,
+    "reference_population": "UK Biobank imaging"
   },
   "OBA_2050024": {
-    "emoji": "🧠",
+    "emoji": "\ud83e\udde0",
     "trait_type": "quantitative",
     "editorial_name": "subiculum volume",
     "editorial_description": "The volume of the subiculum, a hippocampal region that processes memory information.",
-    "unit": "mm³"
+    "unit": "mm\u00b3",
+    "phenotype_mean": 450,
+    "phenotype_sd": 55,
+    "reference_population": "UK Biobank imaging"
   },
   "OBA_2050043": {
-    "emoji": "🧠",
+    "emoji": "\ud83e\udde0",
     "trait_type": "quantitative",
     "editorial_name": "hippocampal fissure volume",
     "editorial_description": "The volume of the hippocampal fissure, a groove in the hippocampus.",
-    "unit": "mm³"
+    "unit": "mm\u00b3",
+    "phenotype_mean": 3900,
+    "phenotype_sd": 400,
+    "reference_population": "UK Biobank imaging"
   },
   "OBA_2050049": {
-    "emoji": "🧠",
+    "emoji": "\ud83e\udde0",
     "trait_type": "quantitative",
     "editorial_name": "presubiculum volume",
     "editorial_description": "The volume of the presubiculum, a hippocampal region involved in spatial navigation.",
-    "unit": "mm³"
+    "unit": "mm\u00b3",
+    "phenotype_mean": 450,
+    "phenotype_sd": 55,
+    "reference_population": "UK Biobank imaging"
   },
   "OBA_2050050": {
-    "emoji": "🧠",
+    "emoji": "\ud83e\udde0",
     "trait_type": "quantitative",
     "editorial_name": "hippocampus molecular layer volume",
     "editorial_description": "The volume of the molecular layer of the hippocampus.",
-    "unit": "mm³"
+    "unit": "mm\u00b3",
+    "phenotype_mean": 580,
+    "phenotype_sd": 65,
+    "reference_population": "UK Biobank imaging"
   },
   "OBA_2050062": {
-    "emoji": "🫀",
+    "emoji": "\ud83e\udec0",
     "trait_type": "quantitative",
     "editorial_name": "ALT level (liver enzyme)",
     "editorial_description": "A liver enzyme measured in blood to assess liver health and damage.",
-    "unit": "U/L"
+    "unit": "U/L",
+    "phenotype_mean": 25,
+    "phenotype_sd": 15,
+    "reference_population": "UK Biobank"
   },
   "OBA_2050084": {
-    "emoji": "🦠",
+    "emoji": "\ud83e\udda0",
     "trait_type": "quantitative",
     "editorial_name": "IgE antibody level",
     "editorial_description": "The level of IgE antibodies in blood, elevated in allergies and parasitic infections.",
-    "unit": "IU/mL"
+    "unit": "IU/mL",
+    "phenotype_mean": 50,
+    "phenotype_sd": 100,
+    "reference_population": "UK Biobank"
   },
   "OBA_2050117": {
-    "emoji": "👶",
+    "emoji": "\ud83d\udc76",
     "trait_type": "quantitative",
     "editorial_name": "reproductive behavior",
     "editorial_description": "Traits related to reproductive choices and behaviors.",
-    "unit": "score"
+    "unit": "score",
+    "value_display": "percentile_only"
   },
   "OBA_2050200": {
-    "emoji": "🔬",
+    "emoji": "\ud83d\udd2c",
     "trait_type": "quantitative",
     "editorial_name": "PSA level",
     "editorial_description": "Prostate-specific antigen level in blood, used to screen for prostate cancer and monitor prostate health.",
-    "unit": "ng/mL"
+    "unit": "ng/mL",
+    "phenotype_mean": 1.5,
+    "phenotype_sd": 2,
+    "reference_population": "UK Biobank males"
   },
   "OBA_VT0000188": {
-    "emoji": "🍬",
+    "emoji": "\ud83c\udf6c",
     "trait_type": "quantitative",
     "editorial_name": "Blood Glucose",
     "editorial_description": "The amount of sugar circulating in your blood, your body's primary energy source.",
@@ -1559,14 +1810,17 @@
       "higher": "higher fasting blood glucose",
       "lower": "lower fasting blood glucose",
       "direction": "lower_better"
-    }
+    },
+    "phenotype_mean": 95,
+    "phenotype_sd": 12,
+    "reference_population": "Fasting, non-diabetic"
   },
   "OBA_VT0000217": {
-    "emoji": "🦠",
+    "emoji": "\ud83e\udda0",
     "trait_type": "quantitative",
     "editorial_name": "White Blood Cell Count",
     "editorial_description": "The number of infection-fighting white blood cells circulating in your blood.",
-    "unit": "thousand/μL",
+    "unit": "thousand/\u03bcL",
     "cover_image": {
       "unsplash_id": "hT57ehNeWk4",
       "url": "https://images.unsplash.com/photo-1706478106657-1a8d73d82f29?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxpbW11bmUlMjBzeXN0ZW0lMjB3aGl0ZSUyMGJsb29kJTIwY2VsbHMlMjBtaWNyb3Njb3BlfGVufDB8MHx8fDE3NzczNDk2ODR8MA&ixlib=rb-4.1.0&q=80&w=1080",
@@ -1579,10 +1833,13 @@
       "higher": "higher white blood cell count",
       "lower": "lower white blood cell count",
       "direction": "neutral"
-    }
+    },
+    "phenotype_mean": 7,
+    "phenotype_sd": 2,
+    "reference_population": "UK Biobank"
   },
   "OBA_VT0001253": {
-    "emoji": "📏",
+    "emoji": "\ud83d\udccf",
     "trait_type": "quantitative",
     "editorial_name": "Height",
     "editorial_description": "How tall you are, shaped by hundreds of genetic variants plus nutrition during growth.",
@@ -1599,36 +1856,46 @@
       "higher": "taller predicted height",
       "lower": "shorter predicted height",
       "direction": "neutral"
-    }
+    },
+    "phenotype_mean": 168.5,
+    "phenotype_sd": 9.3,
+    "reference_population": "UK Biobank (mixed sex)"
   },
   "OBA_VT0003564": {
-    "emoji": "💉",
+    "emoji": "\ud83d\udc89",
     "trait_type": "quantitative",
     "editorial_name": "insulin secretion",
     "editorial_description": "The ability of the pancreas to produce and release insulin in response to blood sugar.",
-    "unit": "score"
+    "unit": "score",
+    "value_display": "percentile_only",
+    "phenotype_mean": 0,
+    "phenotype_sd": 1,
+    "reference_population": "UK Biobank (z-score)"
   },
   "OBA_VT0005372": {
-    "emoji": "⏳",
+    "emoji": "\u23f3",
     "trait_type": "quantitative",
     "editorial_name": "lifespan",
     "editorial_description": "The length of life, influenced by genetics, lifestyle, and environment.",
-    "unit": "years"
+    "unit": "years",
+    "phenotype_mean": 80,
+    "phenotype_sd": 10,
+    "reference_population": "UK Biobank"
   },
   "PATO:0000383": {
-    "emoji": "♀️",
+    "emoji": "\u2640\ufe0f",
     "trait_type": "disease_risk",
     "editorial_name": "biological sex: female",
     "editorial_description": "Biological sex characterized by the ability to produce eggs and typically having XX chromosomes."
   },
   "PATO:0000384": {
-    "emoji": "♂️",
+    "emoji": "\u2642\ufe0f",
     "trait_type": "disease_risk",
     "editorial_name": "biological sex: male",
     "editorial_description": "Biological sex characterized by the ability to produce sperm and typically having XY chromosomes."
   },
   "EFO_0007800": {
-    "emoji": "🏋️",
+    "emoji": "\ud83c\udfcb\ufe0f",
     "trait_type": "quantitative",
     "editorial_name": "Body Fat Percentage",
     "editorial_description": "The proportion of your body weight that comes from fat tissue.",
@@ -1644,10 +1911,13 @@
       "photographer": "Huha Inc.",
       "photographer_username": "wearhuha",
       "description": "Measuring Tape - How to Measure Your Hips - Huha: Healthy Undies"
-    }
+    },
+    "phenotype_mean": 25,
+    "phenotype_sd": 8.5,
+    "reference_population": "UK Biobank"
   },
   "OBA_1000032": {
-    "emoji": "📏",
+    "emoji": "\ud83d\udccf",
     "trait_type": "quantitative",
     "editorial_name": "Hip Circumference",
     "editorial_description": "The measurement around the widest part of your hips.",
@@ -1663,10 +1933,13 @@
       "higher": "larger hip circumference",
       "lower": "smaller hip circumference",
       "direction": "neutral"
-    }
+    },
+    "phenotype_mean": 103,
+    "phenotype_sd": 9,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004344": {
-    "emoji": "👶",
+    "emoji": "\ud83d\udc76",
     "trait_type": "quantitative",
     "editorial_name": "Birth Weight",
     "editorial_description": "How much you weighed at birth, shaped by both genetics and the prenatal environment.",
@@ -1682,10 +1955,13 @@
       "higher": "higher predicted birth weight",
       "lower": "lower predicted birth weight",
       "direction": "neutral"
-    }
+    },
+    "phenotype_mean": 78,
+    "phenotype_sd": 15.5,
+    "reference_population": "UK Biobank"
   },
   "HP_0001000": {
-    "emoji": "🎨",
+    "emoji": "\ud83c\udfa8",
     "trait_type": "quantitative",
     "editorial_name": "Skin Pigmentation",
     "editorial_description": "Your natural skin color, determined by the type and amount of melanin your body produces.",
@@ -1701,10 +1977,13 @@
       "higher": "darker skin pigmentation",
       "lower": "lighter skin pigmentation",
       "direction": "neutral"
-    }
+    },
+    "phenotype_mean": 0,
+    "phenotype_sd": 1,
+    "reference_population": "Reference (z-score)"
   },
   "HP_0000545": {
-    "emoji": "👓",
+    "emoji": "\ud83d\udc53",
     "trait_type": "quantitative",
     "editorial_name": "Nearsightedness",
     "editorial_description": "Difficulty seeing distant objects clearly, caused by the eye focusing light in front of the retina.",
@@ -1720,13 +1999,16 @@
       "higher": "greater tendency toward nearsightedness",
       "lower": "lower tendency toward nearsightedness",
       "direction": "lower_better"
-    }
+    },
+    "phenotype_mean": -1,
+    "phenotype_sd": 2.5,
+    "reference_population": "UK Biobank (diopters)"
   },
   "EFO_0004833": {
-    "emoji": "🔬",
+    "emoji": "\ud83d\udd2c",
     "trait_type": "quantitative",
     "editorial_name": "Neutrophil Count",
-    "editorial_description": "The most common white blood cell — your first line of defense against bacterial infections.",
+    "editorial_description": "The most common white blood cell \u2014 your first line of defense against bacterial infections.",
     "score_interpretation": {
       "higher": "higher neutrophil count",
       "lower": "lower neutrophil count",
@@ -1739,10 +2021,13 @@
       "photographer": "National Institute of Allergy and Infectious Diseases",
       "photographer_username": "niaid",
       "description": "Post-baccalaureate Fellow, NIAID Lab of Malaria and Vector Research Post-baccalaureate fellow in the NIAID Laboratory of Malaria and Vector Research uses a dissecting microscope to perform morphological identification of preserved mosquito specimens. Credit: NIAID https://www.flickr.com/photos/niaid/46519168092/"
-    }
+    },
+    "phenotype_mean": 4.5,
+    "phenotype_sd": 1.5,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004348": {
-    "emoji": "🩸",
+    "emoji": "\ud83e\ude78",
     "trait_type": "quantitative",
     "editorial_name": "Hematocrit",
     "editorial_description": "The percentage of your blood that is made up of red blood cells.",
@@ -1758,13 +2043,16 @@
       "photographer": "National Cancer Institute",
       "photographer_username": "nci",
       "description": "\tSix blood samples in test tubes. Blood test."
-    }
+    },
+    "phenotype_mean": 42,
+    "phenotype_sd": 3.5,
+    "reference_population": "UK Biobank"
   },
   "EFO_0005763": {
-    "emoji": "💓",
+    "emoji": "\ud83d\udc93",
     "trait_type": "quantitative",
     "editorial_name": "Pulse Pressure",
-    "editorial_description": "The gap between your systolic and diastolic blood pressure — reflects artery stiffness.",
+    "editorial_description": "The gap between your systolic and diastolic blood pressure \u2014 reflects artery stiffness.",
     "score_interpretation": {
       "higher": "wider pulse pressure",
       "lower": "narrower pulse pressure",
@@ -1777,13 +2065,16 @@
       "photographer": "Mufid Majnun",
       "photographer_username": "mufidpwt",
       "description": "Pelayanan Posbindu di desa Wlahar Kecamatan Wangon dengan pemeriksaan Tensi (20/5-2021)"
-    }
+    },
+    "phenotype_mean": 55,
+    "phenotype_sd": 15,
+    "reference_population": "UK Biobank"
   },
   "EFO_0004908": {
-    "emoji": "⚡",
+    "emoji": "\u26a1",
     "trait_type": "quantitative",
     "editorial_name": "Testosterone",
-    "editorial_description": "A hormone that drives muscle growth, bone density, and energy — present in all sexes at different levels.",
+    "editorial_description": "A hormone that drives muscle growth, bone density, and energy \u2014 present in all sexes at different levels.",
     "score_interpretation": {
       "higher": "higher testosterone levels",
       "lower": "lower testosterone levels",
@@ -1796,10 +2087,13 @@
       "photographer": "Taco Fleur",
       "photographer_username": "cavemantraining",
       "description": "Taco Fleur from Cavemantraining wearing a kettlebell t-shirt on top of El Torcal, a mountain range in Antequera Spain."
-    }
+    },
+    "phenotype_mean": 12,
+    "phenotype_sd": 6,
+    "reference_population": "UK Biobank (mixed sex)"
   },
   "EFO_0004337": {
-    "emoji": "🧠",
+    "emoji": "\ud83e\udde0",
     "trait_type": "quantitative",
     "editorial_name": "Cognitive Ability",
     "editorial_description": "General thinking and reasoning ability as captured by standardized tests.",
@@ -1815,10 +2109,13 @@
       "photographer": "Babak Eshaghian",
       "photographer_username": "babak22ir",
       "description": "A small decorative golden photo frame placed as part of the decoration in a psychiatric and psychology clinic in Tehran."
-    }
+    },
+    "phenotype_mean": 0,
+    "phenotype_sd": 1,
+    "reference_population": "UK Biobank (z-score)"
   },
   "EFO_0008579": {
-    "emoji": "🎲",
+    "emoji": "\ud83c\udfb2",
     "trait_type": "quantitative",
     "editorial_name": "Risk-Taking Tendency",
     "editorial_description": "How inclined you are to seek out novel or risky experiences.",
@@ -1834,13 +2131,17 @@
       "photographer": "Gabriel Vasiliu",
       "photographer_username": "gabimedia",
       "description": "Bias 2025 Bucharest, Romania, impressive aerial demonstrations"
-    }
+    },
+    "value_display": "percentile_only",
+    "phenotype_mean": 0,
+    "phenotype_sd": 1,
+    "reference_population": "UK Biobank (z-score)"
   },
   "EFO_0004315": {
-    "emoji": "🍷",
+    "emoji": "\ud83c\udf77",
     "trait_type": "quantitative",
     "editorial_name": "Drinking Behavior",
-    "editorial_description": "Patterns of alcohol intake — how much and how often — partly shaped by genetics.",
+    "editorial_description": "Patterns of alcohol intake \u2014 how much and how often \u2014 partly shaped by genetics.",
     "score_interpretation": {
       "higher": "tendency toward more drinking",
       "lower": "tendency toward less drinking",
@@ -1853,10 +2154,14 @@
       "photographer": "Ola Zarko",
       "photographer_username": "olazarko",
       "description": "bar cocktail glasses party clean blik bokeh light nightlife karaoke gatsby theme modern celebration occasion"
-    }
+    },
+    "phenotype_mean": 10,
+    "phenotype_sd": 12,
+    "reference_population": "UK Biobank",
+    "unit": "drinks/week"
   },
   "EFO_0005670": {
-    "emoji": "🚬",
+    "emoji": "\ud83d\udeac",
     "trait_type": "disease_risk",
     "editorial_name": "Smoking Initiation",
     "editorial_description": "Genetic predisposition toward trying or starting to smoke tobacco.",
@@ -1875,7 +2180,7 @@
     }
   },
   "EFO_0004698": {
-    "emoji": "😴",
+    "emoji": "\ud83d\ude34",
     "trait_type": "quantitative",
     "editorial_name": "Insomnia",
     "editorial_description": "Difficulty falling asleep or staying asleep through the night.",
@@ -1891,10 +2196,14 @@
       "photographer": "Quin Stevenson",
       "photographer_username": "qstevenson",
       "description": "Messy bed and closed blinds"
-    }
+    },
+    "value_display": "percentile_only",
+    "phenotype_mean": 3,
+    "phenotype_sd": 1.5,
+    "reference_population": "UK Biobank (frequency score)"
   },
   "EFO_0006781": {
-    "emoji": "☕",
+    "emoji": "\u2615",
     "trait_type": "quantitative",
     "editorial_name": "Coffee Consumption",
     "editorial_description": "How much coffee you tend to drink, partly driven by how fast your body breaks down caffeine.",
@@ -1902,7 +2211,7 @@
       "unsplash_id": "w-VEMWG8rmk",
       "url": "https://images.unsplash.com/photo-1614530315991-de7abbf38567?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxjb2ZmZWUlMjBjdXAlMjBtb3JuaW5nJTIwYmVhbnN8ZW58MHwwfHx8MTc3NzM0OTc0Mnww&ixlib=rb-4.1.0&q=80&w=1080",
       "thumb": "https://images.unsplash.com/photo-1614530315991-de7abbf38567?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w5MTU2NjJ8MHwxfHNlYXJjaHwxfHxjb2ZmZWUlMjBjdXAlMjBtb3JuaW5nJTIwYmVhbnN8ZW58MHwwfHx8MTc3NzM0OTc0Mnww&ixlib=rb-4.1.0&q=80&w=400",
-      "photographer": "Oliver Flöricke",
+      "photographer": "Oliver Fl\u00f6ricke",
       "photographer_username": "floeriohh",
       "description": "A cup full off coffee beans"
     },
@@ -1910,6 +2219,9 @@
       "higher": "tendency to drink more coffee",
       "lower": "tendency to drink less coffee",
       "direction": "neutral"
-    }
+    },
+    "phenotype_mean": 3,
+    "phenotype_sd": 2,
+    "reference_population": "UK Biobank"
   }
 }

@@ -112,6 +112,10 @@ export async function exportTraitManifestJSON() {
       if (!ov) continue;
       if (ov.cover_image) entry.cover_image = ov.cover_image;
       if (ov.score_interpretation) entry.score_interpretation = ov.score_interpretation;
+      if (ov.value_display) entry.value_display = ov.value_display;
+      if (ov.phenotype_mean != null) entry.phenotype_mean = ov.phenotype_mean;
+      if (ov.phenotype_sd != null) entry.phenotype_sd = ov.phenotype_sd;
+      if (ov.reference_population) entry.reference_population = ov.reference_population;
     }
   } catch { /* overrides file missing — skip */ }
 

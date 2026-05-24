@@ -13,6 +13,19 @@ const OVERRIDES_PATH = path.join(__dirname, 'trait_overrides.json');
 
 // Common reference values from literature
 const COMMON_REFERENCES = {
+  // Anthropometric (UK Biobank)
+  'body mass index': { mean: 27.4, sd: 4.8, pop: 'UK Biobank' },
+  'bmi': { mean: 27.4, sd: 4.8, pop: 'UK Biobank' },
+  'height': { mean: 168.5, sd: 9.3, pop: 'UK Biobank (mixed sex)' },
+  'weight': { mean: 78.0, sd: 15.5, pop: 'UK Biobank' },
+  'waist': { mean: 0.87, sd: 0.07, pop: 'UK Biobank' },
+  'body fat': { mean: 25.0, sd: 8.5, pop: 'UK Biobank' },
+  'body composition': { mean: 25.0, sd: 8.5, pop: 'UK Biobank' },
+  'lean mass': { mean: 50.0, sd: 11.0, pop: 'UK Biobank' },
+  'bone density': { mean: 0.0, sd: 1.0, pop: 'T-score reference' },
+  'grip strength': { mean: 30.0, sd: 11.0, pop: 'UK Biobank (mixed sex)' },
+  'metabolic rate': { mean: 1600, sd: 250, pop: 'UK Biobank' },
+
   // Lipids (NHANES, mg/dL)
   triglyceride: { mean: 150, sd: 90, pop: 'NHANES US adults, fasting' },
   cholesterol: { mean: 200, sd: 40, pop: 'NHANES US adults' },
@@ -26,32 +39,132 @@ const COMMON_REFERENCES = {
   // Glucose (mg/dL)
   hba1c: { mean: 5.4, sd: 0.5, pop: 'Non-diabetic adults' },
   glucose: { mean: 95, sd: 12, pop: 'Fasting, non-diabetic' },
+  'c-reactive': { mean: 2.5, sd: 4.0, pop: 'UK Biobank' },
 
   // Blood counts
   wbc: { mean: 7.0, sd: 2.0, pop: 'UK Biobank', unit: 'thousand/μL' },
   rbc: { mean: 4.7, sd: 0.5, pop: 'UK Biobank', unit: 'million/μL' },
   platelet: { mean: 250, sd: 60, pop: 'UK Biobank', unit: 'thousand/μL' },
   lymphocyte: { mean: 2.0, sd: 0.7, pop: 'UK Biobank', unit: 'thousand/μL' },
+  hemoglobin: { mean: 14.0, sd: 1.5, pop: 'UK Biobank', unit: 'g/dL' },
 
   // Reproductive
   menarche: { mean: 12.5, sd: 1.3, pop: 'European ancestry' },
+  'first period': { mean: 12.5, sd: 1.3, pop: 'European ancestry' },
   menopause: { mean: 50.5, sd: 3.8, pop: 'European ancestry' },
 
   // Cardiac
   heart_rate: { mean: 70, sd: 12, pop: 'UK Biobank', unit: 'bpm' },
   pr_interval: { mean: 160, sd: 25, pop: 'UK Biobank', unit: 'ms' },
   qt_interval: { mean: 410, sd: 30, pop: 'UK Biobank', unit: 'ms' },
-  qrs_duration: { mean: 95, sd: 15, pop: 'UK Biobank', unit: 'ms' }
+  qrs_duration: { mean: 95, sd: 15, pop: 'UK Biobank', unit: 'ms' },
+
+  // Lung function
+  'fev1': { mean: 3.0, sd: 0.8, pop: 'UK Biobank' },
+  'fvc': { mean: 3.8, sd: 1.0, pop: 'UK Biobank' },
+  'peak expiratory': { mean: 400, sd: 120, pop: 'UK Biobank' },
+
+  // Renal
+  creatinine: { mean: 0.9, sd: 0.2, pop: 'UK Biobank' },
+  'urate': { mean: 5.5, sd: 1.4, pop: 'UK Biobank' },
+  'cystatin': { mean: 0.9, sd: 0.15, pop: 'UK Biobank' },
+
+  // Other
+  'caffeine': { mean: 3.0, sd: 2.0, pop: 'UK Biobank', unit: 'cups/day' },
+  'coffee': { mean: 3.0, sd: 2.0, pop: 'UK Biobank', unit: 'cups/day' },
+  'alcohol': { mean: 10, sd: 12, pop: 'UK Biobank', unit: 'drinks/week' },
+  'drinking': { mean: 10, sd: 12, pop: 'UK Biobank', unit: 'drinks/week' },
+  'sleep': { mean: 7.0, sd: 1.0, pop: 'UK Biobank', unit: 'hours' },
+  'insomnia': { mean: 3.0, sd: 1.5, pop: 'UK Biobank (frequency score)' },
+  'telomere': { mean: 0.0, sd: 1.0, pop: 'UK Biobank (z-score)' },
+  'neuroticism': { mean: 4.0, sd: 3.2, pop: 'UK Biobank' },
+  'cognitive': { mean: 0.0, sd: 1.0, pop: 'UK Biobank (z-score)' },
+  'risk-taking': { mean: 0.0, sd: 1.0, pop: 'UK Biobank (z-score)' },
+  'chronotype': { mean: 3.0, sd: 1.0, pop: 'UK Biobank (morningness score)' },
+  'number of children': { mean: 2.0, sd: 1.2, pop: 'UK Biobank' },
+  'smoking': { mean: 0.0, sd: 1.0, pop: 'UK Biobank (z-score)' },
+  'nicotine': { mean: 0.0, sd: 1.0, pop: 'UK Biobank (ratio z-score)' },
+  'lifespan': { mean: 80, sd: 10, pop: 'UK Biobank' },
+  'balding': { mean: 2.0, sd: 1.2, pop: 'UK Biobank (Hamilton scale)' },
+
+  // Cardiac intervals
+  'pr interval': { mean: 160, sd: 25, pop: 'UK Biobank', unit: 'ms' },
+  'qt interval': { mean: 410, sd: 30, pop: 'UK Biobank', unit: 'ms' },
+  'qrs': { mean: 95, sd: 15, pop: 'UK Biobank', unit: 'ms' },
+  'rr interval': { mean: 860, sd: 140, pop: 'UK Biobank', unit: 'ms' },
+  'p wave': { mean: 110, sd: 15, pop: 'UK Biobank', unit: 'ms' },
+  'pp interval': { mean: 860, sd: 140, pop: 'UK Biobank', unit: 'ms' },
+  'ejection fraction': { mean: 60, sd: 6, pop: 'UK Biobank' },
+  'pulse pressure': { mean: 55, sd: 15, pop: 'UK Biobank' },
+
+  // Blood counts extended
+  'eosinophil': { mean: 0.2, sd: 0.15, pop: 'UK Biobank', unit: 'thousand/μL' },
+  'monocyte': { mean: 0.5, sd: 0.2, pop: 'UK Biobank', unit: 'thousand/μL' },
+  'neutrophil': { mean: 4.5, sd: 1.5, pop: 'UK Biobank', unit: 'thousand/μL' },
+  'reticulocyte': { mean: 60, sd: 20, pop: 'UK Biobank', unit: 'thousand/μL' },
+  'hematocrit': { mean: 42, sd: 3.5, pop: 'UK Biobank', unit: '%' },
+  'red cell distribution': { mean: 13.5, sd: 1.0, pop: 'UK Biobank' },
+  'mean corpuscular hemoglobin': { mean: 30, sd: 2, pop: 'UK Biobank', unit: 'pg' },
+  'mean platelet volume': { mean: 9.0, sd: 1.0, pop: 'UK Biobank', unit: 'fL' },
+  'mean red blood cell volume': { mean: 90, sd: 5, pop: 'UK Biobank', unit: 'fL' },
+  'mean reticulocyte volume': { mean: 100, sd: 6, pop: 'UK Biobank', unit: 'fL' },
+  'white blood cell': { mean: 7.0, sd: 2.0, pop: 'UK Biobank', unit: 'thousand/μL' },
+
+  // Hormones & biomarkers
+  'testosterone': { mean: 12.0, sd: 6.0, pop: 'UK Biobank (mixed sex)' },
+  'estradiol': { mean: 50, sd: 30, pop: 'UK Biobank (postmenopausal)' },
+  'vitamin d': { mean: 25, sd: 12, pop: 'UK Biobank' },
+  'vitamin b12': { mean: 400, sd: 150, pop: 'UK Biobank' },
+  'thyroid stimulating hormone': { mean: 2.0, sd: 1.2, pop: 'UK Biobank' },
+  'thyroxine': { mean: 8.0, sd: 1.5, pop: 'UK Biobank' },
+  'ige': { mean: 50, sd: 100, pop: 'UK Biobank' },
+  'psa': { mean: 1.5, sd: 2.0, pop: 'UK Biobank males' },
+  'factor viii': { mean: 100, sd: 40, pop: 'Reference range' },
+  'lipoprotein': { mean: 30, sd: 30, pop: 'UK Biobank' },
+  'insulin': { mean: 0.0, sd: 1.0, pop: 'UK Biobank (z-score)' },
+
+  // Renal & liver
+  'uric acid': { mean: 5.5, sd: 1.4, pop: 'UK Biobank' },
+  'urate': { mean: 5.5, sd: 1.4, pop: 'UK Biobank' },
+  'kidney filtration': { mean: 90, sd: 15, pop: 'UK Biobank' },
+  'egfr': { mean: 90, sd: 15, pop: 'UK Biobank' },
+  'alt': { mean: 25, sd: 15, pop: 'UK Biobank' },
+  'liver fat': { mean: 3.0, sd: 4.0, pop: 'UK Biobank' },
+  'sodium': { mean: 140, sd: 2.5, pop: 'UK Biobank' },
+
+  // Eye
+  'eye pressure': { mean: 15, sd: 3, pop: 'UK Biobank' },
+  'intraocular': { mean: 15, sd: 3, pop: 'UK Biobank' },
+  'nearsighted': { mean: -1.0, sd: 2.5, pop: 'UK Biobank (diopters)' },
+  'myopia': { mean: -1.0, sd: 2.5, pop: 'UK Biobank (diopters)' },
+
+  // Brain volumes (mm³, UK Biobank imaging)
+  'hippocampal': { mean: 3900, sd: 400, pop: 'UK Biobank imaging' },
+  'dentate gyrus': { mean: 300, sd: 40, pop: 'UK Biobank imaging' },
+  'subiculum': { mean: 450, sd: 55, pop: 'UK Biobank imaging' },
+  'presubiculum': { mean: 320, sd: 40, pop: 'UK Biobank imaging' },
+  'parasubiculum': { mean: 65, sd: 12, pop: 'UK Biobank imaging' },
+  'fimbria': { mean: 90, sd: 20, pop: 'UK Biobank imaging' },
+  'molecular layer': { mean: 580, sd: 65, pop: 'UK Biobank imaging' },
+  'hippocampal fissure': { mean: 170, sd: 40, pop: 'UK Biobank imaging' },
+
+  // Lung
+  'lung capacity': { mean: 3.8, sd: 1.0, pop: 'UK Biobank' },
+  'airflow ratio': { mean: 0.76, sd: 0.07, pop: 'UK Biobank' },
+
+  // Misc
+  'aortic': { mean: 33, sd: 4, pop: 'UK Biobank' },
+  'hip circumference': { mean: 103, sd: 9, pop: 'UK Biobank' },
+  'skin pigmentation': { mean: 0.0, sd: 1.0, pop: 'Reference (z-score)' },
+  'carbohydrate': { mean: 250, sd: 80, pop: 'UK Biobank' },
 };
 
 function suggestReference(traitName, unit) {
   const nameLower = traitName.toLowerCase();
 
-  // Try to match common patterns
   for (const [key, ref] of Object.entries(COMMON_REFERENCES)) {
-    if (nameLower.includes(key)) {
-      // Check if unit matches (if specified in reference)
-      if (ref.unit && unit && ref.unit !== unit) continue;
+    const keyNorm = key.replace(/_/g, ' ');
+    if (nameLower === keyNorm || nameLower.includes(keyNorm) || nameLower.includes(key)) {
       return ref;
     }
   }
