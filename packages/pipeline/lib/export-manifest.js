@@ -116,6 +116,7 @@ export async function exportTraitManifestJSON() {
       if (ov.phenotype_mean != null) entry.phenotype_mean = ov.phenotype_mean;
       if (ov.phenotype_sd != null) entry.phenotype_sd = ov.phenotype_sd;
       if (ov.reference_population) entry.reference_population = ov.reference_population;
+      if (ov.keywords) entry.keywords = ov.keywords;
     }
   } catch { /* overrides file missing — skip */ }
 
