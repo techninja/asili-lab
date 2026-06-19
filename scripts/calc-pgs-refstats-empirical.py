@@ -87,6 +87,11 @@ COL_CHUNK = 200  # columns per Arrow read batch
 
 
 SCORE_CACHE_DIR = EXTRACT_DIR / "scores"
+MATCH_CACHE_DIR = EXTRACT_DIR / "matches"
+
+TIER_COVERAGES = {"raw": 0.13, "imputed": 0.60}
+TIER_ITERATIONS = 10
+RAW_TIER_ITERATIONS = 1  # deterministic array mask, no randomness needed
 
 
 def rss_gb():
@@ -381,6 +386,7 @@ def load_chr_dosage(chrom, n_samples):
     Returns:
       lookup: dict (pos, allele_key) → row index
       dosage: numpy uint8 (n_variants, n_samples) — memmap or array
+      fd: file descriptor for the npy file (for fadvise), or None
     """
     parquet_path = EXTRACT_DIR / f"chr{chrom}.parquet"
     npy_path = EXTRACT_DIR / f"chr{chrom}_dosage.npy"
@@ -434,7 +440,10 @@ def load_chr_dosage(chrom, n_samples):
     # Memory-map the dosage — OS pages in only what's accessed
     dosage = np.load(str(npy_path), mmap_mode="r")
 
-    return lookup, dosage
+    # Open fd for posix_fadvise to release pages
+    fd = os.open(str(npy_path), os.O_RDONLY)
+
+    return lookup, dosage, fd
 
 
 
@@ -486,6 +495,46 @@ def save_chr_scores(chrom, chr_pgs_scores):
           flush=True)
 
 
+def save_chr_matches(chrom, chr_pgs_matches):
+    """Save per-PGS matched variant data as individual numpy files.
+
+    Layout: MATCH_CACHE_DIR/chr{N}/{pgs_id}.npz
+    Each npz contains: rows (int32), weights (float64), orients (bool)
+    Also writes an index file with variant counts per PGS.
+    """
+    chr_dir = MATCH_CACHE_DIR / f"chr{chrom}"
+    chr_dir.mkdir(parents=True, exist_ok=True)
+    index = {}  # pgs_id → variant count
+    for pgs_id, data in chr_pgs_matches.items():
+        n = len(data["rows"])
+        np.savez(
+            str(chr_dir / f"{pgs_id}.npz"),
+            rows=np.array(data["rows"], dtype=np.int32),
+            weights=np.array(data["weights"], dtype=np.float64),
+            orients=np.array(data["orients"], dtype=np.bool_),
+        )
+        index[pgs_id] = n
+    # Write index for fast counting without opening every npz
+    (chr_dir / "_index.json").write_text(json.dumps(index))
+
+
+def load_chr_match_for_pgs(chrom, pgs_id):
+    """Load match data for a single PGS on one chromosome."""
+    p = MATCH_CACHE_DIR / f"chr{chrom}" / f"{pgs_id}.npz"
+    if not p.exists():
+        return None
+    d = np.load(str(p))
+    return d["rows"], d["weights"], d["orients"]
+
+
+def get_chr_match_pgs_ids(chrom):
+    """Get list of PGS IDs that have match data for this chromosome."""
+    chr_dir = MATCH_CACHE_DIR / f"chr{chrom}"
+    if not chr_dir.exists():
+        return []
+    return [f.stem for f in chr_dir.glob("*.npz")]
+
+
 def load_chr_scores(chrom):
     """Load cached per-PGS score arrays for one chromosome."""
     p = SCORE_CACHE_DIR / f"chr{chrom}.npz"
@@ -517,8 +566,6 @@ def score_all_pgs(chroms):
         return {}
     print(f"  {len(asili_files)} trait packs, {n_samples} samples\n")
 
-    pgs_scores = {}  # pgs_id → numpy (n_samples,)
-
     for ci, chrom in enumerate(chroms, 1):
         chr_start = time.monotonic()
         print(f"  ── chr{chrom} ({ci}/{len(chroms)}) ──", flush=True)
@@ -526,18 +573,13 @@ def score_all_pgs(chroms):
         # Check for cached scores from a previous run
         cached = load_chr_scores(chrom)
         if cached is not None:
-            for pgs_id, scores in cached.items():
-                if pgs_id in pgs_scores:
-                    pgs_scores[pgs_id] += scores
-                else:
-                    pgs_scores[pgs_id] = scores.copy()
             print(f"  ✓ cached ({len(cached)} PGS)\n", flush=True)
             del cached
             continue
 
         print(f"  Loading dosage...", end="", flush=True)
         load_start = time.monotonic()
-        lookup, dosage = load_chr_dosage(chrom, n_samples)
+        lookup, dosage, dosage_fd = load_chr_dosage(chrom, n_samples)
         if lookup is None:
             print(f" no data, skipping")
             continue
@@ -549,6 +591,10 @@ def score_all_pgs(chroms):
         chr_matched_total = 0
         chr_pgs_scored = 0
         chr_pgs_scores = {}  # per-chr accumulator for cache
+        # Only accumulate match data if not already cached
+        matches_exist = (MATCH_CACHE_DIR / f"chr{chrom}").exists() and \
+            list((MATCH_CACHE_DIR / f"chr{chrom}").glob("*.npz"))
+        chr_pgs_matches = None if matches_exist else {}
 
         for ai, asili_path in enumerate(asili_files):
             pack_table = read_chr_from_asili(asili_path, chrom)
@@ -606,14 +652,18 @@ def score_all_pgs(chroms):
                 scores = w @ sub
                 del sub
 
-                if pgs_id in pgs_scores:
-                    pgs_scores[pgs_id] += scores
-                else:
-                    pgs_scores[pgs_id] = scores.copy()
                 if pgs_id in chr_pgs_scores:
                     chr_pgs_scores[pgs_id] += scores
                 else:
                     chr_pgs_scores[pgs_id] = scores.copy()
+
+                # Save match data for tiered rescoring (if not already cached)
+                if chr_pgs_matches is not None:
+                    if pgs_id not in chr_pgs_matches:
+                        chr_pgs_matches[pgs_id] = {"rows": [], "weights": [], "orients": []}
+                    chr_pgs_matches[pgs_id]["rows"].extend(geno_rows)
+                    chr_pgs_matches[pgs_id]["weights"].extend(w_list)
+                    chr_pgs_matches[pgs_id]["orients"].extend(o_list)
 
                 chr_pgs_scored += 1
                 trait_pgs_scored += 1
@@ -624,6 +674,12 @@ def score_all_pgs(chroms):
                   f"{pack_rows:,} rows, {trait_pgs_scored} PGS "
                   f"(RSS {rss_gb():.1f}GB)", flush=True)
             gc.collect()
+            # Every 10 traits, advise kernel to drop file pages to cap RSS
+            if (ai + 1) % 10 == 0 and rss_gb() > 5.0:
+                try:
+                    os.posix_fadvise(dosage_fd, 0, 0, os.POSIX_FADV_DONTNEED)
+                except (OSError, AttributeError):
+                    pass
 
         chr_elapsed = time.monotonic() - chr_start
         print(f"  chr{chrom}: {chr_pgs_scored} PGS scored, "
@@ -631,15 +687,112 @@ def score_all_pgs(chroms):
               flush=True)
 
         save_chr_scores(chrom, chr_pgs_scores)
-        del lookup, dosage, chr_pgs_scores
+        if chr_pgs_matches is not None:
+            save_chr_matches(chrom, chr_pgs_matches)
+        os.close(dosage_fd)
+        del lookup, dosage, chr_pgs_scores, chr_pgs_matches
         gc.collect()
 
+    # Sum per-chr scores from disk (memory-efficient: one chr at a time)
+    print(f"  Summing scores from {len(chroms)} chromosomes...", flush=True)
+    pgs_scores = {}
+    for chrom in chroms:
+        cached = load_chr_scores(chrom)
+        if cached is None:
+            continue
+        for pgs_id, scores in cached.items():
+            if pgs_id in pgs_scores:
+                pgs_scores[pgs_id] += scores
+            else:
+                pgs_scores[pgs_id] = scores.copy()
+        del cached
+    print(f"  {len(pgs_scores)} PGS with scores\n", flush=True)
+
     return pgs_scores
+
+
+def build_match_data(chroms):
+    """Build match data cache from .asili files + extracted key lookups.
+
+    Used when Phase 3 scores are cached but match data wasn't saved
+    (e.g. first run before tiered scoring was added).
+    """
+    # Check if match data already exists (new per-PGS npz format)
+    if all((MATCH_CACHE_DIR / f"chr{c}").exists() for c in chroms):
+        return
+
+    print(f"\n🔗 Building match data for tiered scoring...\n")
+    asili_files = get_asili_files()
+    if not asili_files:
+        return
+
+    for chrom in chroms:
+        chr_dir = MATCH_CACHE_DIR / f"chr{chrom}"
+        if chr_dir.exists() and list(chr_dir.glob("*.npz")):
+            print(f"  chr{chrom}: ✓ cached", flush=True)
+            continue
+
+        keys_path = EXTRACT_DIR / f"chr{chrom}_keys.npz"
+        if not keys_path.exists():
+            continue
+
+        # Build lookup from keys
+        kd = np.load(str(keys_path))
+        pos_arr = kd["pos"]
+        ak_arr = kd["ak"]
+        lookup = {}
+        for i in range(len(pos_arr)):
+            lookup[(int(pos_arr[i]), int(ak_arr[i]))] = i
+        del kd, pos_arr, ak_arr
+
+        chr_pgs_matches = {}
+        for asili_path in asili_files:
+            pack_table = read_chr_from_asili(asili_path, chrom)
+            if pack_table is None or len(pack_table) == 0:
+                continue
+
+            pgs_col = pack_table.column("pgs_id").to_pylist()
+            weight_col = pack_table.column("effect_weight").to_numpy().astype(np.float64)
+            pos_col = pack_table.column("pos").to_numpy()
+            ak_col = pack_table.column("allele_key").to_numpy()
+            vid_col = pack_table.column("variant_id").to_pylist()
+            ea_col = pack_table.column("effect_allele").to_pylist()
+            del pack_table
+
+            pgs_groups = {}
+            for i, pid in enumerate(pgs_col):
+                pgs_groups.setdefault(pid, []).append(i)
+
+            for pgs_id, indices in pgs_groups.items():
+                for idx in indices:
+                    key = (int(pos_col[idx]), int(ak_col[idx]))
+                    row_idx = lookup.get(key)
+                    if row_idx is not None:
+                        parts = vid_col[idx].split(":")
+                        orient = ea_col[idx] == max(parts[2], parts[3])
+                        if pgs_id not in chr_pgs_matches:
+                            chr_pgs_matches[pgs_id] = {"rows": [], "weights": [], "orients": []}
+                        chr_pgs_matches[pgs_id]["rows"].append(row_idx)
+                        chr_pgs_matches[pgs_id]["weights"].append(float(weight_col[idx]))
+                        chr_pgs_matches[pgs_id]["orients"].append(bool(orient))
+
+            del pgs_col, weight_col, pos_col, ak_col, vid_col, ea_col, pgs_groups
+
+        save_chr_matches(chrom, chr_pgs_matches)
+        print(f"  chr{chrom}: {len(chr_pgs_matches)} PGS", flush=True)
+        del lookup, chr_pgs_matches
+        gc.collect()
+
+    print()
 
 
 def compute_norms(pgs_scores):
     results = {}
     for pgs_id, scores in pgs_scores.items():
+        # Center scores to match browser behavior (browser subtracts
+        # expected_dosage per variant; for the reference panel the population
+        # mean equals expected value, so centering = subtracting mean).
+        scores = scores - np.mean(scores)
         mean = float(np.nanmean(scores))
         sd = float(np.nanstd(scores))
         if sd > 0:
@@ -649,6 +802,280 @@ def compute_norms(pgs_scores):
                 "n_individuals": len(scores),
             }
     return results
+
+
+def load_array_positions():
+    """Load real consumer array positions from server-data/variants/*.json.
+    Union of all available user files to get maximum position coverage."""
+    positions = set()  # (chr, pos) tuples
+    variants_dir = ROOT / "server-data" / "variants"
+    if not variants_dir.exists():
+        return positions
+    for f in variants_dir.glob("*.json"):
+        data = json.loads(f.read_text())
+        for v in data.get("variants", []):
+            try:
+                chr_val = int(v["chromosome"])
+                positions.add((chr_val, int(v["position"])))
+            except (ValueError, KeyError):
+                continue
+    return positions
+
+
+def compute_tiered_norms(chroms):
+    """Phase 4: Rescore with random subsampling to produce tiered norms.
+
+    For each PGS, subsample variants at 13% (raw) and 60% (imputed) coverage,
+    averaged over TIER_ITERATIONS iterations for stability.
+
+    Memory-efficient: loads match data per-PGS (tiny npz files), processes
+    one PGS at a time with mmap'd dosage.
+    """
+    print(f"\n📊 Phase 4: Compute tiered norms (subsampling)\n")
+
+    sample_names = get_sample_names(chroms[0])
+    n_samples = len(sample_names)
+
+    # Collect all PGS IDs that have match data
+    all_pgs_ids = set()
+    for chrom in chroms:
+        all_pgs_ids.update(get_chr_match_pgs_ids(chrom))
+
+    pgs_ids = sorted(all_pgs_ids)
+    print(f"  {len(pgs_ids)} PGS with match data\n")
+
+    if not pgs_ids:
+        return {}
+
+    tiered_results = {}
+
+    # Process one chromosome at a time to avoid mmap thrashing.
+    # For each chr, load dosage once, then score all PGS that have
+    # variants on that chr. Accumulate partial scores per PGS.
+    #
+    # First, determine total variant counts per PGS from index files.
+    pgs_variant_counts = {}  # pgs_id → total
+    pgs_chr_counts = {}  # pgs_id → {chrom: count}
+    for chrom in chroms:
+        chr_dir = MATCH_CACHE_DIR / f"chr{chrom}"
+        idx_path = chr_dir / "_index.json" if chr_dir.exists() else None
+        if not idx_path or not idx_path.exists():
+            # Fallback: build index from npz files
+            if chr_dir and chr_dir.exists():
+                index = {}
+                for npz_file in chr_dir.glob("*.npz"):
+                    pgs_id = npz_file.stem
+                    n = np.load(str(npz_file))["rows"].shape[0]
+                    index[pgs_id] = n
+                idx_path = chr_dir / "_index.json"
+                idx_path.write_text(json.dumps(index))
+                print(f"    Built index for chr{chrom}: {len(index)} PGS", flush=True)
+            else:
+                continue
+        else:
+            index = json.loads(idx_path.read_text())
+        for pgs_id, n in index.items():
+            pgs_variant_counts[pgs_id] = pgs_variant_counts.get(pgs_id, 0) + n
+            pgs_chr_counts.setdefault(pgs_id, {})[chrom] = n
+        del index
+
+    pgs_ids = sorted(pid for pid, cnt in pgs_variant_counts.items() if cnt >= 5)
+    print(f"  {len(pgs_ids)} PGS with ≥5 variants\n")
+    if not pgs_ids:
+        return {}
+
+    # Allocate score accumulators: scores[pgs_id][tier_name][iter] = float64 array
+    # Only allocate for tiers where subsampling is needed
+    scores = {}
+    pgs_tiers_k = {}  # pgs_id → {tier_name: k}
+    for pgs_id in pgs_ids:
+        n_vars = pgs_variant_counts[pgs_id]
+        tiers_k = {}
+        for tier_name, coverage in TIER_COVERAGES.items():
+            k = max(1, int(round(n_vars * coverage)))
+            if k < n_vars:
+                tiers_k[tier_name] = k
+        if tiers_k:
+            pgs_tiers_k[pgs_id] = tiers_k
+            scores[pgs_id] = {}
+            for tier_name in tiers_k:
+                n_iters = RAW_TIER_ITERATIONS if tier_name == "raw" else TIER_ITERATIONS
+                scores[pgs_id][tier_name] = [
+                    np.zeros(n_samples, dtype=np.float64)
+                    for _ in range(n_iters)
+                ]
+
+    print(f"  {len(scores)} PGS need tiered scoring\n")
+
+    # Load real array positions for the raw tier mask
+    array_positions = load_array_positions()
+    print(f"  Array positions loaded: {len(array_positions):,}\n")
+
+    # Load per-chr position arrays (row index → genomic position)
+    chr_row_positions = {}  # chrom → numpy array of positions
+    for chrom in chroms:
+        keys_path = EXTRACT_DIR / f"chr{chrom}_keys.npz"
+        if keys_path.exists():
+            kd = np.load(str(keys_path))
+            chr_row_positions[chrom] = kd["pos"]
+            del kd
+
+    # Build per-chr sets of row indices at array positions for fast lookup
+    chr_array_rows = {}  # chrom → set of row indices at array positions
+    for chrom, pos_arr in chr_row_positions.items():
+        array_rows = set()
+        for i, pos in enumerate(pos_arr):
+            if (chrom, int(pos)) in array_positions:
+                array_rows.add(i)
+        chr_array_rows[chrom] = array_rows
+    del array_positions
+    print(f"  Array row masks built for {len(chr_array_rows)} chromosomes\n")
+
+    # Process in batches to cap mask memory.
+    # Each batch: generate masks, process all 22 chr, then free masks.
+    BATCH_SIZE = 50
+    batch_pgs_list = [list(scores.keys())[i:i+BATCH_SIZE]
+                      for i in range(0, len(scores), BATCH_SIZE)]
+    n_batches = len(batch_pgs_list)
+
+    # Process one chromosome at a time within each batch
+    for batch_idx, batch_pgs in enumerate(batch_pgs_list):
+        batch_start_t = time.monotonic()
+        print(f"    Batch {batch_idx+1}/{n_batches} ({len(batch_pgs)} PGS): masks...",
+              end="", flush=True)
+
+        # Generate masks for this batch only
+        # chr_masks[pgs_id][tier][chrom] = list of local index arrays per iter
+        chr_masks = {}
+        for pgs_id in batch_pgs:
+            n_total = pgs_variant_counts[pgs_id]
+            chr_masks[pgs_id] = {}
+            # Build chr offsets for this PGS
+            offsets = []
+            running = 0
+            for c in chroms:
+                n = pgs_chr_counts.get(pgs_id, {}).get(c, 0)
+                if n > 0:
+                    offsets.append((c, running, n))
+                running += n
+
+            for tier_name, k in pgs_tiers_k[pgs_id].items():
+                chr_masks[pgs_id][tier_name] = {}
+
+                if tier_name == "raw":
+                    # Deterministic mask: keep only variants at array positions
+                    # Build per-chr local indices from match data
+                    for chrom, offset, count in offsets:
+                        npz_path = MATCH_CACHE_DIR / f"chr{chrom}" / f"{pgs_id}.npz"
+                        if not npz_path.exists():
+                            chr_masks[pgs_id][tier_name][chrom] = [None]
+                            continue
+                        d = np.load(str(npz_path))
+                        rows = d["rows"]
+                        arr_rows = chr_array_rows.get(chrom, set())
+                        # Find which of this PGS's rows are at array positions
+                        local = np.array([i for i, r in enumerate(rows)
+                                          if int(r) in arr_rows], dtype=np.int32)
+                        if len(local) > 0:
+                            chr_masks[pgs_id][tier_name][chrom] = [local]
+                        else:
+                            chr_masks[pgs_id][tier_name][chrom] = [None]
+                        del d
+                else:
+                    # Random subsampling for imputed tier
+                    iters = min(TIER_ITERATIONS, max(3, 500_000 // max(n_total, 1)))
+                    # Reallocate if fewer iterations needed
+                    if iters != TIER_ITERATIONS:
+                        scores[pgs_id][tier_name] = [
+                            np.zeros(n_samples, dtype=np.float64)
+                            for _ in range(iters)
+                        ]
+                    for it_idx in range(iters):
+                        iter_rng = np.random.default_rng((hash(pgs_id) & 0xFFFFFFFF, it_idx, 42))
+                        mask = np.sort(iter_rng.choice(n_total, size=k, replace=False))
+                        for chrom, offset, count in offsets:
+                            left = np.searchsorted(mask, offset, side="left")
+                            right = np.searchsorted(mask, offset + count, side="left")
+                            if left < right:
+                                local = (mask[left:right] - offset).astype(np.int32)
+                                chr_masks[pgs_id][tier_name].setdefault(chrom, []).append(local)
+                            else:
+                                chr_masks[pgs_id][tier_name].setdefault(chrom, []).append(None)
+                        del mask
+
+            print(f" scoring...", end="", flush=True)
+
+        # Score this batch across all chromosomes
+        for ci, chrom in enumerate(chroms, 1):
+            npy_path = EXTRACT_DIR / f"chr{chrom}_dosage.npy"
+            chr_dir = MATCH_CACHE_DIR / f"chr{chrom}"
+            if not npy_path.exists() or not chr_dir.exists():
+                continue
+
+            dosage = np.load(str(npy_path), mmap_mode="r")
+
+            for pgs_id in batch_pgs:
+                npz_path = chr_dir / f"{pgs_id}.npz"
+                if not npz_path.exists():
+                    continue
+
+                d = np.load(str(npz_path))
+                rows = d["rows"]
+                weights = d["weights"]
+                orients = d["orients"]
+
+                for tier_name in pgs_tiers_k[pgs_id]:
+                    tier_chr_data = chr_masks[pgs_id][tier_name].get(chrom)
+                    if tier_chr_data is None:
+                        continue
+                    for it_idx, local in enumerate(tier_chr_data):
+                        if local is None:
+                            continue
+                        r = rows[local]
+                        w = weights[local]
+                        o = orients[local]
+
+                        sub = dosage[r].astype(np.int16)
+                        flip = ~o
+                        if flip.any():
+                            sub[flip] = 2 - sub[flip]
+                        sub[sub == MISSING] = 0
+                        scores[pgs_id][tier_name][it_idx] += w @ sub
+                        del sub
+
+                del d
+
+            del dosage
+            gc.collect()
+
+        del chr_masks
+        gc.collect()
+
+        batch_elapsed = time.monotonic() - batch_start_t
+        print(f" done ({batch_elapsed:.0f}s, RSS {rss_gb():.1f}GB)", flush=True)
+
+    # Compute final mean/SD from accumulated scores
+    for pgs_id in pgs_ids:
+        if pgs_id not in scores:
+            continue
+        tiers = {}
+        for tier_name, iter_scores in scores[pgs_id].items():
+            # Center: browser subtracts expected_dosage, so mean ≈ 0.
+            # SD is invariant to centering, so just use std directly.
+            iter_sds = [float(np.std(s)) for s in iter_scores]
+            avg_sd = np.mean(iter_sds)
+            if avg_sd > 0:
+                tiers[tier_name] = {
+                    "m": 0.0,
+                    "s": round(avg_sd, 8),
+                }
+        if tiers:
+            tiered_results[pgs_id] = tiers
+
+    del scores, pgs_tiers_k, chr_row_positions, chr_array_rows
+    gc.collect()
+    print(f"\n  ✓ Tiered norms computed for {len(tiered_results)} PGS\n")
+    return tiered_results
 
 
 # ── Output ──────────────────────────────────────────────────────────────────
@@ -670,7 +1097,7 @@ def update_manifest(results):
     print(f"  ✓ Updated {len(results):,} PGS in manifest\n")
 
 
-def update_norm_params_json(results):
+def update_norm_params_json(results, tiered_results=None):
     existing = {}
     if OUTPUT_JSON.exists():
         try:
@@ -679,13 +1106,19 @@ def update_norm_params_json(results):
             pass
     for pgs_id, data in results.items():
         prev = existing.get(pgs_id, {})
-        existing[pgs_id] = {
+        entry = {
             "m": data["mean"],
             "s": data["sd"],
             "n": prev.get("n", 0),
             **({"d": prev["d"]} if "d" in prev else {}),
             **({"ancestry": prev["ancestry"]} if "ancestry" in prev else {}),
         }
+        # Add tiered norms if available
+        if tiered_results and pgs_id in tiered_results:
+            entry["tiers"] = tiered_results[pgs_id]
+        elif prev.get("tiers"):
+            entry["tiers"] = prev["tiers"]
+        existing[pgs_id] = entry
     OUTPUT_JSON.write_text(json.dumps(existing))
     size_kb = OUTPUT_JSON.stat().st_size // 1024
     print(f"  ✓ Wrote {len(existing)} PGS to {OUTPUT_JSON} ({size_kb} KB)\n")
@@ -755,8 +1188,12 @@ def main():
     if zero_sd:
         print(f"    Dropped:    {zero_sd} PGS with SD=0")
 
+    # Phase 4: Build match data (if missing) then compute tiered norms
+    build_match_data(chroms)
+    tiered_results = compute_tiered_norms(chroms)
+
     update_manifest(results)
-    update_norm_params_json(results)
+    update_norm_params_json(results, tiered_results)
 
     total_elapsed = time.monotonic() - total_start
     hours = int(total_elapsed // 3600)

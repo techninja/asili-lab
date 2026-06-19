@@ -63,6 +63,8 @@ async function main() {
       // Preserve histogram and ancestry data if present
       ...(prev.d ? { d: prev.d } : {}),
       ...(prev.ancestry ? { ancestry: prev.ancestry } : {}),
+      // Preserve tiered norms (raw/imputed) from empirical subsampling
+      ...(prev.tiers ? { tiers: prev.tiers } : {}),
     };
   }
 
