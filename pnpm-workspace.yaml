@@ -2,6 +2,11 @@ packages:
   - packages/*
   - apps/*
 
+allowBuilds:
+  better-sqlite3: false
+  duckdb: true
+  esbuild: true
+
 onlyBuiltDependencies:
   - duckdb
   - better-sqlite3
