@@ -177,7 +177,7 @@
   },
   "SLC6A4": {
     "emoji": "🌊",
-    "editorial_description": "The serotonin transporter gene — once called 'the depression gene.' Its famous short/long promoter variant was the poster child for gene-environment interaction research, though the story is more complex than early headlines suggested.",
+    "editorial_description": "Better known as the serotonin transporter (5-HTT). Once called 'the depression gene,' its famous short/long promoter variant was the poster child for gene-environment interaction research, though the story is more complex than early headlines suggested.",
     "what_it_means": "SLC6A4 recycles serotonin from the synapse back into neurons. The 5-HTTLPR polymorphism (short vs long) affects how much transporter is produced — SSRIs (Prozac, Zoloft) directly block this same protein.",
     "carrier_note": "The short allele is carried by ~40-45% of Europeans and ~70-80% of East Asians. Early studies linking it to depression haven't replicated well in large GWAS — the effect, if real, requires specific life stressors.",
     "nonref_interpretation": "The key variant (5-HTTLPR) is a length polymorphism that most arrays can't directly genotype. Proxy SNPs may be reported instead. Interpret cautiously.",
@@ -309,7 +309,7 @@
   },
   "NFE2L2": {
     "emoji": "🛡️",
-    "editorial_description": "Your antioxidant master switch. NRF2 (encoded by NFE2L2) activates over 200 protective genes when cells are stressed — the reason broccoli, exercise, and fasting trigger cellular defense systems.",
+    "editorial_description": "Better known as NRF2 — your antioxidant master switch. This gene activates over 200 protective genes when cells are stressed — the reason broccoli, exercise, and fasting trigger cellular defense systems.",
     "what_it_means": "NRF2 is normally held inactive by KEAP1. Under oxidative stress, it's released and activates a massive battery of detoxification, antioxidant, and anti-inflammatory genes simultaneously.",
     "carrier_note": "NFE2L2 variants are poorly characterized in consumer genetics. The gene is so critical that damaging mutations are likely selected against. Common polymorphisms have subtle effects.",
     "nonref_interpretation": "Variants here are mostly in regulatory regions with small, poorly-understood effects on NRF2 expression or activation threshold.",
@@ -815,7 +815,7 @@
   },
   "PDCD1": {
     "emoji": "🛤️",
-    "editorial_description": "PD-1 — the 'don't kill me' receptor on T cells. Tumors exploit PD-1 to hide from immunity. Blocking it with pembrolizumab (Keytruda) or nivolumab (Opdivo) has become the backbone of modern cancer immunotherapy.",
+    "editorial_description": "Better known as PD-1 (Programmed Death-1) — the 'don't kill me' receptor on T cells. Tumors exploit PD-1 to hide from immunity. Blocking it with pembrolizumab (Keytruda) or nivolumab (Opdivo) has become the backbone of modern cancer immunotherapy.",
     "what_it_means": "PD-1 on T cells binds PD-L1 on target cells, delivering an inhibitory signal that prevents killing. This normally prevents autoimmunity but tumors hijack it by expressing PD-L1 to evade immune destruction.",
     "carrier_note": "Common PDCD1 variants (e.g., PD-1.3, rs11568821) are associated with autoimmune disease susceptibility. They affect PD-1 expression and threshold for T cell inhibition.",
     "nonref_interpretation": "Non-reference variants may indicate altered PD-1 expression — potentially affecting autoimmune risk. Not predictive of cancer immunotherapy response.",
@@ -826,7 +826,7 @@
   },
   "CD274": {
     "emoji": "🫣",
-    "editorial_description": "PD-L1 — the tumor's invisibility cloak. CD274 encodes the ligand that tumors display to shut down attacking T cells. Its expression on biopsies is now one of the most ordered biomarker tests in oncology.",
+    "editorial_description": "Better known as PD-L1 — the tumor's invisibility cloak. This gene encodes the ligand that tumors display to shut down attacking T cells. Its expression on biopsies is now one of the most ordered biomarker tests in oncology.",
     "what_it_means": "PD-L1 on cell surfaces engages PD-1 on T cells to suppress immune attack. Tumors upregulate PD-L1 to become invisible to immunity. PD-L1 expression level predicts immunotherapy response in many cancers.",
     "carrier_note": "Germline CD274 variants are poorly characterized for individual health effects. The clinically relevant question is tumor PD-L1 expression (a somatic/microenvironmental property), not germline genotype.",
     "nonref_interpretation": "Non-reference germline variants have uncertain significance for individual health. PD-L1 biology is primarily studied in tumor context.",
@@ -914,7 +914,7 @@
   },
   "SERPINE1": {
     "emoji": "⏱️",
-    "editorial_description": "PAI-1 — the anti-clot-dissolver. SERPINE1 prevents your body from breaking down blood clots. A unique Amish community with loss-of-function mutations lives significantly longer and has less diabetes, suggesting PAI-1 accelerates aging.",
+    "editorial_description": "Better known as PAI-1 (Plasminogen Activator Inhibitor-1). This gene prevents your body from breaking down blood clots. A unique Amish community with loss-of-function mutations lives significantly longer and has less diabetes, suggesting PAI-1 accelerates aging.",
     "what_it_means": "PAI-1 inhibits tissue plasminogen activator (tPA), blocking fibrinolysis. High PAI-1 = clots persist longer. The 4G/5G polymorphism (rs1799889) in the promoter determines expression level.",
     "carrier_note": "The 4G allele (higher PAI-1) is found in ~50% of people. 4G/4G homozygotes have the highest PAI-1 levels and modestly elevated cardiovascular risk. The 5G allele = lower expression.",
     "nonref_interpretation": "Non-reference at the 4G/5G locus indicates the 5G (lower PAI-1) allele — generally considered favorable for cardiovascular health and possibly longevity.",
@@ -1134,7 +1134,7 @@
   },
   "NPPB": {
     "emoji": "💧",
-    "editorial_description": "The heart failure biomarker gene. BNP (B-type Natriuretic Peptide) is released when heart walls stretch. The BNP blood test is one of the most ordered in emergency medicine — it tells doctors whether breathlessness is cardiac or pulmonary.",
+    "editorial_description": "Better known as BNP (B-type Natriuretic Peptide) — the heart failure biomarker gene. BNP is released when heart walls stretch. The BNP blood test is one of the most ordered in emergency medicine — it tells doctors whether breathlessness is cardiac or pulmonary.",
     "what_it_means": "BNP is secreted by cardiac ventricles under volume/pressure stress. It causes vasodilation, natriuresis (salt excretion), and suppresses RAAS — the heart's emergency pressure-relief valve.",
     "carrier_note": "Common NPPB variants affect baseline BNP levels and may confound the diagnostic blood test. Some people have genetically higher or lower BNP independent of heart function.",
     "nonref_interpretation": "Non-reference variants may indicate genetically altered BNP levels. Useful context if your BNP blood tests are unexpectedly high or low relative to cardiac function.",
@@ -1189,7 +1189,7 @@
   },
   "ABL1": {
     "emoji": "💊",
-    "editorial_description": "The Gleevec gene. The BCR-ABL fusion (Philadelphia chromosome) drives chronic myeloid leukemia. Imatinib (Gleevec) targeting BCR-ABL transformed CML from fatal to manageable — the founding triumph of precision medicine.",
+    "editorial_description": "Better known as the Gleevec gene (c-Abl). The BCR-ABL fusion (Philadelphia chromosome) drives chronic myeloid leukemia. Imatinib (Gleevec) targeting BCR-ABL transformed CML from fatal to manageable — the founding triumph of precision medicine.",
     "what_it_means": "Normal ABL1 is a tightly regulated tyrosine kinase. The t(9;22) translocation fuses it to BCR, creating a constitutively active kinase that drives white blood cell proliferation in CML.",
     "carrier_note": "The Philadelphia chromosome is a somatic event (not inherited). Germline ABL1 variants are benign polymorphisms. Consumer arrays test germline DNA and cannot detect BCR-ABL.",
     "nonref_interpretation": "Non-reference germline variants are benign. BCR-ABL detection requires specific molecular testing (FISH or PCR) on blood/bone marrow.",
@@ -1277,7 +1277,7 @@
   },
   "CDKN1A": {
     "emoji": "✋",
-    "editorial_description": "p21 — the cell cycle stop sign. When p53 detects DNA damage, it activates p21 to halt cell division for repairs. p21 is also a key mediator of cellular senescence — the permanent growth arrest of damaged cells that accumulates with aging.",
+    "editorial_description": "Better known as p21 — the cell cycle stop sign. When p53 detects DNA damage, it activates p21 to halt cell division for repairs. p21 is also a key mediator of cellular senescence — the permanent growth arrest of damaged cells that accumulates with aging.",
     "what_it_means": "p21 (CDKN1A) inhibits CDK2 and CDK4, blocking cell cycle progression at G1. It's directly activated by p53 after DNA damage, giving cells time to repair. Persistent p21 expression drives senescence.",
     "carrier_note": "Common CDKN1A variants (e.g., C31A codon 31, rs1801270) modestly affect p21 function and are found in ~15-25% of people. Effects on cancer risk are small and inconsistent across studies.",
     "nonref_interpretation": "Non-reference variants may subtly alter p21 activity or expression. Part of the polygenic landscape affecting cell cycle control and potentially cancer risk.",
@@ -1453,7 +1453,7 @@
   },
   "LGALS3": {
     "emoji": "🔮",
-    "editorial_description": "Galectin-3 — an emerging biomarker for heart failure and fibrosis. This sugar-binding lectin promotes scarring in the heart, liver, and kidneys. Blood galectin-3 levels predict heart failure progression and are now an FDA-cleared test.",
+    "editorial_description": "Better known as Galectin-3 — an emerging biomarker for heart failure and fibrosis. This sugar-binding lectin promotes scarring in the heart, liver, and kidneys. Blood galectin-3 levels predict heart failure progression and are now an FDA-cleared test.",
     "what_it_means": "Galectin-3 binds beta-galactosides on cell surfaces and in the matrix, promoting fibroblast activation and collagen deposition. It drives cardiac fibrosis, renal fibrosis, and the tumor microenvironment.",
     "carrier_note": "Common LGALS3 variants (e.g., rs4644, rs4652) affect galectin-3 levels and are found in 15-30% of people. Higher levels are associated with heart failure and mortality risk.",
     "nonref_interpretation": "Non-reference variants may indicate altered galectin-3 expression. Context for interpreting galectin-3 blood tests and understanding fibrosis predisposition.",
@@ -1574,7 +1574,7 @@
   },
   "TNFSF10": {
     "emoji": "🗡️",
-    "editorial_description": "TRAIL — the cancer-selective death ligand. TRAIL kills cancer cells while sparing normal ones, making it one of the most exciting (and frustrating) immunotherapy concepts. Despite decades of work, harnessing TRAIL clinically remains challenging.",
+    "editorial_description": "Better known as TRAIL (TNF-Related Apoptosis-Inducing Ligand). It kills cancer cells while sparing normal ones, making it one of the most exciting (and frustrating) immunotherapy concepts. Despite decades of work, harnessing TRAIL clinically remains challenging.",
     "what_it_means": "TRAIL (TNF-Related Apoptosis-Inducing Ligand) binds death receptors DR4/DR5 on target cells, activating caspase-8 and apoptosis. Normal cells resist TRAIL through decoy receptors and high c-FLIP — cancer cells often lack these protections.",
     "carrier_note": "Common TNFSF10 variants have minimal clinical significance for individual health. TRAIL biology is primarily relevant for cancer therapy and immune surveillance research.",
     "nonref_interpretation": "Non-reference variants are generally benign polymorphisms. TRAIL's importance is in tumor biology and therapy, not germline genetics.",
@@ -1706,7 +1706,7 @@
   },
   "BIRC5": {
     "emoji": "🧟",
-    "editorial_description": "Survivin — the anti-death protein expressed in virtually every tumor but almost never in normal adult tissue. This makes it one of the most cancer-specific targets known, driving intense drug and vaccine development.",
+    "editorial_description": "Better known as Survivin — the anti-death protein expressed in virtually every tumor but almost never in normal adult tissue. This makes it one of the most cancer-specific targets known, driving intense drug and vaccine development.",
     "what_it_means": "Survivin inhibits apoptosis by blocking caspase activation and is essential for chromosome segregation during mitosis. It's expressed in embryonic tissues and reactivated in cancer, enabling both immortality and division.",
     "carrier_note": "Common BIRC5 promoter variants (e.g., -31 G>C, rs9904341) affect survivin expression and are found in ~40% of people. Higher-expression variants are associated with modestly increased cancer risk.",
     "nonref_interpretation": "Non-reference at rs9904341 may indicate altered survivin expression. Context for cancer risk but not individually actionable.",
@@ -1717,7 +1717,7 @@
   },
   "MAPK1": {
     "emoji": "📡",
-    "editorial_description": "ERK2 — the final kinase in the RAS-RAF-MEK-ERK cascade. It enters the nucleus and activates transcription factors driving cell proliferation. MEK inhibitors (trametinib) blocking ERK activation are standard cancer therapy.",
+    "editorial_description": "Better known as ERK2 — the final kinase in the RAS-RAF-MEK-ERK cascade. It enters the nucleus and activates transcription factors driving cell proliferation. MEK inhibitors (trametinib) blocking ERK activation are standard cancer therapy.",
     "what_it_means": "ERK2 (MAPK1) is phosphorylated by MEK1/2 and translocates to the nucleus where it activates transcription factors (ELK1, MYC, FOS). It's the terminal effector of the RAS/MAPK growth signaling pathway.",
     "carrier_note": "MAPK1 is highly conserved with no well-characterized common pathogenic variants. It's too essential for significant germline variation. Pathway activation in cancer comes from upstream mutations (RAS, RAF).",
     "nonref_interpretation": "Non-reference variants are generally benign. ERK2 itself is rarely mutated — cancer activates this pathway through upstream oncogenes.",
@@ -1772,7 +1772,7 @@
   },
   "HSP90AA1": {
     "emoji": "🌡️",
-    "editorial_description": "The protein chaperone that cancer depends on. HSP90 helps hundreds of client proteins fold correctly — including many oncoproteins. Cancer cells are 'addicted' to HSP90, making it an attractive drug target for simultaneously hitting multiple cancer pathways.",
+    "editorial_description": "Better known as HSP90 — the protein chaperone that cancer depends on. It helps hundreds of client proteins fold correctly — including many oncoproteins. Cancer cells are 'addicted' to HSP90, making it an attractive drug target for simultaneously hitting multiple cancer pathways.",
     "what_it_means": "HSP90 stabilizes client proteins (including HER2, EGFR, AKT, RAF, mutant p53) in their active conformations. Under stress, it prevents protein aggregation. Cancer cells have higher HSP90 activity to support their mutated proteome.",
     "carrier_note": "HSP90AA1 is highly conserved and essential. Common variants have minimal characterized health effects. The gene is more important as a drug target than as a source of genetic risk.",
     "nonref_interpretation": "Non-reference variants are generally benign. HSP90 biology matters for cancer therapy and proteostasis, not personal genetic risk assessment.",
@@ -1783,7 +1783,7 @@
   },
   "VIM": {
     "emoji": "🧵",
-    "editorial_description": "Vimentin — the intermediate filament of mesenchymal cells. It's the hallmark of epithelial-to-mesenchymal transition (EMT) in cancer. When tumor cells gain vimentin, they've switched from growing to invading.",
+    "editorial_description": "Better known as Vimentin — the intermediate filament of mesenchymal cells. It's the hallmark of epithelial-to-mesenchymal transition (EMT) in cancer. When tumor cells gain vimentin, they've switched from growing to invading.",
     "what_it_means": "Vimentin provides structural support and mechanical resilience to mesenchymal cells (fibroblasts, endothelial cells, immune cells). In carcinomas, vimentin expression indicates EMT — cells becoming mobile and invasive.",
     "carrier_note": "VIM has no well-characterized pathogenic germline variants. It's more important as a diagnostic/prognostic marker (EMT indicator in tumors) than as a source of genetic disease.",
     "nonref_interpretation": "Non-reference variants are generally benign. Vimentin's clinical relevance is in tumor pathology and EMT assessment.",
@@ -1794,7 +1794,7 @@
   },
   "MKI67": {
     "emoji": "📊",
-    "editorial_description": "Ki-67 — the proliferation marker used in virtually every cancer pathology report. The percentage of tumor cells staining positive for Ki-67 directly indicates how fast the cancer is growing. High Ki-67 = aggressive; low = indolent.",
+    "editorial_description": "Better known as Ki-67 — the proliferation marker used in virtually every cancer pathology report. The percentage of tumor cells staining positive for Ki-67 directly indicates how fast the cancer is growing. High Ki-67 = aggressive; low = indolent.",
     "what_it_means": "Ki-67 is expressed exclusively in proliferating cells (all cell cycle phases except G0). It coats chromosomes during mitosis, though its exact function remains surprisingly unclear. Its clinical value is purely as a proliferation marker.",
     "carrier_note": "MKI67 has no clinically relevant germline variants. Its importance is entirely as a tumor proliferation marker — the Ki-67 index on biopsy reports guides treatment intensity decisions.",
     "nonref_interpretation": "Non-reference variants are not clinically significant. Ki-67's role is in tumor pathology, not personal genetics.",
@@ -1827,7 +1827,7 @@
   },
   "AGER": {
     "emoji": "🧪",
-    "editorial_description": "RAGE — the Receptor for Advanced Glycation End-products. It binds damage signals (AGEs, HMGB1, amyloid) and drives chronic inflammation. It's chronically activated in diabetes, Alzheimer's, and atherosclerosis — the diseases of aging.",
+    "editorial_description": "Better known as RAGE (Receptor for Advanced Glycation End-products). It binds damage signals (AGEs, HMGB1, amyloid) and drives chronic inflammation. It's chronically activated in diabetes, Alzheimer's, and atherosclerosis — the diseases of aging.",
     "what_it_means": "RAGE binds multiple ligands including AGEs (from glycation), HMGB1 (from cell damage), S100 proteins, and amyloid-β. All these signals converge on NF-κB activation and sustained inflammation.",
     "carrier_note": "The Gly82Ser variant (rs2070600) affects RAGE ligand binding and is found in ~5-15% of populations. Soluble RAGE (sRAGE) acts as a decoy receptor — common variants affect the sRAGE/membrane RAGE ratio.",
     "nonref_interpretation": "Non-reference variants may alter RAGE signaling or sRAGE production. Context for understanding AGE-driven inflammation in metabolic disease.",
@@ -1893,7 +1893,7 @@
   },
   "MAPK14": {
     "emoji": "🔥",
-    "editorial_description": "p38 MAPK — the stress-activated kinase that translates cellular stress into inflammatory cytokine production. It's the kinase that makes TNF, IL-1, and IL-6 during inflammation. p38 inhibitors have been attempted for decades in rheumatology.",
+    "editorial_description": "Better known as p38α — the stress-activated kinase that translates cellular stress into inflammatory cytokine production. It's the kinase that makes TNF, IL-1, and IL-6 during inflammation. p38 inhibitors have been attempted for decades in rheumatology.",
     "what_it_means": "p38α (MAPK14) is activated by environmental stress, UV, osmotic shock, and inflammatory cytokines. It stabilizes inflammatory mRNA transcripts and activates MK2, which produces TNF and IL-6.",
     "carrier_note": "MAPK14 is highly conserved with minimal common functional variants. Its importance is as a drug target and signaling node rather than a source of genetic risk.",
     "nonref_interpretation": "Non-reference variants are generally benign. p38 biology matters for inflammation pharmacology, not personal genetics.",
@@ -1959,7 +1959,7 @@
   },
   "CDKN1B": {
     "emoji": "⏸️",
-    "editorial_description": "p27 — the cell cycle brake that growth factors release. p27 inhibits CDK2 to keep cells quiescent. Its degradation is the key event allowing cells to commit to division. Low p27 in tumors predicts aggressive behavior.",
+    "editorial_description": "Better known as p27 — the cell cycle brake that growth factors release. It inhibits CDK2 to keep cells quiescent. Its degradation is the key event allowing cells to commit to division. Low p27 in tumors predicts aggressive behavior.",
     "what_it_means": "p27 binds and inhibits CDK2/cyclin E complexes, preventing S-phase entry. Mitogenic signals trigger p27 phosphorylation and ubiquitin-mediated degradation, releasing the brake on proliferation.",
     "carrier_note": "Germline CDKN1B mutations cause MEN4 (multiple endocrine neoplasia type 4) — very rare. Common variants modestly affect cancer risk. Low p27 expression in tumors is a well-established poor prognostic marker.",
     "nonref_interpretation": "Common variants may subtly affect p27 expression or stability. Context for cell cycle control but not individually actionable for most people.",
@@ -2025,7 +2025,7 @@
   },
   "SPP1": {
     "emoji": "🦴",
-    "editorial_description": "Osteopontin — a multifunctional secreted protein involved in bone remodeling, immune activation, and cancer metastasis. It's a biomarker for tumor burden and inflammation, elevated in nearly every aggressive cancer.",
+    "editorial_description": "Better known as Osteopontin (OPN) — a multifunctional secreted protein involved in bone remodeling, immune activation, and cancer metastasis. It's a biomarker for tumor burden and inflammation, elevated in nearly every aggressive cancer.",
     "what_it_means": "Osteopontin (OPN) bridges cells to mineralized matrix in bone, activates macrophages and T cells, and promotes cancer cell survival and metastasis. It signals through integrins (esp. αvβ3) and CD44.",
     "carrier_note": "Common SPP1 variants affect circulating osteopontin levels. Higher levels are associated with autoimmune disease, cardiovascular disease, and cancer progression, though causality vs biomarker status is debated.",
     "nonref_interpretation": "Non-reference variants may indicate altered osteopontin expression. Context for understanding bone turnover, immune activation, and cancer biology.",
@@ -2058,7 +2058,7 @@
   },
   "PRKDC": {
     "emoji": "🔧",
-    "editorial_description": "DNA-PKcs — the guardian of chromosome ends. This massive kinase repairs double-strand DNA breaks (the most dangerous lesion) and is essential for immune system development (V(D)J recombination generates antibody diversity).",
+    "editorial_description": "Better known as DNA-PKcs (DNA-dependent Protein Kinase catalytic subunit). This massive kinase repairs double-strand DNA breaks (the most dangerous lesion) and is essential for immune system development (V(D)J recombination generates antibody diversity).",
     "what_it_means": "DNA-PKcs is recruited to broken DNA ends by Ku70/Ku80, where it phosphorylates itself and repair factors to coordinate non-homologous end joining (NHEJ). It's also needed for V(D)J recombination in lymphocyte development.",
     "carrier_note": "PRKDC is one of the largest protein-coding genes (4,128 amino acids). Loss-of-function causes severe combined immunodeficiency (SCID) in mice and radiosensitivity. Common human variants are benign.",
     "nonref_interpretation": "Non-reference variants are generally benign. True loss-of-function would present as immunodeficiency in infancy.",
@@ -2069,7 +2069,7 @@
   },
   "PTK2": {
     "emoji": "📌",
-    "editorial_description": "Focal Adhesion Kinase (FAK) — the mechanosensor at cell-matrix attachment sites. FAK integrates signals from integrins and growth factors, telling cells whether their environment supports survival and migration.",
+    "editorial_description": "Better known as FAK (Focal Adhesion Kinase) — the mechanosensor at cell-matrix attachment sites. It integrates signals from integrins and growth factors, telling cells whether their environment supports survival and migration.",
     "what_it_means": "FAK autophosphorylates at focal adhesions when integrins engage extracellular matrix. This creates docking sites for SRC and PI3K, linking cell attachment to survival signaling. Detached cells without FAK signaling undergo anoikis (detachment-induced death).",
     "carrier_note": "PTK2 has no well-characterized common pathogenic variants. FAK overexpression in cancer is a somatic event that promotes invasion and survival. The gene is essential for embryonic development.",
     "nonref_interpretation": "Non-reference variants are generally benign. FAK biology matters for cancer invasion and mechanobiology research.",
@@ -2080,7 +2080,7 @@
   },
   "HSPA5": {
     "emoji": "🏭",
-    "editorial_description": "BiP/GRP78 — the endoplasmic reticulum's master chaperone. It folds every secreted and membrane protein in your cells. When overwhelmed (ER stress), it activates the unfolded protein response (UPR) — a decision between adaptation and apoptosis.",
+    "editorial_description": "Better known as BiP (or GRP78) — the endoplasmic reticulum's master chaperone. It folds every secreted and membrane protein in your cells. When overwhelmed (ER stress), it activates the unfolded protein response (UPR) — a decision between adaptation and apoptosis.",
     "what_it_means": "BiP binds to unfolded proteins in the ER, assisting their folding. When misfolded proteins accumulate (ER stress), BiP releases from IRE1/PERK/ATF6 sensors, activating the UPR to restore proteostasis or trigger cell death if stress is irresolvable.",
     "carrier_note": "HSPA5 is extremely conserved and essential. No common pathogenic variants are characterized. Rare biallelic loss-of-function causes Marinesco-Sjogren syndrome-like features.",
     "nonref_interpretation": "Non-reference variants are generally benign. BiP/GRP78 biology is important for understanding ER stress in diabetes, neurodegeneration, and cancer.",
@@ -2091,7 +2091,7 @@
   },
   "LCN2": {
     "emoji": "🦠",
-    "editorial_description": "Lipocalin-2 (NGAL) — your body's iron theft-prevention system. LCN2 sequesters iron-laden siderophores that bacteria use to steal your iron. It's also an early kidney injury biomarker — rising within hours of damage, far faster than creatinine.",
+    "editorial_description": "Better known as NGAL (Neutrophil Gelatinase-Associated Lipocalin) — your body's iron theft-prevention system. It sequesters iron-laden siderophores that bacteria use to steal your iron. Also an early kidney injury biomarker — rising within hours of damage, far faster than creatinine.",
     "what_it_means": "LCN2 binds bacterial siderophores (iron-chelating molecules), preventing bacteria from acquiring the iron they need to grow. It's part of nutritional immunity — starving pathogens of essential metals.",
     "carrier_note": "Common LCN2 variants are poorly characterized for health effects. Clinical importance is primarily as a biomarker (NGAL for acute kidney injury) rather than a genetic risk factor.",
     "nonref_interpretation": "Non-reference variants have uncertain significance. LCN2's clinical relevance is as a kidney injury biomarker and antimicrobial protein.",
@@ -2113,7 +2113,7 @@
   },
   "MAPK8": {
     "emoji": "⚠️",
-    "editorial_description": "JNK1 — the stress-activated kinase linking inflammation to insulin resistance and obesity. JNK is activated by cellular stress and inflammatory signals, and its chronic activation in fat tissue drives type 2 diabetes.",
+    "editorial_description": "You know this one as JNK1 (c-Jun N-terminal Kinase 1). It's the stress-activated kinase linking inflammation to insulin resistance and obesity — activated by cellular stress and inflammatory signals, its chronic activation in fat tissue drives type 2 diabetes.",
     "what_it_means": "JNK1 (MAPK8) is activated by TNF, oxidative stress, and free fatty acids. It phosphorylates IRS-1 (inhibiting insulin signaling) and c-Jun (activating AP-1). Chronic JNK activation in adipose tissue causes insulin resistance.",
     "carrier_note": "MAPK8 is conserved with minimal common functional variants. JNK's role in metabolic disease is established through pathway biology, not individual genetic risk.",
     "nonref_interpretation": "Non-reference variants are generally benign. JNK biology matters for understanding the obesity-inflammation-diabetes connection.",
@@ -2124,7 +2124,7 @@
   },
   "HSPA8": {
     "emoji": "🧹",
-    "editorial_description": "HSC70 — the constitutive housekeeping chaperone that performs chaperone-mediated autophagy (CMA). Unlike stress-induced HSP70, HSC70 works constantly, selecting damaged proteins one-by-one for lysosomal degradation.",
+    "editorial_description": "Better known as HSC70 — the constitutive housekeeping chaperone that performs chaperone-mediated autophagy (CMA). Unlike stress-induced HSP70, HSC70 works constantly, selecting damaged proteins one-by-one for lysosomal degradation.",
     "what_it_means": "HSC70 recognizes proteins with KFERQ-like motifs and delivers them to LAMP-2A on lysosomes for selective degradation (CMA). It also assists protein folding and clathrin-mediated endocytosis. It's always active, not stress-induced.",
     "carrier_note": "HSPA8 is one of the most conserved and abundant human proteins. No common pathogenic variants are characterized — it's too essential for significant variation.",
     "nonref_interpretation": "Non-reference variants are expected to be benign. HSPA8 is under extreme purifying selection.",
@@ -2168,7 +2168,7 @@
   },
   "MAPK3": {
     "emoji": "📡",
-    "editorial_description": "ERK1 — MAPK1's (ERK2) partner in the RAS-RAF-MEK-ERK cascade. ERK1 and ERK2 are 85% identical and largely redundant, though ERK2 is more abundant. Together they execute growth factor-driven transcriptional responses.",
+    "editorial_description": "Better known as ERK1 — MAPK1/ERK2's partner in the RAS-RAF-MEK-ERK cascade. ERK1 and ERK2 are 85% identical and largely redundant, though ERK2 is more abundant. Together they execute growth factor-driven transcriptional responses.",
     "what_it_means": "ERK1 (MAPK3) is activated alongside ERK2 by MEK1/2 and phosphorylates nuclear transcription factors. The ERK1/ERK2 duo together constitute the terminal effectors of the most important growth signaling pathway in cancer.",
     "carrier_note": "MAPK3 is conserved with minimal characterized variation. ERK1 knockout mice are viable (ERK2 compensates), suggesting ERK1 is partially dispensable. No known common pathogenic variants.",
     "nonref_interpretation": "Non-reference variants are generally benign. ERK1 is largely redundant with ERK2 for most functions.",
